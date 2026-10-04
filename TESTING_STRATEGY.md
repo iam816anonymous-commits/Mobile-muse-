@@ -1,4 +1,4 @@
-# TESTING_STRATEGY.md — Master Testing Strategy & Certification Framework
+# TESTING_STRATEGY.md — Master Testing Strategy & CI/CD Framework
 
 ## 1. Executive Summary & Testing Philosophy
 
@@ -16,103 +16,56 @@ Testing in **LocalAgent** is a core product feature and architectural gatekeeper
 
 ---
 
-## 2. Three-Level Test Architecture
+## 2. GitHub CI/CD Foundation & Workflow Architecture
+
+The CI/CD pipeline (`.github/workflows/ci.yml`) executes automated validation on every push and pull request targeting development and main branches.
 
 ```text
-                                 ▲
-                                / \
-                               /   \   LEVEL 3: CROSS-APP E2E TESTS
-                              /     \  (Real App Automation: Settings, Calculator, Files, Chrome)
-                             /───────\
-                            /         \   LEVEL 2: DEVICE SELF TESTS
-                           /           \  (Real Framework Services, Room DB, A11y Binding, Overlay)
-                          /─────────────\
-                         /               \   LEVEL 1: CONTRACT / UNIT TESTS
-                        /                 \  (Command Parsing, Policy Engine, Diff Math, Queue Priority)
-                       /───────────────────\
+PUSH / PULL REQUEST
+       │
+       ▼
+1. Checkout Repository (actions/checkout@v4)
+       │
+       ▼
+2. Toolchain Setup (JDK 17 Temurin, Gradle Build Action)
+       │
+       ▼
+3. Run Level 1 Unit Tests (`./gradlew test`)
+       │
+       ▼
+4. Assemble Debug APK (`./gradlew assembleDebug`)
+       │
+       ▼
+5. Artifact Collection & Upload (actions/upload-artifact@v4)
+   ├── `unit-test-reports` (Retention: 7 days)
+   └── `localagent-debug-apk` (Retention: 14 days)
 ```
+
+### Local Equivalent Commands
+CI/CD uses identical local Gradle tasks to ensure 100% validation parity:
+- **Run Unit Tests:** `./gradlew test` (or `gradle test`)
+- **Assemble Debug APK:** `./gradlew assembleDebug` (or `gradle assembleDebug`)
+- **Clean Build:** `./gradlew clean` (or `gradle clean`)
 
 ---
 
 ## 3. Detailed Level Specifications
 
 ### LEVEL 1 — CONTRACT / UNIT TESTS
-- **Framework:** JUnit 5 / MockK / Kotlin Test.
-- **Execution:** Fast local execution (< 5 seconds) via `./gradlew test`.
-- **Scope:** Pure Kotlin logic inside `core/`, `storage/`, `solver/`, `research/`, `voice/`, and `memory/` modules. No physical UI or Android framework binding required.
+- **Framework:** JUnit 4 / Kotlin Test.
+- **Execution:** Fast local/CI execution (< 5 seconds) via `./gradlew test`.
+- **Scope:** Pure Kotlin logic inside `core/` and `app/` modules. No physical UI or Android framework binding required.
 - **Test Coverage:**
   - `NormalizedCommand` parsing and syntax validation.
   - `CommandRegistry` syntax lookup.
   - `ActionPolicyEngine` risk tier classification (LOW, MEDIUM, HIGH, CRITICAL).
-  - `TargetResolver` ancestor search algorithms (Clickable, Scrollable, Editable).
-  - `NodeIdentityConfidence` classification math.
-  - `SnapshotDiffEngine` state-diff logic.
-  - `EventLogger` batching, SQLite query generation, and WAL checkpoint retention math.
-  - Prompt injection tag wrapping and untrusted data isolation.
+  - `GoalDispatcher` priority queue scheduling & `ExecutionLock` thread safety.
+  - `TaskLifecycle` state machine transitions (including LMK recovery transitions).
 
 ### LEVEL 2 — DEVICE SELF TESTS
 - **Framework:** AndroidX Test Runner / Robolectric / Room Test DB / `TestCenter` UI.
-- **Execution:** Run via `./gradlew connectedAndroidTest` or inside the app's `TestCenter` UI.
-- **Scope:** Real Android framework-dependent components running on an Android OS instance.
-- **Test Coverage:**
-  - Contract execution suites: Verify that dispatching `NormalizedCommand` via Console, Overlay, and Voice hits the exact same `GoalDispatcher` and produces identical `AgentEvent` traces.
-  - Unified SQLite `agent.db` migrations, query performance, and `PRAGMA wal_checkpoint(TRUNCATE)` on API 27.
-  - `PermissionManager` settings intent generation and passive degradation semantics.
-  - `ObservationSnapshotGenerator` single-root node recycling.
-  - `AgentAccessibilityService` connection/disconnection broadcasts and passive degradation.
+- **Execution:** Run via `./gradlew connectedAndroidTest` or inside the app's Foundation Test UI / `TestCenter`.
 
 ### LEVEL 3 — CROSS-APP E2E TESTS
 - **Framework:** Android UIAutomator / `AgentAccessibilityService`.
 - **Primary Baseline Target:** Physical Android 8.1 (API 27) reference device or emulator.
-- **Scope:** End-to-end device interactions across third-party applications (Settings, Calculator, Files, Chrome).
-- **Mandatory Action Test Matrix:**
-
-| Test ID | Command | Target App | Expected Pre-State | Expected Post-State | Pass Criteria |
-|---|---|---|---|---|---|
-| `TEST-ACT-001` | `launch Settings` | Settings (`com.android.settings`) | Launcher Foreground | Settings Activity Foreground | Package == `com.android.settings` |
-| `TEST-ACT-002` | `click "7"` | Calculator (`com.google.android.calculator`) | Blank Formula Field | "7" appended in Formula Field | Formula text == "7" & TargetClickStrategy Verified |
-| `TEST-ACT-003` | `click "+"` | Calculator (`com.google.android.calculator`) | Formula "7" | Formula "7+" | Formula text == "7+" & TargetClickStrategy Verified |
-| `TEST-ACT-004` | `scroll down` | Settings (`com.android.settings`) | Top of Settings list | Lower items visible | ScrollVerificationStrategy Verified |
-| `TEST-ACT-005` | `back` | Any foreground app | App in foreground | Previous screen or Launcher | NavigationAwareBackStrategy Verified |
-| `TEST-ACT-006` | `home` | Any foreground app | App in foreground | Home Launcher in foreground | Foreground package == Launcher |
-| `TEST-ACT-007` | `recents` | Any foreground app | App in foreground | Recents UI visible | Recents window state diff |
-
----
-
-## 4. Resource & Low-RAM Stress Tests (Level 3 Validation)
-
-- **Target Platform:** Android 8.1 API 27 low-RAM device (1.5 GB RAM reference profile).
-- **Execution Checks:**
-  1. **Continuous Dispatch Leak Test:** Execute 1,000 sequential `UI_CLICK` actions while monitoring process heap via `Runtime.getRuntime().freeMemory()`. Heap footprint must remain within engineering targets (< 35 MB) with zero `OutOfMemoryError` or un-recycled native nodes.
-  2. **LMK Death Recovery Test:** Trigger simulated process kill via `adb shell am kill com.localagent.app`. Confirm process restarts cleanly, restores persistent state from `agent.db`, and resumes without crashing.
-  3. **Log Storage & WAL Checkpoint Cap Test:** Generate 100,000 continuous event logs. Verify `agent.db` + `agent.db-wal` file size remains under 30 MB cap and older logs are purged automatically.
-
----
-
-## 5. Master Test Runner Component (`TestCenter`)
-
-In addition to Gradle test tasks, the app itself contains a built-in **Diagnostic Test Center UI**:
-
-```text
-                     ┌───────────────────────────────────────────────┐
-                     │            LOCALAGENT TEST CENTER             │
-                     │  [ Run Level 1: Contract & Policy Suite ]     │
-                     │  [ Run Level 2: Device Service Self Tests ]   │
-                     │  [ Run Level 3: Cross-App E2E Test Suite ]    │
-                     │  [ Run Master System Certification ]          │
-                     └───────────────────────┬───────────────────────┘
-                                             │
-                                             ▼
-                     ┌───────────────────────────────────────────────┐
-                     │          In-App Master Test Runner            │
-                     │   Executes test contracts sequentially        │
-                     │   Generates diagnostic evidence log           │
-                     └───────────────────────┬───────────────────────┘
-                                             │
-                                             ▼
-                     ┌───────────────────────────────────────────────┐
-                     │          Certification Report Output          │
-                     │   PASS: 58 | FAIL: 0 | SKIPPED: 2             │
-                     │   Saved to: evidence/certification-report.json│
-                     └───────────────────────────────────────────────┘
-```

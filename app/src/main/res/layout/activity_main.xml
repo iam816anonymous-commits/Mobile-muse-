@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- HEADER -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LOCAL AGENT"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Foundation Test UI (Phase 1 Baseline)"
+            android:textSize="14sp"
+            android:textColor="#757575"
+            android:layout_marginBottom="16dp" />
+
+        <!-- AGENT STATUS SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AGENT STATUS"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:textColor="#2196F3" />
+
+        <TextView
+            android:id="@+id/tvAgentStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="State: ACTIVE | Core Initialized: YES | Phase 1 Baseline"
+            android:textSize="13sp"
+            android:layout_marginBottom="12dp" />
+
+        <!-- SERVICE / CAPABILITY STATUS SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CAPABILITY / SERVICE STATUS"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:textColor="#2196F3" />
+
+        <TextView
+            android:id="@+id/tvServiceStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Accessibility Service: DISCONNECTED (Phase 4 Required)\nInternet Permission: GRANTED"
+            android:textSize="13sp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- COMMAND INPUT SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="COMMAND INPUT"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:textColor="#2196F3" />
+
+        <EditText
+            android:id="@+id/etCommandInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Type command (e.g., click 7, back, launch Settings)"
+            android:inputType="text"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnExecute"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="EXECUTE"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnObserve"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="OBSERVE" />
+        </LinearLayout>
+
+        <!-- LATEST RESULT SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LATEST RESULT"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:textColor="#2196F3" />
+
+        <TextView
+            android:id="@+id/tvLatestResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No command executed yet."
+            android:textSize="13sp"
+            android:padding="8dp"
+            android:background="#F5F5F5"
+            android:layout_marginBottom="16dp" />
+
+        <!-- RECENT EVENTS LOG SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RECENT EVENTS (Bounded Stream)"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:textColor="#2196F3" />
+
+        <TextView
+            android:id="@+id/tvRecentEvents"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="[EVENT] System initialized."
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:background="#FAFAFA" />
+
+    </LinearLayout>
+</ScrollView>
