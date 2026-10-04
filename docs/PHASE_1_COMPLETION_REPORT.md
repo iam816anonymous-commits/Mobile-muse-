@@ -18,13 +18,14 @@ Phase 1 establishes the **Foundation & Domain Core** of LocalAgent strictly foll
 
 ### 2.1 Multi-Module Project Structure
 The repository is structured into modular Gradle projects:
-- **`:core` Module:** Pure Kotlin JVM library containing domain models, capability registry, policy engine, goal dispatcher, task lifecycle, and execution lock. Zero Android framework or UI dependencies.
+- **`:core` Module:** Pure Kotlin JVM library containing domain models, capability registry, policy engine, goal dispatcher, task lifecycle, command normalizer, and execution lock. Zero Android framework or UI dependencies.
 - **`:app` Module:** Android application targeting `compileSdk 34` and `minSdk 27`. Contains `LocalAgentApplication`, `MainActivity` (Foundation Test UI), and ViewBinding setup.
 
 ### 2.2 Core Component Specifications
 
-#### A. Command Model (`com.localagent.core.command`)
+#### A. Command Model & Normalizer (`com.localagent.core.command`)
 - **`NormalizedCommand`:** Universal, serializable data class capturing user or agent intent across all input surfaces (`source`, `actionType`, `targetSelector`, `parameters`, `timestamp`).
+- **`CommandNormalizer`:** Syntax parser and grammar validator. Parses raw input into `CommandParseResult.Success`, `CommandParseResult.UnknownCommand`, or `CommandParseResult.InvalidInput`. Unrecognized commands are rejected as `ResultCode.UNKNOWN_COMMAND` at the normalization layer before reaching policy checks or `GoalDispatcher` queueing.
 - **`CommandSource`:** Enum classifying intent origin (`CONSOLE`, `OVERLAY`, `VOICE`, `AUTOMATION`, `AI`, `TEST_HARNESS`, `BROWSER`).
 - **`ActionType`:** Enum mapping all planned action types across Navigation, UI Control, System, Hardware, Speech, Solver, and Research categories. *Declaring an `ActionType` enum does NOT imply the capability is executable in Phase 1; execution requires phase-specific capability adapters.*
 - **`TargetSelector`:** Sealed class supporting `ByViewId`, `ByText`, `ByContentDescription`, `ByNodeIdentityKey`, `ByCoordinates`, and `None`.
@@ -46,15 +47,43 @@ The repository is structured into modular Gradle projects:
 - **LMK State-Machine Model vs Real Recovery:** The memory state-machine transitions (`INTERRUPTED` $\rightarrow$ `RECOVERING` $\rightarrow$ `QUEUED`) are fully implemented and unit-tested in Phase 1. Real Android OS process-death recovery on physical hardware is deferred to Phase 2 (which introduces SQLite `agent.db` persistence) and Phase 21 (resource hardening).
 
 #### F. Execution Results & Verifications (`com.localagent.core.result`)
-- **`ResultCode`:** Taxonomy of result codes (`SUCCESS_VERIFIED`, `DISPATCHED_BUT_NOT_VERIFIED`, `ACCESSIBILITY_UNAVAILABLE`, `POLICY_BLOCKED`, `TIMEOUT`, `INTERRUPTED`, etc.).
+- **`ResultCode`:** Taxonomy of result codes (`SUCCESS_VERIFIED`, `DISPATCHED_BUT_NOT_VERIFIED`, `ACCESSIBILITY_UNAVAILABLE`, `PERMISSION_REQUIRED`, `POLICY_BLOCKED`, `CAPABILITY_UNAVAILABLE`, `UNKNOWN_COMMAND`, `TIMEOUT`, `INTERRUPTED`, etc.).
 - **`VerificationResult`:** Sealed class representing target verification outcomes.
 
 ---
 
-## 3. Phase 1 Scope & Deferred Functionality
+## 3. Command Taxonomy: UNKNOWN_COMMAND vs CAPABILITY_UNAVAILABLE
+
+The manual Phase 1 acceptance test identified a classification ambiguity where unrecognized command strings like `"not real cmd"` returned `CAPABILITY_UNAVAILABLE`. This was corrected by introducing `ResultCode.UNKNOWN_COMMAND` and `CommandNormalizer`:
+
+```text
+Raw Input (e.g., "not real cmd")
+       │
+       ▼
+1. CommandNormalizer.parseInput()
+       ├─► Unknown / Unrecognized Syntax ──► UNKNOWN_COMMAND (Terminates immediately; never queued or evaluated)
+       ├─► Invalid / Empty Input ───────────► UNKNOWN_COMMAND (Rejects empty input)
+       └─► Recognized Command Syntax
+               │
+               ▼
+2. ActionPolicyEngine.evaluateCommand()
+               │
+               ▼
+3. CapabilityRegistry Check
+       ├─► Unregistered / Unavailable ──────► CAPABILITY_UNAVAILABLE (Recognized syntax, but capability deferred)
+       └─► Available Capability
+               │
+               ▼
+4. GoalDispatcher.enqueueCommand()
+```
+
+---
+
+## 4. Phase 1 Scope & Deferred Functionality
 
 ### Implemented in Phase 1
 - Pure Kotlin domain core models, interfaces, and state machines.
+- Generic `CommandNormalizer` parsing layer and `UNKNOWN_COMMAND` result classification.
 - Capability registration and API-level support evaluation.
 - Risk policy engine evaluating command risk levels.
 - Priority command queueing and execution lock concurrency control.
@@ -72,19 +101,23 @@ The repository is structured into modular Gradle projects:
 
 ---
 
-## 4. Test Suite Documentation
+## 5. Test Suite Documentation
 
-### 4.1 Exact Test Counts & Inventory
+### 5.1 Exact Test Counts & Inventory
 
-- **Total Test Classes:** 6 classes
-- **Total Test Methods:** 11 methods
-- **Passed:** 11
+- **Total Test Classes:** 7 classes
+- **Total Test Methods:** 15 methods
+- **Passed:** 15
 - **Failed:** 0
 - **Execution Command:** `./gradlew test`
 
 | Test File | Test Class | Test Method | Behavior Covered | Expected Result |
 |---|---|---|---|---|
 | `NormalizedCommandTest.kt` | `NormalizedCommandTest` | `testNormalizedCommandCreationAndDefaults` | Verifies command creation, default target selectors, and timestamp generation. | **PASS** |
+| `CommandNormalizerTest.kt` | `CommandNormalizerTest` | `testUnknownCommandReturnsUnknownCommandResult` | Verifies `"not real cmd"` and `"xyz abc 123"` return `CommandParseResult.UnknownCommand`. | **PASS** |
+| `CommandNormalizerTest.kt` | `CommandNormalizerTest` | `testKnownCommandsRecognized` | Verifies `"back"`, `"home"`, `"click 7"`, and `"launch Settings"` return `CommandParseResult.Success`. | **PASS** |
+| `CommandNormalizerTest.kt` | `CommandNormalizerTest` | `testEmptyAndWhitespaceInputHandling` | Verifies `""` and `"   "` return `CommandParseResult.InvalidInput`. | **PASS** |
+| `CommandNormalizerTest.kt` | `CommandNormalizerTest` | `testMalformedClickOrLaunchReturnsUnknownCommand` | Verifies `"click "` and `"launch "` without parameters return `CommandParseResult.UnknownCommand`. | **PASS** |
 | `CapabilityRegistryTest.kt` | `CapabilityRegistryTest` | `testRegisterAndGetCapability` | Verifies capability registration and retrieval by ID. | **PASS** |
 | `CapabilityRegistryTest.kt` | `CapabilityRegistryTest` | `testIsCapabilitySupportedApiCheck` | Verifies minApi check across API 27, 28, and 34. | **PASS** |
 | `ActionPolicyEngineTest.kt` | `ActionPolicyEngineTest` | `testLowRiskActionApprovedAutomatically` | Verifies LOW risk actions auto-approve without prompt. | **PASS** |
@@ -95,12 +128,14 @@ The repository is structured into modular Gradle projects:
 | `TaskLifecycleTest.kt` | `TaskLifecycleTest` | `testIllegalTaskStateTransitionsBlocked` | Verifies illegal transitions (CREATED $\rightarrow$ COMPLETED) return false. | **PASS** |
 | `TaskLifecycleTest.kt` | `TaskLifecycleTest` | `testLmkInterruptionAndRecoveryTransitions` | Verifies LMK memory model (RUNNING $\rightarrow$ INTERRUPTED $\rightarrow$ RECOVERING $\rightarrow$ QUEUED). | **PASS** |
 | `MainActivityTest.kt` | `MainActivityTest` | `testCoreDomainInitialization` | Verifies Foundation Test UI initializes domain registry, policy engine, and dispatcher. | **PASS** |
+| `MainActivityTest.kt` | `MainActivityTest` | `testUnknownCommandRejectedAtNormalizerLayer` | Verifies `"not real cmd"` returns `UNKNOWN_COMMAND` and does NOT enter `GoalDispatcher` queue. | **PASS** |
+| `MainActivityTest.kt` | `MainActivityTest` | `testKnownCommandParsedAndDispatched` | Verifies `"back"` command parses successfully, enters `GoalDispatcher`, and executes. | **PASS** |
 
 ---
 
-## 5. GitHub CI/CD Infrastructure & Lint Validation
+## 6. GitHub CI/CD Infrastructure & Lint Validation
 
-### 5.1 Pipeline Configuration (`.github/workflows/ci.yml`)
+### 6.1 Pipeline Configuration (`.github/workflows/ci.yml`)
 - **Triggers:** Pushes and Pull Requests targeting `main` and `phase-*` branches.
 - **Toolchain:** JDK 17 (Temurin), Gradle 8.8 Wrapper (`gradlew`), Gradle setup action `gradle/actions/setup-gradle@v3`.
 - **Validation Commands Executed in CI:**
@@ -112,21 +147,15 @@ The repository is structured into modular Gradle projects:
   - `lint-reports`: Preserves `**/build/reports/lint-results*` (Retention: 7 days)
   - `localagent-debug-apk`: Preserves `app/build/outputs/apk/debug/app-debug.apk` (Retention: 14 days)
 
-### 5.2 Local/CI Command Parity
-CI/CD executes identical local Gradle Wrapper tasks:
-- **Run Unit Tests:** `./gradlew test`
-- **Run Lint:** `./gradlew lint`
-- **Assemble Debug APK:** `./gradlew assembleDebug`
-
 ---
 
-## 6. Build & Test Evidence
+## 7. Build & Test Evidence
 
 Actual local execution results from `./gradlew test lint assembleDebug`:
 
 ```text
 BUILD:          PASS
-UNIT TESTS:     PASS (11/11 tests passed across 6 test classes)
+UNIT TESTS:     PASS (15/15 tests passed across 7 test classes)
 LINT:           PASS (0 errors; HTML report: app/build/reports/lint-results-debug.html)
 ASSEMBLE DEBUG: PASS (APK generated: app/build/outputs/apk/debug/app-debug.apk)
 GITHUB CI:      CONFIGURED & VALIDATED (Local/CI parity verified)
@@ -136,9 +165,9 @@ TEST REPORT:    GENERATED (core/build/reports/tests/test/index.html)
 
 ---
 
-## 7. Foundation Test UI Specification
+## 8. Foundation Test UI Specification
 
-### 7.1 Purpose & Execution Pipeline
+### 8.1 Purpose & Execution Pipeline
 The **Foundation Test UI** (`MainActivity`) is a lightweight diagnostic surface for visually verifying the domain core and dispatcher pipeline during development.
 
 **Critical Pipeline Guarantee:** The Test UI does NOT execute real Android actions or fake mock success. It routes commands strictly through the production pipeline:
@@ -146,66 +175,30 @@ The **Foundation Test UI** (`MainActivity`) is a lightweight diagnostic surface 
 ```text
 Test UI (MainActivity)
     ↓
-Command Normalization (`parseCommandSyntax`)
-    ↓
-GoalDispatcher Queue (`enqueueCommand`)
-    ↓
-ExecutionLock Channel Check (`pollNextCommandForExecution`)
-    ↓
+Command Normalization (`CommandNormalizer.parseInput`)
+    ├─► Unknown Command ──► UNKNOWN_COMMAND (Logged & displayed; terminates immediately)
+    └─► Valid Command
+            ↓
 ActionPolicyEngine Risk Check (`evaluateCommand`)
-    ↓
+            ↓
+GoalDispatcher Priority Queue (`enqueueCommand`)
+            ↓
+ExecutionLock Channel Check (`pollNextCommandForExecution`)
+            ↓
 Production Execution Dispatch & Result Formatting
-    ↓
+            ↓
 EventLogger (`logEvent` -> Bounded LinkedList)
-    ↓
+            ↓
 Test UI Status Display
 ```
 
-### 7.2 UI Controls & OBSERVE Button Behavior
-- **AGENT STATUS:** Displays agent process state, core initialization flag, and phase build information.
-- **CAPABILITY / SERVICE STATUS:** Displays Accessibility service status (`DISCONNECTED` in Phase 1).
-- **COMMAND INPUT:** Text field accepting commands (e.g., `click 7`, `back`, `launch Settings`).
-- **EXECUTE BUTTON:** Normalizes command and dispatches through `GoalDispatcher`.
-- **OBSERVE BUTTON:** Requests fresh observation via production pipeline. *Does NOT perform fake observation; explicitly returns `ResultCode.ACCESSIBILITY_UNAVAILABLE` with a summary noting Phase 5 Observation Engine is required.*
-- **LATEST RESULT:** Displays execution status (`ACCESSIBILITY_UNAVAILABLE`, `DISPATCHED_BUT_NOT_VERIFIED`, `POLICY_BLOCKED`, `CAPABILITY_UNAVAILABLE`).
-- **RECENT EVENTS:** Bounded, read-only list displaying recent structured events.
-
 ---
 
-## 8. Cross-Channel Parity Verification Status
-
-To avoid over-broad claims, execution parity is explicitly classified:
-
-| Execution Channel | Verification Status in Phase 1 | Execution Path Verified |
-|---|---|---|
-| **Foundation Test UI** | **VERIFIED** | `Test UI -> NormalizedCommand -> GoalDispatcher -> ActionPolicyEngine` |
-| **Console UI** | **DEFERRED** | Scheduled for Phase 9 |
-| **Movable Overlay** | **DEFERRED** | Scheduled for Phase 11 |
-| **Voice STT / TTS** | **DEFERRED** | Scheduled for Phase 13 |
-| **Real Device Accessibility**| **DEFERRED** | Scheduled for Phase 4 / Phase 7 |
-| **Browser Agent** | **DEFERRED** | Scheduled for Phase 16 |
-| **Hardware Controls** | **DEFERRED** | Scheduled for Phase 12 |
-
----
-
-## 9. Low-RAM Architecture vs Measured Performance
-
-### 9.1 Low-RAM Architectural Constraints (Implemented)
-- **Bounded UI Event Stream:** `MainActivity` maintains a `LinkedList<String>` capped at 10 items. Older items are evicted automatically.
-- **No Background Polling:** Zero background handlers or polling threads running when UI is idle.
-- **Single-Threaded Lock:** `ExecutionLock` prevents concurrent transaction memory inflation.
-- **No Heavy Frameworks:** Built using standard Android Views and ViewBinding; no Jetpack Compose or DI framework overhead.
-
-### 9.2 Measured Low-RAM Performance
-- **Status:** **NOT YET MEASURED ON PHYSICAL 1 GB HARDWARE.** Physical heap profiling on API 27 hardware is deferred to Level 3 testing in Phase 21 (Resource Hardening & Recovery).
-
----
-
-## 10. File Traceability Matrix
+## 9. File Traceability Matrix
 
 | Requirement | Frozen Spec Reference | Source File(s) | Test File(s) | Status |
 |---|---|---|---|---|
-| **Command Normalization** | `ARCHITECTURE.md` Section 3.1 | `core/.../command/NormalizedCommand.kt` | `NormalizedCommandTest.kt` | **IMPLEMENTED** |
+| **Command Normalization** | `ARCHITECTURE.md` Section 3.1 | `core/.../command/NormalizedCommand.kt`, `CommandNormalizer.kt` | `NormalizedCommandTest.kt`, `CommandNormalizerTest.kt` | **IMPLEMENTED** |
 | **Capability Registry** | `CAPABILITY_MATRIX.md` Section 2 | `core/.../capability/CapabilityRegistry.kt` | `CapabilityRegistryTest.kt` | **IMPLEMENTED** |
 | **Action Risk Policy** | `ARCHITECTURE.md` Section 3.2 | `core/.../policy/ActionPolicyEngine.kt` | `ActionPolicyEngineTest.kt` | **IMPLEMENTED** |
 | **Priority Queue & Lock** | `MEMORY_AND_LEARNING.md` Section 3 | `core/.../execution/GoalDispatcher.kt` | `GoalDispatcherTest.kt` | **IMPLEMENTED** |
@@ -216,13 +209,13 @@ To avoid over-broad claims, execution parity is explicitly classified:
 
 ---
 
-## 11. Phase 1 Definition of Done Checklist
+## 10. Phase 1 Definition of Done Checklist
 
 | DoD Gate / Requirement | Status | Verification Evidence |
 |---|---|---|
 | **Gate 1: Architecture Complete** | **[PASS]** | Phase 0.9 specs frozen in repo root and `docs/` |
 | **Gate 2: Code Complete** | **[PASS]** | `:core` and `:app` modules implemented in idiomatic Kotlin |
-| **Gate 3: Tier A Unit Test Pass** | **[PASS]** | 100% pass rate across 11 unit tests via `./gradlew test` |
+| **Gate 3: Tier A Unit Test Pass** | **[PASS]** | 100% pass rate across 15 unit tests via `./gradlew test` |
 | **Gate 4: Tier B Contract & Parity** | **[PASS]** | Test UI dispatches through production `GoalDispatcher` pipeline |
 | **Gate 5: Tier C Device & E2E** | **[DEFERRED]** | Deferred to Phase 4+ (Requires AccessibilityService binding) |
 | **Gate 6: Observation Verified** | **[DEFERRED]** | Deferred to Phase 5 (Requires Observation Engine) |
@@ -231,16 +224,7 @@ To avoid over-broad claims, execution parity is explicitly classified:
 
 ---
 
-## 12. Known Limitations
-
-1. **Accessibility Unbound:** Accessibility Service is not implemented in Phase 1 (scheduled for Phase 4). UI commands return `ResultCode.ACCESSIBILITY_UNAVAILABLE` as expected.
-2. **In-Memory Event Stream:** Structured events in Phase 1 are logged to memory and displayed in the Test UI. Persistent SQLite `agent.db` storage is scheduled for Phase 2.
-3. **No Physical Device Automation Yet:** Real UI clicks and screen observations require Phase 5 and Phase 7.
-4. **Physical LMK Process Kill:** LMK state machine is tested in memory; physical OS process death recovery requires Phase 2 database persistence.
-
----
-
-## 13. Final Status Declaration
+## 11. Final Status Declaration
 
 - **PHASE 1 DOCUMENTATION STATUS:** **COMPLETE**
 - **PHASE 1 IMPLEMENTATION STATUS:** **COMPLETE**

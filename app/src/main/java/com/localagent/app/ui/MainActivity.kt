@@ -12,6 +12,7 @@ import java.util.LinkedList
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private val commandNormalizer = CommandNormalizer()
     private val maxEventLogSize = 10
     private val recentEventLogs = LinkedList<String>()
 
@@ -26,12 +27,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         binding.btnExecute.setOnClickListener {
-            val input = binding.etCommandInput.text.toString().trim()
-            if (input.isNotEmpty()) {
-                executeCommandFromInput(input)
-            } else {
-                binding.tvLatestResult.text = "Error: Command input cannot be empty."
-            }
+            val input = binding.etCommandInput.text.toString()
+            executeCommandFromInput(input)
         }
 
         binding.btnObserve.setOnClickListener {
@@ -45,37 +42,46 @@ class MainActivity : AppCompatActivity() {
 
         logEvent("[COMMAND_RECEIVED] Raw Input: '$input'")
 
-        val normalizedCmd = parseCommandSyntax(input)
-        if (normalizedCmd == null) {
-            val resultText = "Result: ${ResultCode.CAPABILITY_UNAVAILABLE} | Reason: UNSUPPORTED / NOT AVAILABLE IN CURRENT PHASE"
-            binding.tvLatestResult.text = resultText
-            logEvent("[COMMAND_RESULT] $resultText")
-            return
-        }
+        when (val parseResult = commandNormalizer.parseInput(input, CommandSource.CONSOLE)) {
+            is CommandParseResult.InvalidInput -> {
+                val resultText = "Result: ${ResultCode.UNKNOWN_COMMAND} | Reason: ${parseResult.reason}"
+                binding.tvLatestResult.text = resultText
+                logEvent("[COMMAND_REJECTED] $resultText")
+                return
+            }
+            is CommandParseResult.UnknownCommand -> {
+                val resultText = "Result: ${ResultCode.UNKNOWN_COMMAND} | Reason: Unrecognized command syntax '${parseResult.rawInput}'"
+                binding.tvLatestResult.text = resultText
+                logEvent("[COMMAND_REJECTED] $resultText")
+                return
+            }
+            is CommandParseResult.Success -> {
+                val normalizedCmd = parseResult.command
 
-        // Policy Evaluation
-        val policyResult = app.policyEngine.evaluateCommand(normalizedCmd)
-        if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
-            val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
-            binding.tvLatestResult.text = resultText
-            logEvent("[POLICY_EVALUATED] $resultText")
-            return
-        }
+                // Policy Evaluation
+                val policyResult = app.policyEngine.evaluateCommand(normalizedCmd)
+                if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
+                    val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
+                    binding.tvLatestResult.text = resultText
+                    logEvent("[POLICY_EVALUATED] $resultText")
+                    return
+                }
 
-        // Dispatch through Universal Production Pipeline
-        app.goalDispatcher.enqueueCommand(normalizedCmd, priority = 1)
-        val polled = app.goalDispatcher.pollNextCommandForExecution()
+                // Dispatch through Universal Production Pipeline
+                app.goalDispatcher.enqueueCommand(normalizedCmd, priority = 1)
+                val polled = app.goalDispatcher.pollNextCommandForExecution()
 
-        if (polled != null) {
-            // Simulated execution result for Phase 1 baseline
-            val executionResult = executeNormalizedCommand(polled.command)
-            binding.tvLatestResult.text = executionResult
-            logEvent("[COMMAND_RESULT] $executionResult")
-            app.goalDispatcher.completeExecution()
-        } else {
-            val busyText = "Result: ${ResultCode.TIMEOUT} | Execution channel locked by concurrent transaction"
-            binding.tvLatestResult.text = busyText
-            logEvent("[EXECUTION_LOCK] $busyText")
+                if (polled != null) {
+                    val executionResult = executeNormalizedCommand(polled.command)
+                    binding.tvLatestResult.text = executionResult
+                    logEvent("[COMMAND_RESULT] $executionResult")
+                    app.goalDispatcher.completeExecution()
+                } else {
+                    val busyText = "Result: ${ResultCode.TIMEOUT} | Execution channel locked by concurrent transaction"
+                    binding.tvLatestResult.text = busyText
+                    logEvent("[EXECUTION_LOCK] $busyText")
+                }
+            }
         }
     }
 
@@ -84,33 +90,6 @@ class MainActivity : AppCompatActivity() {
         val resultText = "Observation Summary: Active Window = com.localagent.app | Node Count = N/A (Phase 5 Observation Engine Required) | Result: ${ResultCode.ACCESSIBILITY_UNAVAILABLE}"
         binding.tvLatestResult.text = resultText
         logEvent("[OBSERVATION_COMPLETED] Result: ${ResultCode.ACCESSIBILITY_UNAVAILABLE}")
-    }
-
-    private fun parseCommandSyntax(input: String): NormalizedCommand? {
-        val lower = input.lowercase()
-        return when {
-            lower == "back" -> NormalizedCommand(
-                source = CommandSource.CONSOLE,
-                actionType = ActionType.GLOBAL_BACK
-            )
-            lower.startsWith("click ") -> {
-                val target = input.substring(6).trim()
-                NormalizedCommand(
-                    source = CommandSource.CONSOLE,
-                    actionType = ActionType.UI_CLICK,
-                    targetSelector = TargetSelector.ByText(target)
-                )
-            }
-            lower.startsWith("launch ") -> {
-                val appLabel = input.substring(7).trim()
-                NormalizedCommand(
-                    source = CommandSource.CONSOLE,
-                    actionType = ActionType.APP_LAUNCH,
-                    parameters = mapOf("appLabel" to appLabel)
-                )
-            }
-            else -> null
-        }
     }
 
     private fun executeNormalizedCommand(command: NormalizedCommand): String {

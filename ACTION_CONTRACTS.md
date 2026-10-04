@@ -33,6 +33,7 @@ The architecture defines explicit result categories. The system **never claims v
 | `POLICY_BLOCKED` | Action blocked by `ActionPolicyEngine` (HIGH/CRITICAL risk without user confirmation). | Denied | Policy restriction | Request user confirmation |
 | `PERMISSION_REQUIRED` | Capability missing mandatory system permission or special access. | Denied | Missing permission | Launch Permission Center |
 | `CAPABILITY_UNAVAILABLE` | Action unsupported on device, API level, or current app state. | Unavailable | Device restriction | Abort action |
+| `UNKNOWN_COMMAND` | Command string unidentifiable or rejected at `CommandNormalizer` syntax layer. | Rejected | Unrecognized command syntax / grammar | Reject command before dispatch |
 | `TIMEOUT` | Post-action verification window timed out before state settled. | Failed | Animation lag / ANR | Retry step |
 | `CANCELLED` | Task or goal explicitly cancelled by user via Overlay/Console. | Cancelled | User cancellation | Stop goal execution |
 | `INTERRUPTED` | Task interrupted by Low Memory Killer (LMK) process termination. | Interrupted | LMK process kill | Initiate process recovery |
@@ -182,7 +183,7 @@ sealed class VerificationStrategy {
         }
     }
 
-    // Outcome-Specific Long Click Strategy
+    // Flexible Long Click Strategy
     data class FlexibleLongClickStrategy(val expectedOutcome: LongClickOutcome) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
@@ -196,7 +197,7 @@ sealed class VerificationStrategy {
                 LongClickOutcome.EXPECTED_UI_RESULT -> diff.packageChanged || diff.windowChanged || diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey }
                 LongClickOutcome.NO_DETERMINISTIC_EXPECTATION -> false // Never automatically claims verified success without deterministic expected outcome
             }
-            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Long click executed, but expected outcome '$expectedOutcome' was not observed specifically on target")
+            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Long click executed, but expected outcome '$expectedOutcome' was not observed on target")
         }
     }
 }
