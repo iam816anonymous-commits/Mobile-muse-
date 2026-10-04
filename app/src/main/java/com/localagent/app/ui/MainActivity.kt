@@ -242,6 +242,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateStorageDiagnostics() {
         val app = application as? LocalAgentApplication ?: return
         val session = app.eventLogger.getActiveSession()
+        val durableStatus = app.durableStorageManager.getAvailabilityStatus()
 
         // Asynchronous storage fetch off UI thread
         Thread {
@@ -252,7 +253,7 @@ class MainActivity : AppCompatActivity() {
                 val lastEvent = recentEvents.firstOrNull()?.eventType ?: "NONE"
 
                 runOnUiThread {
-                    binding.tvStorageDiagnostics.text = "Session: ${session.sessionId.take(8)}... | Persisted Events: $count | DB Size: ${bytes / 1024} KB | Latest: $lastEvent"
+                    binding.tvStorageDiagnostics.text = "Session: ${session.sessionId.take(8)}... | Events: $count | DB: ${bytes / 1024} KB | Durable Storage: $durableStatus | Latest: $lastEvent"
                 }
             } catch (_: Exception) {}
         }.start()

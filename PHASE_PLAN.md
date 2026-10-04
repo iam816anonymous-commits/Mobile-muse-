@@ -38,12 +38,12 @@ Every phase is governed by an explicit **Phase Contract** defining:
 
 ### Phase 2 — Persistent Storage & Unified Logging
 - **INPUT:** Phase 1 domain core models.
-- **DEPENDENCIES:** `storage` module, Android SQLite / Room API 27.
-- **DELIVERABLES:** Unified `agent.db` schema (`agent_events`, `episodes`, `workflows`, `semantic_data`, `knowledge`), `EventLogger`, `LogRetentionManager` with WAL checkpointing.
-- **CAPABILITIES:** Persistent structured logging, correlation ID tracing, WAL file accounting.
-- **TESTS:** Tier A DB insertion tests, Tier B SQLite migration and WAL checkpoint tests on API 27.
-- **EVIDENCE:** DB row insertion logs, WAL file size report (< 5 MB).
-- **EXIT CRITERIA:** 1,000 continuous event insertions without dropping logs, total storage footprint <= 30 MB.
+- **DEPENDENCIES:** `storage` module, Android SQLite / Room API 27, Storage Access Framework.
+- **DELIVERABLES:** Unified `agent.db` schema (`agent_events`, `episodes`, `workflows`, `semantic_data`, `knowledge`), `EventLogger`, `RoomEventRepository`, `DurableMemoryStorageManager` (`DurableRecord`, `DurableMemoryStorageProvider`), `LogRetentionManager` with WAL checkpointing.
+- **CAPABILITIES:** Persistent structured logging, correlation ID tracing, WAL file accounting, durable long-term memory storage.
+- **TESTS:** Tier A DB insertion and durable memory unit tests, Tier B SQLite migration, WAL checkpoint, and uninstall survival tests on API 27.
+- **EVIDENCE:** DB row insertion logs, WAL file size report (< 5 MB), durable storage status diagnostics.
+- **EXIT CRITERIA:** 1,000 continuous event insertions without dropping logs, app-private footprint <= 30 MB, durable memory storage abstraction active.
 
 ### Phase 3 — Permission & Capability Manager
 - **INPUT:** Phase 1 `CapabilityRegistry`, Phase 2 `EventLogger`.
@@ -155,7 +155,7 @@ Every phase is governed by an explicit **Phase Contract** defining:
 
 ### Phase 15 — Episodic Memory & Learning
 - **INPUT:** Phase 2 `agent.db`, Phase 14 workflow engine.
-- **DEPENDENCIES:** `memory` module, Room `episodes` and `workflows` tables.
+- **DEPENDENCIES:** `memory` module, Room `episodes` and `workflows` tables, `DurableMemoryStorageProvider`.
 - **DELIVERABLES:** Episodic task log store, procedural workflow extractor, live target re-validation protocol.
 - **CAPABILITIES:** Procedural learning, workflow re-validation.
 - **TESTS:** Tier A learning extraction unit tests, Tier B workflow storage and stale target rejection tests.

@@ -90,16 +90,19 @@ class ResourceManager(private val context: Context) : ComponentCallbacks2 {
 
 ---
 
-## 5. Storage Budget & WAL File Accounting
+## 5. Storage Budget, WAL Accounting & Durable Storage Partitioning
 
 To protect low-storage Android devices (e.g., 8 GB or 16 GB internal storage):
 
-### Storage Allocations & WAL Accounting
-- **App Storage Directory:** `/data/data/com.localagent.app/files/agent/`
-- **Total Storage Cap:** **30 MB Maximum** across all logs, databases, and evidence files.
-- **Unified DB Budget Formula:**
-  `DB Total Size = FileSize("agent.db") + FileSize("agent.db-wal") + FileSize("agent.db-shm")`
-- **WAL Checkpoint Policy:** Run `PRAGMA wal_checkpoint(TRUNCATE)` when `agent.db-wal` exceeds 5 MB to prevent unbounded WAL growth.
+### Storage Partitioning Architecture
+1. **App-Private Operational Storage (`/data/data/com.localagent.app/files/agent/`):**
+   - **Total Storage Cap:** **30 MB Maximum** across `agent.db`, `-wal`, `-shm`, and temporary evidence files.
+   - **Unified DB Budget Formula:** `DB Total Size = FileSize("agent.db") + FileSize("agent.db-wal") + FileSize("agent.db-shm")`.
+   - **WAL Checkpoint Policy:** Run `PRAGMA wal_checkpoint(TRUNCATE)` when `agent.db-wal` exceeds 5 MB.
+2. **Durable Agent Memory Storage (`DurableMemoryStorageProvider`):**
+   - **Location:** External public storage (`/sdcard/LocalAgent/memory`) or user-granted Storage Access Framework document trees.
+   - **Total Storage Cap:** **10 MB Maximum** across JSON memory records and learned workflows.
+   - **Uninstall Survival:** Independent of app-private directory; survives app uninstalls and reinstalls.
 
 ---
 

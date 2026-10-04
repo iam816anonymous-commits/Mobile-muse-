@@ -6,9 +6,10 @@ Logging in **LocalAgent** is a first-class, core subsystem rather than a transie
 
 ### Universal Logging Directives
 1. **Universal Execution Trail:** All input channels (Console, Movable Overlay, Voice Input, Workflow Engine, Solvers, AI Planners) write structured logs to the single `EventLogger`.
-2. **Unified Persistence (`agent.db`):** All persistent data (events, episodes, workflows, knowledge, semantic mappings) is consolidated into a single SQLite database (`/data/data/com.localagent.app/files/agent/agent.db`).
+2. **Unified Operational Persistence (`agent.db`):** Operational state, audit event logs, active queues, and transient execution histories are consolidated into a single SQLite database (`/data/data/com.localagent.app/files/agent/agent.db`).
 3. **Structured Schema:** Events contain correlation IDs, precise timestamps, subsystem source tags, execution duration, result codes, and structured JSON metadata.
 4. **Bounded Storage & Comprehensive Accounting:** Storage calculations explicitly budget for SQLite database files (`agent.db`), Write-Ahead Logging files (`agent.db-wal`), and Shared Memory files (`agent.db-shm`). Total storage is capped at 30 MB maximum across all log and WAL artifacts.
+5. **Durable Memory Storage Separation:** Operational audit logs in `agent.db` are app-private and disposable upon uninstall. Long-term learned behaviors, workflows, and preferences are persisted separately via `DurableMemoryStorageProvider` in user-controlled external storage (`/sdcard/LocalAgent/memory` or Storage Access Framework document trees).
 
 ---
 
@@ -42,8 +43,9 @@ enum class EventSubsystem {
 
 ---
 
-## 3. Persistent Storage Directory Structure & Unified Storage Budget
+## 3. Persistent Storage Directory Structure & Partitioned Storage Budget
 
+### App-Private Operational Storage (`/data/data/com.localagent.app/files/agent/`)
 ```text
 /data/data/com.localagent.app/files/agent/
 ├── agent.db                  # Consolidated Primary SQLite / Room Database
@@ -55,13 +57,21 @@ enum class EventSubsystem {
 ├── agent.db-wal              # SQLite Write-Ahead Log file
 ├── agent.db-shm              # SQLite Shared Memory index file
 ├── evidence/                 # Failure diagnostic dumps (Max 5 MB)
-│   ├── failure-snap-001.json
-│   └── failure-snap-001.png
 └── exports/                  # User-initiated log exports
 ```
 
+### Durable Long-Term Memory Storage (`DurableMemoryStorageProvider`)
+```text
+/sdcard/LocalAgent/memory/    # External Public Storage / SAF Tree (Survives Uninstall)
+├── learned_behaviors/        # SHA-256 verified learned behavior JSON records
+├── preferences/              # Learned user preference JSON records
+├── workflows/                # Procedural workflow JSON records
+└── knowledge/                # Verified domain knowledge JSON records
+```
+
 ### Comprehensive Storage Budget Accounting
-- **Total Storage Cap:** **30 MB Maximum** for entire `/data/data/com.localagent.app/files/agent/` folder.
+- **App-Private Storage Cap:** **30 MB Maximum** for entire `/data/data/com.localagent.app/files/agent/` folder.
+- **Durable Memory Cap:** **10 MB Maximum** for `/sdcard/LocalAgent/memory/` folder.
 - **Unified DB Budget Calculation:**
   `Total DB Footprint = FileSize(agent.db) + FileSize(agent.db-wal) + FileSize(agent.db-shm)`
 - **Automated Retention Trigger:**

@@ -10,6 +10,7 @@
 3. **API 27 Baseline (Android 8.1):** The core agent targets Android 8.1 / API level 27 as its primary baseline for low-RAM devices while gracefully incorporating modern API compatibility adapters up to API 36+.
 4. **No Fake Success:** `performAction() == true` from Android Accessibility APIs is treated only as `DISPATCHED`. Complete execution requires live node reacquisition, ancestor traversal, and target-aware post-action UI observation diff verification.
 5. **Low-RAM First Across All Phases:** Memory footprint is kept minimal through event-driven processing, lazy initialization, short-lived AccessibilityNodeInfo snapshot primitives, immediate `.recycle()` calls, and bounded local storage with strict WAL/journal accounting.
+6. **Storage Partitioning & Uninstall Survival:** Differentiates App-Private operational storage (`agent.db` for operational logs, queues, and caches) from Durable Long-Term Memory Storage (`DurableMemoryStorageProvider` for learned behaviors, workflows, and preferences). Durable memory resides in user-controlled external storage (`/sdcard/LocalAgent/memory` or SAF document trees) to **survive application uninstall/reinstall**.
 
 ---
 
@@ -65,7 +66,7 @@
                      ┌────────────────────────────────────────────────────────┐
                      │               PERSISTENCE & AUDIT LOGGING              │
                      │  Structured EventLogger ──► Unified agent.db           │
-                     │  (Episodic, Procedural, Semantic, Knowledge Tables)    │
+                     │  Durable Memory ──► DurableMemoryStorageProvider       │
                      └───────────────────────────┘
 ```
 
@@ -159,14 +160,14 @@ LocalAgent/
 ├── RISKS_AND_LIMITATIONS.md
 │
 ├── app/                        # Android App Module (View system, UI overlays, Console UI)
-├── core/                       # Pure Kotlin Domain Core (Commands, Dispatcher, Policy Engine, Capability Registry)
+├── core/                       # Pure Kotlin Domain Core (Commands, Dispatcher, Policy Engine, Capability Registry, Storage Contracts)
 ├── accessibility/              # Android Accessibility Engine Module (Service, Observation, Ancestor Resolver)
 ├── system/                     # Permissions, System APIs, Hardware Controls & App Launchers
 ├── voice/                      # STT & TTS Integration Module (Multilingual EN, TE, KN, HI)
-├── storage/                    # Unified Local Storage Module (SQLite agent.db & File Management)
+├── storage/                    # Unified Local Storage Module (SQLite agent.db, DurableMemoryStorageManager & File Management)
 ├── memory/                     # Episodic, Semantic, Procedural Workflows & Knowledge Base
 ├── research/                   # Web Research, Trip Planning & External Knowledge Ingestion
 ├── solver/                     # Structured Problem Solver (Sudoku, Grid & Form Solvers)
-├── docs/                       # Phase 0.9 Audit & Freeze Deliverables
+├── docs/                       # Phase Audit & Completion Deliverables
 └── testing/                    # Master Automated Test Harness & Diagnostic Test Center UI
 ```

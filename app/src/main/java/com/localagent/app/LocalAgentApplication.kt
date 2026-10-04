@@ -3,6 +3,7 @@ package com.localagent.app
 import android.app.Application
 import com.localagent.app.logging.UnifiedEventLogger
 import com.localagent.app.storage.AgentDatabase
+import com.localagent.app.storage.DurableMemoryStorageManager
 import com.localagent.app.storage.RoomEventRepository
 import com.localagent.core.capability.*
 import com.localagent.core.execution.GoalDispatcher
@@ -29,6 +30,9 @@ class LocalAgentApplication : Application() {
     lateinit var eventLogger: UnifiedEventLogger
         private set
 
+    lateinit var durableStorageManager: DurableMemoryStorageManager
+        private set
+
     override fun onCreate() {
         super.onCreate()
         initializeCoreDomain()
@@ -40,6 +44,8 @@ class LocalAgentApplication : Application() {
         val dbFile = File(filesDir, "agent/${AgentDatabase.DATABASE_NAME}")
         eventRepository = RoomEventRepository(db.eventDao(), db.sessionDao(), dbFile)
         eventLogger = UnifiedEventLogger(eventRepository)
+        durableStorageManager = DurableMemoryStorageManager(this)
+        durableStorageManager.initializeStorage()
 
         capabilityRegistry = CapabilityRegistry().apply {
             registerCapability(
@@ -154,7 +160,7 @@ class LocalAgentApplication : Application() {
                 subsystem = EventSubsystem.SYSTEM,
                 eventType = "APPLICATION_INITIALIZED",
                 severity = EventSeverity.INFO,
-                metadataJson = "{\"minSdk\":27,\"targetSdk\":34}"
+                metadataJson = "{\"minSdk\":27,\"targetSdk\":34,\"durableStorage\":\"${durableStorageManager.getAvailabilityStatus()}\"}"
             )
         )
     }

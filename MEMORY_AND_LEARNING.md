@@ -2,12 +2,15 @@
 
 ## 1. Executive Summary
 
-**LocalAgent** strictly separates **audit logs** ("what happened") from **memory and learning** ("what the agent knows and how it performs tasks").
+**LocalAgent** strictly separates **audit logs** ("what happened") from **memory and learning** ("what the agent knows and how it performs tasks"). Furthermore, it establishes a foundational distinction between **App-Private Storage** and **Durable Agent Memory Persistence**.
 
-### Architectural Boundaries
+### Architectural Boundaries & Long-Term Memory Rules
 1. **Logs Are Not Memory:** Event logs capture structured execution traces for auditability and debugging. Memory extracts reusable knowledge, app structures, and task procedures.
 2. **Revalidation Before Replay:** The agent must **never blindly replay** a learned sequence of target nodes. Every procedural workflow step re-validates the live UI tree to resolve current target nodes before executing an action.
-3. **Consolidated Storage (`agent.db`):** All persistent memory structures (episodic, semantic, procedural) are stored locally in tables within unified `agent.db`.
+3. **App-Private Storage vs. Durable Agent Memory:**
+   - **App-Private Storage (`/data/data/com.localagent.app/files/agent/agent.db`):** Holds operational state, working memory, active task queues, temporary caches, and short-term audit event logs. Subject to total deletion upon application uninstall or "Clear Data".
+   - **Durable Agent Memory Storage (`DurableMemoryStorageProvider`):** Holds long-term learned behaviors, user preferences, procedural workflows, and semantic knowledge. Uses durable external locations (`/sdcard/LocalAgent/memory` or user-granted Storage Access Framework document trees) to **survive application uninstall/reinstall, app updates, and process termination**.
+4. **Availability Transparency:** If durable external storage is unavailable or permission is denied, the agent explicitly reports `StorageAvailabilityStatus.AVAILABLE_APP_PRIVATE_ONLY` rather than pretending that memory is durable across uninstalls.
 
 ---
 
@@ -93,8 +96,20 @@ Device UI automation requires strict single-threaded access to the Android Acces
 - **Retention:** Max 500 recent episodes or 14 days, auto-pruned.
 
 ### 4.3 Semantic Memory (App Structure & Domain Knowledge)
-- **Scope:** Persistent knowledge about applications, package labels, and custom semantic mappings stored in `semantic_data` table inside `agent.db`.
+- **Scope:** Persistent knowledge about applications, package labels, and custom semantic mappings stored in `semantic_data` table inside `agent.db` and synchronized with `DurableMemoryStorageProvider`.
 
 ### 4.4 Procedural Memory (Learned Workflows & Sequences)
-- **Scope:** Reusable multi-step automation workflows stored in `workflows` table inside `agent.db`.
+- **Scope:** Reusable multi-step automation workflows stored via `DurableMemoryStorageProvider` in SHA-256 verified JSON records.
 - **Revalidation Protocol:** Replaying a procedural workflow re-evaluates the live `ObservationSnapshot` for every step. Stale node references are NEVER replayed blindly.
+
+---
+
+## 5. Durable Memory Survival Matrix
+
+| Event Type | App-Private DB (`agent.db`) | Durable Agent Storage (`DurableRecord`) |
+|---|---|---|
+| **App Restart** | Retained | Retained |
+| **Process Death (LMK)** | Retained | Retained |
+| **App Upgrade** | Retained | Retained |
+| **Uninstall / Reinstall** | **Cleared** | **Retained** (Survives via `/sdcard/LocalAgent/memory` or SAF URI) |
+| **Device Restart** | Retained | Retained |
