@@ -8,12 +8,12 @@
 1. **Deterministic Core Without LLM:** The execution engine must function 100% deterministically without requiring an LLM or cloud connectivity.
 2. **One Command → One Execution Pipeline:** Every input channel (Console, Movable Overlay, Voice, Automated Test Harness, Future AI Planner, Future Browser Agent) normalizes user intent into a single unified `NormalizedCommand`. There are **no separate action executors** for different input surfaces.
 3. **API 27 Baseline (Android 8.1):** The core agent targets Android 8.1 / API level 27 as its primary baseline for low-RAM devices while gracefully incorporating modern API compatibility adapters up to API 36+.
-4. **No Fake Success:** `performAction() == true` from Android Accessibility APIs is treated only as `DISPATCHED`. Complete execution requires live node reacquisition, ancestor traversal, and action-specific post-action UI observation diff verification.
+4. **No Fake Success:** `performAction() == true` from Android Accessibility APIs is treated only as `DISPATCHED`. Complete execution requires live node reacquisition, ancestor traversal, and target-aware post-action UI observation diff verification.
 5. **Low-RAM First Across All Phases:** Memory footprint is kept minimal through event-driven processing, lazy initialization, short-lived AccessibilityNodeInfo snapshot primitives, immediate `.recycle()` calls, and bounded local storage with strict WAL/journal accounting.
 
 ---
 
-## 2. High-Level Architecture Diagram
+## 2. High-Level Architecture Diagram & Universal Execution Pipeline
 
 ```text
                      ┌────────────────────────────────────────────────────────┐
@@ -30,21 +30,21 @@
                                                  │
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
-                     │               UNIVERSAL EXECUTION CORE                 │
-                     │  CommandRegistry ──► GoalDispatcher ──► ActionPlanner  │
+                     │          UNIVERSAL CONCURRENCY DISPATCHER              │
+                     │  GoalDispatcher (Priority Queue + ExecutionLock)       │
                      └───────────────────────────┬────────────────────────────┘
                                                  │
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
                      │         CAPABILITY REGISTRY & POLICY ENGINE            │
                      │  CapabilityRegistry ──► ActionPolicyEngine             │
-                     │  (Check Risk Tiers: LOW, MEDIUM, HIGH, CRITICAL)       │
+                     │  (Risk Levels: LOW, MEDIUM, HIGH, CRITICAL)             │
                      └───────────────────────────┬────────────────────────────┘
                                                  │
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
                      │                  TARGET RESOLVER                       │
-                     │  Single Live Node Acquisition ──► Ancestor Traversal   │
+                     │  Single-Root Live Acquisition ──► Ancestor Traversal  │
                      │  (Clickable / Long-Clickable / Scrollable / Editable)  │
                      └───────────────────────────┬────────────────────────────┘
                                                  │
@@ -65,8 +65,8 @@
                      ┌────────────────────────────────────────────────────────┐
                      │               PERSISTENCE & AUDIT LOGGING              │
                      │  Structured EventLogger ──► Unified agent.db           │
-                     │  Episodic Memory / Procedural Workflow Storage         │
-                     └────────────────────────────────────────────────────────┘
+                     │  (Episodic, Procedural, Semantic, Knowledge Tables)    │
+                     └───────────────────────────┘
 ```
 
 ---
@@ -78,7 +78,7 @@ The **`CapabilityRegistry`** acts as the central source of truth for querying av
 
 ```kotlin
 data class CapabilityDescriptor(
-    val id: String, // e.g., "UI_CLICK", "GLOBAL_BACK", "STRUCTURED_PROBLEM_SOLVER", "RESEARCH_ENGINE"
+    val id: String, // e.g., "UI_CLICK", "GLOBAL_BACK", "STRUCTURED_PROBLEM_SOLVER", "TRIP_RESEARCH_ENGINE"
     val name: String,
     val category: CapabilityCategory, // NAVIGATION, UI_CONTROL, SYSTEM, HARDWARE, VOICE, RESEARCH, SOLVER, AI
     val minApi: Int,
@@ -167,5 +167,6 @@ LocalAgent/
 ├── memory/                     # Episodic, Semantic, Procedural Workflows & Knowledge Base
 ├── research/                   # Web Research, Trip Planning & External Knowledge Ingestion
 ├── solver/                     # Structured Problem Solver (Sudoku, Grid & Form Solvers)
+├── docs/                       # Phase 0.9 Audit & Freeze Deliverables
 └── testing/                    # Master Automated Test Harness & Diagnostic Test Center UI
 ```
