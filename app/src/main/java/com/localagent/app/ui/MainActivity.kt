@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val commandNormalizer = CommandNormalizer()
-    private val maxEventLogSize = 10
+    private val maxEventLogSize = 25
     private val recentEventLogs = LinkedList<String>()
     private var lastWriteStatus: String = "NONE"
 
@@ -369,6 +369,9 @@ class MainActivity : AppCompatActivity() {
         recentEventLogs.addLast("${System.currentTimeMillis() % 1000000}: $eventText")
 
         binding.tvRecentEvents.text = recentEventLogs.joinToString("\n")
+        binding.scrollEventLogContainer.post {
+            binding.scrollEventLogContainer.fullScroll(android.view.View.FOCUS_DOWN)
+        }
     }
 
     private fun updateStorageDiagnostics() {
@@ -377,6 +380,21 @@ class MainActivity : AppCompatActivity() {
         val durableStatus = app.durableStorageManager.getAvailabilityStatus()
         val a11yBound = AgentAccessibilityService.isBound
         val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
+
+        val currentSnap = AgentAccessibilityService.INSTANCE?.currentObservationSnapshot
+        val externalSnap = AgentAccessibilityService.INSTANCE?.lastExternalObservationSnapshot
+
+        val currentSnapText = if (currentSnap != null) {
+            "Pkg: ${currentSnap.packageName} | Nodes: ${currentSnap.nodeCount} | Depth: ${currentSnap.truncationInfo.maxDepthReached} | Truncated: ${currentSnap.truncationInfo.isTruncated}"
+        } else {
+            "None"
+        }
+
+        val externalSnapText = if (externalSnap != null) {
+            "Pkg: ${externalSnap.packageName} | Nodes: ${externalSnap.nodeCount} | Depth: ${externalSnap.truncationInfo.maxDepthReached} | Truncated: ${externalSnap.truncationInfo.isTruncated}"
+        } else {
+            "None"
+        }
 
         // Asynchronous storage fetch off UI thread
         Thread {
@@ -389,8 +407,10 @@ class MainActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
-                    binding.tvEventStorageDiagnostics.text = "DB Name: agent.db | Location: APP_PRIVATE (/data/data/.../files/agent/)\nSession: ${session.sessionId.take(8)}... | Events: $count | DB Footprint: ${bytes / 1024} KB | Latest: $lastEvent"
-                    binding.tvDurableMemoryDiagnostics.text = "Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: $durableStatus | Durable Records: $durableRecordsCount | Last Write: $lastWriteStatus"
+                    binding.tvCurrentObservationDiagnostics.text = "Current Snapshot: $currentSnapText"
+                    binding.tvLastExternalObservationDiagnostics.text = "Last External Snapshot: $externalSnapText"
+                    binding.tvEventStorageDiagnostics.text = "DB: agent.db | Location: APP_PRIVATE | Session: ${session.sessionId.take(8)}... | Events: $count | Size: ${bytes / 1024} KB | Latest: $lastEvent"
+                    binding.tvDurableMemoryDiagnostics.text = "Location: /sdcard/LocalAgent/memory/ | Status: $durableStatus | Records: $durableRecordsCount | Last Write: $lastWriteStatus"
                 }
             } catch (_: Exception) {}
         }.start()

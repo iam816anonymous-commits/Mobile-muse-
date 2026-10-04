@@ -20,6 +20,14 @@ class AgentAccessibilityService : AccessibilityService() {
     var activeActivityName: String? = null
         private set
 
+    @Volatile
+    var currentObservationSnapshot: ObservationSnapshot? = null
+        private set
+
+    @Volatile
+    var lastExternalObservationSnapshot: ObservationSnapshot? = null
+        private set
+
     private val extractor = ObservationSnapshotExtractor(maxNodes = 500, maxDepth = 30)
     private var lastEventTimestamp: Long = 0L
 
@@ -110,6 +118,10 @@ class AgentAccessibilityService : AccessibilityService() {
                 activityName = activeActivityName,
                 nodeCount = 0
             )
+            currentObservationSnapshot = failedSnapshot
+            if (activePackageName.isNotBlank() && activePackageName != "com.localagent.app") {
+                lastExternalObservationSnapshot = failedSnapshot
+            }
             app?.eventLogger?.logEvent(
                 AgentEvent(
                     eventId = UUID.randomUUID().toString(),
@@ -131,6 +143,14 @@ class AgentAccessibilityService : AccessibilityService() {
                 windowId = rootNode.windowId
             )
 
+            currentObservationSnapshot = snapshot
+
+            // Preserve external snapshot if the observed package is NOT LocalAgent itself
+            val pkg = snapshot.packageName.ifBlank { activePackageName }
+            if (pkg.isNotBlank() && pkg != "com.localagent.app") {
+                lastExternalObservationSnapshot = snapshot
+            }
+
             val eventType = if (snapshot.truncationInfo.isTruncated) {
                 "OBSERVATION_TRUNCATED"
             } else {
@@ -143,7 +163,7 @@ class AgentAccessibilityService : AccessibilityService() {
                     sessionId = activeSessionId,
                     subsystem = EventSubsystem.OBSERVATION,
                     eventType = eventType,
-                    metadataJson = "{\"nodeCount\":${snapshot.nodeCount},\"truncated\":${snapshot.truncationInfo.isTruncated}}"
+                    metadataJson = "{\"pkg\":\"$pkg\",\"nodeCount\":${snapshot.nodeCount},\"truncated\":${snapshot.truncationInfo.isTruncated}}"
                 )
             )
 

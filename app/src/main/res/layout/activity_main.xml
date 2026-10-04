@@ -3,23 +3,23 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="12dp">
 
     <TextView
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="LocalAgent Diagnostic Test UI (Phase 3.1)"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvAccessibilityHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="ACCESSIBILITY OBSERVATION SERVICE (Phase 3.1):"
-        android:textSize="12sp"
+        android:layout_marginTop="4dp"
+        android:text="ACCESSIBILITY SERVICE STATUS (Phase 3.1):"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:textColor="#4A148C" />
 
@@ -27,11 +27,31 @@
         android:id="@+id/tvAccessibilityStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="1dp"
         android:text="Status: SERVICE_UNBOUND | Active Pkg: None"
-        android:textSize="11sp"
+        android:textSize="10sp"
         android:fontFamily="monospace"
         android:textColor="#333333" />
+
+    <TextView
+        android:id="@+id/tvCurrentObservationDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Current Snapshot: None"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:textColor="#000080" />
+
+    <TextView
+        android:id="@+id/tvLastExternalObservationDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Last External Snapshot: None"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:textColor="#004D40" />
 
     <Button
         android:id="@+id/btnOpenAccessibilitySettings"
@@ -39,15 +59,15 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:text="Open Accessibility Settings"
-        android:textSize="11sp" />
+        android:textSize="10sp" />
 
     <TextView
         android:id="@+id/tvEventStorageHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="EVENT STORAGE (App-Private Operational DB):"
-        android:textSize="12sp"
+        android:layout_marginTop="4dp"
+        android:text="EVENT STORAGE (App-Private DB):"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:textColor="#004D40" />
 
@@ -55,9 +75,9 @@
         android:id="@+id/tvEventStorageDiagnostics"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="DB Name: agent.db | Location: APP_PRIVATE\nSession: ... | Events: 0 | DB Size: 0 KB"
-        android:textSize="11sp"
+        android:layout_marginTop="1dp"
+        android:text="DB: agent.db | Events: 0 | DB Size: 0 KB"
+        android:textSize="10sp"
         android:fontFamily="monospace"
         android:textColor="#333333" />
 
@@ -65,9 +85,9 @@
         android:id="@+id/tvDurableMemoryHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="LONG-TERM MEMORY (User-Owned Durable Storage):"
-        android:textSize="12sp"
+        android:layout_marginTop="4dp"
+        android:text="LONG-TERM MEMORY (Internal Shared Storage):"
+        android:textSize="11sp"
         android:textStyle="bold"
         android:textColor="#1B5E20" />
 
@@ -75,9 +95,9 @@
         android:id="@+id/tvDurableMemoryDiagnostics"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: INITIALIZING... | Records: 0 | Persistence: USER_OWNED"
-        android:textSize="11sp"
+        android:layout_marginTop="1dp"
+        android:text="Location: /sdcard/LocalAgent/memory/ | Status: READY"
+        android:textSize="10sp"
         android:fontFamily="monospace"
         android:textColor="#333333" />
 
@@ -93,7 +113,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Enable Storage"
-            android:textSize="11sp" />
+            android:textSize="10sp" />
 
         <Button
             android:id="@+id/btnTestWriteMemory"
@@ -102,21 +122,21 @@
             android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:text="Test Write Memory"
-            android:textSize="11sp" />
+            android:textSize="10sp" />
     </LinearLayout>
 
     <EditText
         android:id="@+id/etCommandInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:hint="Enter command (e.g., click 7, observe, status)"
+        android:layout_marginTop="4dp"
+        android:hint="Enter command (e.g., observe, status, click 7)"
         android:inputType="text" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:orientation="horizontal">
 
         <Button
@@ -139,39 +159,45 @@
         android:id="@+id/tvLatestResultHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:text="Latest Result:"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/tvLatestResult"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="1dp"
         android:text="None"
-        android:textSize="12sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/tvRecentEventsHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Recent Pipeline Event Log (Hydrated from DB):"
-        android:textStyle="bold" />
+        android:layout_marginTop="6dp"
+        android:text="Recent Pipeline Event Log (Scrollable Stream):"
+        android:textStyle="bold"
+        android:textSize="11sp" />
 
     <ScrollView
+        android:id="@+id/scrollEventLogContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="2dp">
+        android:layout_marginTop="2dp"
+        android:fillViewport="true"
+        android:scrollbars="vertical">
 
         <TextView
             android:id="@+id/tvRecentEvents"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="No events recorded."
-            android:textSize="11sp"
-            android:fontFamily="monospace" />
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:scrollbars="vertical" />
     </ScrollView>
 
 </LinearLayout>
