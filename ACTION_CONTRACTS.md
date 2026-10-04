@@ -17,7 +17,7 @@ Every Action Contract defines:
 
 ## 2. Standardized Result Classification Taxonomy
 
-The architecture defines explicit result categories. The system **never claims verified success** merely because `performAction()` returned true, timestamps updated, or unrelated background UI mutations occurred.
+The architecture defines explicit result categories. The system **never claims verified success** merely because `performAction()` returned true, timestamps updated, arbitrary nodes appeared/disappeared, or unrelated background UI mutations occurred.
 
 | Result Code | Meaning | Verification Status | Allowed Contexts / Trigger Criteria | Next Action |
 |---|---|---|---|---|
@@ -40,9 +40,17 @@ The architecture defines explicit result categories. The system **never claims v
 
 ---
 
-## 3. Target-Aware Verification Strategies (`VerificationStrategy`)
+## 3. Strict Target-Aware Verification Strategies (`VerificationStrategy`)
 
-Generic "something changed" verification is strictly forbidden. Unrelated UI mutations (e.g., a clock ticking, a notification banner arriving, or a background ad cycling) MUST NOT trigger `SUCCESS_VERIFIED`.
+Generic "something changed" verification is strictly forbidden. The following MUST NOT be accepted as verification by themselves:
+- total node count changes
+- arbitrary added or removed nodes
+- arbitrary node bounds changes
+- arbitrary text changes
+- timestamp changes
+- unrelated window or package transitions
+- notification banner arrivals
+- clock/time updates or background animation cycles
 
 ```kotlin
 sealed class VerificationStrategy {
@@ -53,7 +61,7 @@ sealed class VerificationStrategy {
         diff: SnapshotDiffResult
     ): VerificationResult
 
-    // Target-Specific Click Verification
+    // Target-Specific Click Verification Strategy
     data class TargetClickStrategy(
         val expectedTargetViewId: String? = null,
         val expectedDestinationPackage: String? = null,
@@ -65,11 +73,11 @@ sealed class VerificationStrategy {
             postState: ObservationSnapshot,
             diff: SnapshotDiffResult
         ): VerificationResult {
-            // Target-aware check 1: Verify target node text/checked state mutated specifically
+            // Target-aware check 1: Verify target node text or checked state mutated specifically
             val targetMutated = diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey || (expectedTargetViewId != null && it.nodeIdentityKey.contains(expectedTargetViewId)) } ||
                     diff.checkedStateChanges.any { it.nodeIdentityKey == targetIdentityKey }
 
-            // Target-aware check 2: Explicitly expected navigation outcome reached
+            // Target-aware check 2: Explicitly declared expected navigation destination reached
             val expectedNavigationOccurred = (expectedDestinationPackage != null && postState.packageName == expectedDestinationPackage) ||
                     (expectedDestinationWindow != null && postState.windowId.toString() == expectedDestinationWindow)
 
@@ -103,7 +111,7 @@ sealed class VerificationStrategy {
         }
     }
 
-    // Text Input Verification (Strictly tied to target identity or re-resolved target node)
+    // Target-Field Text Input Verification Strategy (No arbitrary editable/focused fallback)
     data class TextInputStrategy(val expectedText: String) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
@@ -111,14 +119,13 @@ sealed class VerificationStrategy {
             postState: ObservationSnapshot,
             diff: SnapshotDiffResult
         ): VerificationResult {
-            // Verify specific target field text matches expected string (never arbitrary field)
+            // Verify specific target field text matches expected string (never an unrelated field)
             val targetField = postState.nodes.firstOrNull { it.identity.identityKey == targetIdentityKey }
-                ?: postState.nodes.firstOrNull { it.isFocused && it.isEditable }
 
-            val isVerified = targetField?.text == expectedText ||
+            val textMatches = targetField?.text == expectedText ||
                     diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey && it.newText == expectedText }
 
-            return if (isVerified) {
+            return if (textMatches) {
                 VerificationResult.SuccessVerified
             } else {
                 VerificationResult.DispatchedButNotVerified("Text in target field specifically did not match expected string: '$expectedText'")
@@ -151,7 +158,7 @@ sealed class VerificationStrategy {
         }
     }
 
-    // Navigation & Layer-Aware Back Strategy
+    // Layer-Aware Navigation Back Verification Strategy
     data class NavigationAwareBackStrategy(
         val expectedPreviousPackage: String? = null,
         val expectedPreviousWindow: Int? = null
@@ -175,7 +182,7 @@ sealed class VerificationStrategy {
         }
     }
 
-    // Flexible Long Click Strategy
+    // Outcome-Specific Long Click Strategy
     data class FlexibleLongClickStrategy(val expectedOutcome: LongClickOutcome) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
@@ -187,9 +194,9 @@ sealed class VerificationStrategy {
                 LongClickOutcome.CONTEXT_MENU -> diff.windowChanged || diff.addedNodeIdentities.any { it.contains("menu") || it.contains("popup") }
                 LongClickOutcome.TEXT_SELECTION -> diff.focusChanges.any { it.nodeIdentityKey == targetIdentityKey }
                 LongClickOutcome.EXPECTED_UI_RESULT -> diff.packageChanged || diff.windowChanged || diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey }
-                LongClickOutcome.NO_DETERMINISTIC_EXPECTATION -> diff.hasObservableChange
+                LongClickOutcome.NO_DETERMINISTIC_EXPECTATION -> false // Never automatically claims verified success without deterministic expected outcome
             }
-            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Long click executed, but expected outcome '$expectedOutcome' was not observed on target")
+            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Long click executed, but expected outcome '$expectedOutcome' was not observed specifically on target")
         }
     }
 }
