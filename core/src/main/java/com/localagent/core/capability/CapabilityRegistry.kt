@@ -8,7 +8,8 @@ enum class CapabilityCategory {
     VOICE,
     RESEARCH,
     SOLVER,
-    AI
+    AI,
+    STORAGE
 }
 
 enum class ResourceCostTier {
@@ -29,7 +30,8 @@ enum class SpecialAccessType {
     SYSTEM_OVERLAY,
     WRITE_SETTINGS,
     USAGE_ACCESS,
-    NOTIFICATION_LISTENER
+    NOTIFICATION_LISTENER,
+    STORAGE_ACCESS_FRAMEWORK
 }
 
 enum class PrivilegeLevel {
@@ -39,6 +41,24 @@ enum class PrivilegeLevel {
     SYSTEM_DEVICE_OWNER,
     ROOT
 }
+
+enum class CapabilityLifecycleState {
+    DECLARED,
+    AVAILABLE,
+    UNAVAILABLE,
+    PERMISSION_REQUIRED,
+    USER_REQUESTED,
+    GRANTED,
+    DENIED,
+    READY,
+    BLOCKED
+}
+
+data class CapabilityStatus(
+    val capabilityId: String,
+    val lifecycleState: CapabilityLifecycleState,
+    val detailMessage: String = ""
+)
 
 data class CapabilityRule(
     val capabilityId: String,
@@ -58,7 +78,8 @@ data class CapabilityRule(
 
 data class CapabilityDescriptor(
     val rule: CapabilityRule,
-    val isAvailableOnCurrentDevice: Boolean = true
+    val isAvailableOnCurrentDevice: Boolean = true,
+    val lifecycleState: CapabilityLifecycleState = CapabilityLifecycleState.DECLARED
 )
 
 class CapabilityRegistry {

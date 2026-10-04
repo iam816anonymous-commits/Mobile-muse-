@@ -1,7 +1,10 @@
 package com.localagent.app.ui
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.databinding.ActivityMainBinding
 import com.localagent.core.command.*
@@ -40,6 +43,59 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnObserve.setOnClickListener {
             triggerObserveAction()
+        }
+
+        binding.btnEnableStorage.setOnClickListener {
+            requestDurableStorageAccess()
+        }
+    }
+
+    private fun requestDurableStorageAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            try {
+                startActivityForResult(intent, 1001)
+            } catch (e: Exception) {
+                logEvent("[STORAGE_PERMISSION] SAF document tree intent launch error: ${e.message}")
+            }
+        } else {
+            val permissions = arrayOf(
+                android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            )
+            ActivityCompat.requestPermissions(this, permissions, 1002)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1001 && resultCode == RESULT_OK) {
+            val uri = data?.data
+            if (uri != null) {
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                } catch (_: Exception) {}
+                val prefs = getSharedPreferences("agent_storage_prefs", MODE_PRIVATE)
+                prefs.edit().putString("saf_memory_uri", uri.toString()).apply()
+                logEvent("[STORAGE_GRANTED] SAF memory URI persisted: $uri")
+                updateStorageDiagnostics()
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1002) {
+            val granted = grantResults.isNotEmpty() && grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
+            if (granted) {
+                logEvent("[STORAGE_GRANTED] Runtime storage permissions granted")
+            } else {
+                logEvent("[STORAGE_DENIED] Runtime storage permissions denied")
+            }
+            updateStorageDiagnostics()
         }
     }
 

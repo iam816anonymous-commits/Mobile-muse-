@@ -53,11 +53,19 @@
         android:fontFamily="monospace"
         android:textColor="#333333" />
 
+    <Button
+        android:id="@+id/btnEnableStorage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Enable Durable Storage Access"
+        android:textSize="12sp" />
+
     <EditText
         android:id="@+id/etCommandInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:hint="Enter command (e.g., click 7, observe, status)"
         android:inputType="text" />
 

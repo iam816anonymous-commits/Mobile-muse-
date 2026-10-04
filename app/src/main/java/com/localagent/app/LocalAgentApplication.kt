@@ -50,6 +50,18 @@ class LocalAgentApplication : Application() {
         capabilityRegistry = CapabilityRegistry().apply {
             registerCapability(
                 CapabilityRule(
+                    capabilityId = "DURABLE_STORAGE",
+                    name = "Durable Long-Term Memory Storage",
+                    category = CapabilityCategory.STORAGE,
+                    minApi = 27,
+                    requiredPermissions = listOf("android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE"),
+                    requiredSpecialAccess = listOf(SpecialAccessType.STORAGE_ACCESS_FRAMEWORK),
+                    verificationStrategy = "ChecksumAndFileExistsStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
                     capabilityId = "UI_CLICK",
                     name = "UI Click",
                     category = CapabilityCategory.UI_CONTROL,
