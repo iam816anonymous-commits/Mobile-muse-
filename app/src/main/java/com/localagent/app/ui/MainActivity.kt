@@ -14,6 +14,8 @@ import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
 import com.localagent.core.policy.PolicyEvaluationResult
 import com.localagent.core.result.ResultCode
+import com.localagent.core.storage.DurableMemoryCategory
+import com.localagent.core.storage.DurableRecord
 import java.util.LinkedList
 import java.util.UUID
 
@@ -23,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private val commandNormalizer = CommandNormalizer()
     private val maxEventLogSize = 10
     private val recentEventLogs = LinkedList<String>()
+    private var lastWriteStatus: String = "NONE"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +51,37 @@ class MainActivity : AppCompatActivity() {
         binding.btnEnableStorage.setOnClickListener {
             requestDurableStorageAccess()
         }
+
+        binding.btnTestWriteMemory.setOnClickListener {
+            testWriteDurableMemoryRecord()
+        }
+    }
+
+    private fun testWriteDurableMemoryRecord() {
+        val app = application as? LocalAgentApplication ?: return
+        val record = DurableRecord(
+            recordId = "MEMORY_TEST_001",
+            category = DurableMemoryCategory.LEARNING_ARTIFACT,
+            version = 1,
+            payloadJson = "{\"test\":true,\"createdMs\":${System.currentTimeMillis()},\"author\":\"diagnostic_ui\"}",
+            metadataJson = "{\"origin\":\"testWriteDurableMemoryRecord\"}"
+        )
+
+        val success = app.durableStorageManager.writeRecord(record)
+        if (success) {
+            val readBack = app.durableStorageManager.readRecord("MEMORY_TEST_001")
+            if (readBack != null) {
+                lastWriteStatus = "SUCCESS (MEMORY_TEST_001 written & SHA-256 verified)"
+                logEvent("[DURABLE_STORAGE] Successfully wrote & verified MEMORY_TEST_001.json")
+            } else {
+                lastWriteStatus = "FAILED (Integrity readback failed)"
+                logEvent("[DURABLE_STORAGE] Integrity readback failed for MEMORY_TEST_001")
+            }
+        } else {
+            lastWriteStatus = "FAILED (Write error to backend)"
+            logEvent("[DURABLE_STORAGE] Write error writing MEMORY_TEST_001")
+        }
+        updateStorageDiagnostics()
     }
 
     private fun requestDurableStorageAccess() {
@@ -326,7 +360,7 @@ class MainActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     binding.tvEventStorageDiagnostics.text = "DB Name: agent.db | Location: APP_PRIVATE (/data/data/.../files/agent/)\nSession: ${session.sessionId.take(8)}... | Events: $count | DB Footprint: ${bytes / 1024} KB | Latest: $lastEvent"
-                    binding.tvDurableMemoryDiagnostics.text = "Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: $durableStatus | Durable Records: $durableRecordsCount | Persistence: USER_OWNED"
+                    binding.tvDurableMemoryDiagnostics.text = "Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: $durableStatus | Durable Records: $durableRecordsCount | Last Write: $lastWriteStatus"
                 }
             } catch (_: Exception) {}
         }.start()
