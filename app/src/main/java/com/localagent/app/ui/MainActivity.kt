@@ -27,6 +27,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupListeners()
+        hydratePersistedEventHistory()
         logEvent("[SYSTEM] Foundation Test UI Ready. Target API: 27 Baseline.")
         updateStorageDiagnostics()
     }
@@ -39,6 +40,20 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnObserve.setOnClickListener {
             triggerObserveAction()
+        }
+    }
+
+    private fun hydratePersistedEventHistory() {
+        val app = application as? LocalAgentApplication ?: return
+        try {
+            val pastEvents = app.eventRepository.queryEvents(EventFilter(limit = maxEventLogSize - 1))
+            recentEventLogs.clear()
+            pastEvents.reversed().forEach { event ->
+                val text = "[${event.subsystem}] ${event.eventType}${if (event.actionType != null) " " + event.actionType else ""}"
+                recentEventLogs.addLast("${event.timestamp % 1000000}: $text")
+            }
+        } catch (e: Exception) {
+            System.err.println("MainActivity: Error hydrating event history: ${e.message}")
         }
     }
 
@@ -251,9 +266,11 @@ class MainActivity : AppCompatActivity() {
                 val bytes = app.eventRepository.getStorageFootprintBytes()
                 val recentEvents = app.eventRepository.queryEvents(EventFilter(limit = 1))
                 val lastEvent = recentEvents.firstOrNull()?.eventType ?: "NONE"
+                val durableRecordsCount = app.durableStorageManager.listRecords().size
 
                 runOnUiThread {
-                    binding.tvStorageDiagnostics.text = "Session: ${session.sessionId.take(8)}... | Events: $count | DB: ${bytes / 1024} KB | Durable Storage: $durableStatus | Latest: $lastEvent"
+                    binding.tvEventStorageDiagnostics.text = "DB Name: agent.db | Location: APP_PRIVATE (/data/data/.../files/agent/)\nSession: ${session.sessionId.take(8)}... | Events: $count | DB Footprint: ${bytes / 1024} KB | Latest: $lastEvent"
+                    binding.tvDurableMemoryDiagnostics.text = "Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: $durableStatus | Durable Records: $durableRecordsCount | Persistence: USER_OWNED"
                 }
             } catch (_: Exception) {}
         }.start()

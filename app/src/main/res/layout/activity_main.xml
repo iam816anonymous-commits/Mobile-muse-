@@ -9,17 +9,48 @@
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="LocalAgent Foundation Test UI (Phase 2)"
+        android:text="LocalAgent Diagnostic Test UI (Phase 2)"
         android:textSize="18sp"
         android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/tvStorageDiagnostics"
+        android:id="@+id/tvEventStorageHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Session: ... | Persisted Events: 0 | DB Size: 0 KB"
+        android:text="EVENT STORAGE (App-Private Operational DB):"
         android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#004D40" />
+
+    <TextView
+        android:id="@+id/tvEventStorageDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="DB Name: agent.db | Location: APP_PRIVATE\nSession: ... | Events: 0 | DB Size: 0 KB"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:textColor="#333333" />
+
+    <TextView
+        android:id="@+id/tvDurableMemoryHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="LONG-TERM MEMORY (User-Owned Durable Storage):"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#1B5E20" />
+
+    <TextView
+        android:id="@+id/tvDurableMemoryDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: INITIALIZING... | Records: 0 | Persistence: USER_OWNED"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
         android:textColor="#333333" />
 
     <EditText
@@ -56,7 +87,7 @@
         android:id="@+id/tvLatestResultHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:text="Latest Result:"
         android:textStyle="bold" />
 
@@ -64,16 +95,16 @@
         android:id="@+id/tvLatestResult"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:text="None"
-        android:textSize="14sp" />
+        android:textSize="13sp" />
 
     <TextView
         android:id="@+id/tvRecentEventsHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Recent Pipeline Event Log (UI Stream):"
+        android:layout_marginTop="12dp"
+        android:text="Recent Pipeline Event Log (Hydrated from DB):"
         android:textStyle="bold" />
 
     <ScrollView
@@ -87,7 +118,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="No events recorded."
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:fontFamily="monospace" />
     </ScrollView>
 
