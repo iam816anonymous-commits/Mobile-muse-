@@ -5,10 +5,10 @@
 Logging in **LocalAgent** is a first-class, core subsystem rather than a transient UI display or localized debug tool. Every command, target resolution, accessibility dispatch, permission change, voice STT/TTS event, hardware control, memory update, workflow step, error, and system diagnostic generates a **structured, persistent event**.
 
 ### Universal Logging Directives
-1. **Universal Execution Trail:** All input channels (Console, Movable Overlay, Voice Input, Workflow Engine, AI Planners) write structured logs to the single `EventLogger`.
-2. **Persistent Storage:** Event logs are saved to an app-private SQLite/Room database (`/data/data/com.localagent.app/files/agent/logs/agent-events.db`).
+1. **Universal Execution Trail:** All input channels (Console, Movable Overlay, Voice Input, Workflow Engine, Solvers, AI Planners) write structured logs to the single `EventLogger`.
+2. **Unified Persistence (`agent.db`):** All persistent data (events, episodes, workflows, knowledge, semantic mappings) is consolidated into a single SQLite database (`/data/data/com.localagent.app/files/agent/agent.db`).
 3. **Structured Schema:** Events contain correlation IDs, precise timestamps, subsystem source tags, execution duration, result codes, and structured JSON metadata.
-4. **Bounded Storage & Rotation:** Log database size is strictly capped (default 20 MB max). Automated log rotation purges or compresses expired records to ensure zero risk of filling low-storage devices.
+4. **Bounded Storage & Comprehensive Accounting:** Storage calculations explicitly budget for SQLite database files (`agent.db`), Write-Ahead Logging files (`agent.db-wal`), and Shared Memory files (`agent.db-shm`). Total storage is capped at 30 MB maximum across all log and WAL artifacts.
 
 ---
 
@@ -21,7 +21,7 @@ data class AgentEvent(
     val eventId: String = UUID.randomUUID().toString(),
     val correlationId: String, // Groups multi-step actions/workflows into one execution sequence
     val timestamp: Long = System.currentTimeMillis(),
-    val subsystem: EventSubsystem, // COMMAND, ACCESSIBILITY, ACTION, PERMISSION, HARDWARE, VOICE, WORKFLOW, MEMORY, SYSTEM, TEST
+    val subsystem: EventSubsystem, // COMMAND, ACCESSIBILITY, OBSERVATION, ACTION, PERMISSION, HARDWARE, VOICE, WORKFLOW, MEMORY, LEARNING, BROWSER, SOLVER, SYSTEM, TEST
     val eventType: String, // e.g., "COMMAND_RECEIVED", "TARGET_RESOLVED", "ACTION_DISPATCHED", "STATE_DIFF_VERIFIED"
     val actionType: String?, // e.g., "UI_CLICK", "GLOBAL_BACK", "APP_LAUNCH"
     val sourceChannel: String, // e.g., "CONSOLE", "OVERLAY", "VOICE", "AUTOMATION", "AI"
@@ -33,109 +33,40 @@ data class AgentEvent(
     val metadataJson: String = "{}" // Structured JSON map for contextual detail
 )
 
-enum class EventSeverity {
-    DEBUG, INFO, WARNING, ERROR, CRITICAL
-}
+enum class EventSeverity { DEBUG, INFO, WARNING, ERROR, CRITICAL }
 
 enum class EventSubsystem {
-    COMMAND, ACCESSIBILITY, OBSERVATION, ACTION, PERMISSION, HARDWARE, VOICE, WORKFLOW, MEMORY, LEARNING, BROWSER, SYSTEM, TEST
+    COMMAND, ACCESSIBILITY, OBSERVATION, ACTION, PERMISSION, HARDWARE, VOICE, WORKFLOW, MEMORY, LEARNING, BROWSER, SOLVER, SYSTEM, TEST
 }
 ```
 
 ---
 
-## 3. Persistent Storage Directory Structure & Retention Policy
+## 3. Persistent Storage Directory Structure & Unified Storage Budget
 
 ```text
 /data/data/com.localagent.app/files/agent/
-├── logs/
-│   ├── agent-events.db          # Primary SQLite / Room Event Database
-│   ├── agent-events.db-shm      # Shared memory WAL file
-│   ├── agent-events.db-wal      # Write-Ahead Log
-│   └── archives/
-│       ├── agent-log-2026-10-03.gz  # Compressed historical log exports
-│       └── agent-log-2026-10-04.gz
-├── memory/
-│   ├── workflows.db             # Procedural workflow definitions
-│   └── knowledge.db             # Semantic app knowledge
-├── evidence/                    # Diagnostic failure snapshots
-│   ├── failure-snap-001.json    # Dumped UI tree primitive on failure
-│   └── failure-snap-001.png     # Optional diagnostic screenshot
-└── exports/                     # User-initiated log/audit exports
+├── agent.db                  # Consolidated Primary SQLite / Room Database
+│   ├── Table: agent_events   # Event and audit log stream
+│   ├── Table: episodes       # Episodic task experience
+│   ├── Table: workflows      # Procedural workflow definitions
+│   ├── Table: semantic_data  # App structure & package mappings
+│   └── Table: knowledge      # Untrusted external research & chat knowledge
+├── agent.db-wal              # SQLite Write-Ahead Log file
+├── agent.db-shm              # SQLite Shared Memory index file
+├── evidence/                 # Failure diagnostic dumps (Max 5 MB)
+│   ├── failure-snap-001.json
+│   └── failure-snap-001.png
+└── exports/                  # User-initiated log exports
 ```
 
-### Log Retention & Rotation Protocol
-- **Max Database Size:** 20 MB (Configurable between 5 MB and 50 MB in Settings).
-- **Max History Days:** 7 Days default retention.
-- **Trigger Strategy:**
-  1. Whenever a new log batch is written, `LogRetentionManager` checks `database.file.length()`.
-  2. If DB size > 20 MB or row count > 100,000, execute purge query:
+### Comprehensive Storage Budget Accounting
+- **Total Storage Cap:** **30 MB Maximum** for entire `/data/data/com.localagent.app/files/agent/` folder.
+- **Unified DB Budget Calculation:**
+  `Total DB Footprint = FileSize(agent.db) + FileSize(agent.db-wal) + FileSize(agent.db-shm)`
+- **Automated Retention Trigger:**
+  1. Whenever a log batch is committed, `LogRetentionManager` computes `Total DB Footprint`.
+  2. If `Total DB Footprint` > 20 MB or row count > 50,000, execute purge:
      `DELETE FROM agent_events WHERE timestamp < :cutoffTime OR rowid IN (SELECT rowid FROM agent_events ORDER BY timestamp ASC LIMIT 5000)`
-  3. Execute SQLite `VACUUM` asynchronously during idle agent states to reclaim disk space.
-
----
-
-## 4. Universal Event Trace Example
-
-Example event sequence logged when user issues "click 7" in Calculator:
-
-```json
-[
-  {
-    "eventId": "evt-001",
-    "correlationId": "corr-calc-7782",
-    "timestamp": 1759546000100,
-    "subsystem": "COMMAND",
-    "eventType": "COMMAND_RECEIVED",
-    "actionType": "UI_CLICK",
-    "sourceChannel": "CONSOLE",
-    "resultCode": "NORMALIZED",
-    "durationMs": 2,
-    "severity": "INFO",
-    "metadataJson": "{\"rawInput\":\"click 7\",\"targetQuery\":\"7\"}"
-  },
-  {
-    "eventId": "evt-002",
-    "correlationId": "corr-calc-7782",
-    "timestamp": 1759546000115,
-    "subsystem": "OBSERVATION",
-    "eventType": "TARGET_RESOLVING",
-    "actionType": "UI_CLICK",
-    "sourceChannel": "CONSOLE",
-    "targetPackage": "com.google.android.calculator",
-    "targetViewId": "com.google.android.calculator:id/digit_7",
-    "resultCode": "ANCESTOR_TRAVERSED",
-    "durationMs": 12,
-    "severity": "INFO",
-    "metadataJson": "{\"targetNode\":\"TextView('7')\",\"clickableAncestor\":\"MaterialButton('7')\"}"
-  },
-  {
-    "eventId": "evt-003",
-    "correlationId": "corr-calc-7782",
-    "timestamp": 1759546000130,
-    "subsystem": "ACTION",
-    "eventType": "ACTION_DISPATCHED",
-    "actionType": "UI_CLICK",
-    "sourceChannel": "CONSOLE",
-    "targetPackage": "com.google.android.calculator",
-    "resultCode": "DISPATCHED",
-    "durationMs": 5,
-    "severity": "INFO",
-    "metadataJson": "{\"actionId\":16,\"targetClass\":\"android.widget.Button\"}"
-  },
-  {
-    "eventId": "evt-004",
-    "correlationId": "corr-calc-7782",
-    "timestamp": 1759546000435,
-    "subsystem": "OBSERVATION",
-    "eventType": "STATE_DIFF_VERIFIED",
-    "actionType": "UI_CLICK",
-    "sourceChannel": "CONSOLE",
-    "targetPackage": "com.google.android.calculator",
-    "resultCode": "SUCCESS_VERIFIED",
-    "durationMs": 305,
-    "severity": "INFO",
-    "metadataJson": "{\"textDiff\":[{\"viewId\":\"com.google.android.calculator:id/formula\",\"oldText\":\"\",\"newText\":\"7\"}]}"
-  }
-]
-```
+  3. Execute `PRAGMA wal_checkpoint(TRUNCATE)` to reset and shrink WAL file size.
+  4. Perform asynchronous `VACUUM` during idle state to reclaim unused disk pages.

@@ -1,28 +1,28 @@
-# LOW_RAM_DESIGN.md — Low-RAM & Low-Storage Architectural Design
+# LOW_RAM_DESIGN.md — Cross-Phase Low-RAM & Low-Storage Architectural Design
 
 ## 1. Executive Summary & Primary Mandate
 
-Operating effectively on entry-level Android devices—specifically **Android 8.1 / API level 27 devices with 1 GB to 2 GB total RAM**—is a **primary baseline requirement** of **LocalAgent**.
+Operating effectively on entry-level Android devices—specifically **Android 8.1 / API level 27 devices with 1 GB to 2 GB total RAM**—is a **primary baseline requirement** enforced **across all implementation phases** of **LocalAgent**.
 
-Low-RAM compatibility is not an optimization phase added at the end; it dictates every architectural choice from day one.
+Low-RAM compatibility is not a late optimization phase; it dictates every architectural choice from day one.
 
 ---
 
-## 2. Hard Anti-Patterns (Explicitly Forbidden)
+## 2. Hard Architectural Anti-Patterns (Explicitly Forbidden)
 
 To guarantee low-RAM stability, the codebase strictly forbids:
 
 1. **NO Permanently Resident LLMs or ML Frameworks:** Large models must never be kept loaded in memory.
-2. **NO Retained Accessibility Trees:** Holding `AccessibilityNodeInfo` objects across execution bounds causes catastrophic native C++ memory leaks on API 27.
+2. **NO Retained Accessibility Trees:** Holding `AccessibilityNodeInfo` objects across execution bounds causes severe native C++ memory leaks on API 27.
 3. **NO Continuous Polling Timers:** No busy loops, `Handler` polling, or high-frequency background observers.
 4. **NO Continuous Screen Capture or Background OCR:** Screen capture and OCR run strictly on-demand.
-5. **NO Unbounded Logs in RAM:** All logging streams directly to disk via buffered SQLite transactions.
-6. **NO Unnecessary Background Services:** Services run in foreground mode only when active tasks are executing and unbind immediately when idle.
-7. **NO Duplicate Execution / UI Frameworks:** No Jetpack Compose overhead; uses light Android View system for overlay and console UI.
+5. **NO Unbounded Logs in RAM:** All logging streams directly to disk via buffered SQLite transactions in unified `agent.db`.
+6. **NO Unnecessary Background Services:** Services run in passive mode or unbind immediately when idle.
+7. **NO Manual `System.gc()` Calls in Core Architecture:** Do not rely on `System.gc()` calls for memory management; manage object lifecycles, clear references, and recycle native nodes deterministically.
 
 ---
 
-## 3. Low-RAM Architecture Principles
+## 3. Cross-Phase Low-RAM Architectural Rules
 
 ```text
                      ┌───────────────────────────────────────────────┐
@@ -38,12 +38,12 @@ To guarantee low-RAM stability, the codebase strictly forbids:
                                              │
                                              ▼
                      ┌───────────────────────────────────────────────┐
-                     │            Low-RAM Operating Rules            │
-                     │  1. Event-Driven Execution Only               │
-                     │  2. Immediate Node Recycling (.recycle())     │
-                     │  3. Bounded Primitive Snapshot Objects        │
-                     │  4. Lazy Initialization of Speech & Storage   │
-                     │  5. Bounded SQLite DB & Automated Log Purge   │
+                     │         Cross-Phase Operating Rules           │
+                     │  1. Single-Root Capture + Immediate .recycle()│
+                     │  2. Bounded Primitive Snapshot Objects        │
+                     │  3. On-Demand Speech Recognizer & TTS         │
+                     │  4. Unified agent.db + WAL File Accounting    │
+                     │  5. Passive Degradation if A11y Unbound       │
                      └───────────────────────────────────────────────┘
 ```
 
@@ -52,30 +52,23 @@ On Android 8.1 (API 27), every call to `rootInActiveWindow` or `node.getChild(i)
 - Every retrieved `AccessibilityNodeInfo` must be processed into a primitive `NodePrimitive` data object.
 - `.recycle()` must be called explicitly in `finally` blocks on every node reference.
 
-### 3.2 Operating State & Memory Footprint Targets
+### 3.2 Operating State & Resource Footprint Metric Targets
 
-| Agent State | System Activity | Target Heap Footprint | Target CPU Usage | Background Services |
+| Agent State | System Activity | Target Heap Footprint | Target CPU Usage | Resource Allocation |
 |---|---|---|---|---|
 | **IDLE** | Listening for Accessibility events or user input | **< 15 MB** | **~0%** | Accessibility Service bound (passive) |
 | **EXECUTING** | Target resolution, action dispatch, snapshot diff | **< 35 MB** | **5% – 15%** | Active execution thread running |
 | **VOICE_ACTIVE** | STT recording or TTS speech synthesis | **< 45 MB** | **10% – 25%** | Speech recognizer active; destroyed immediately when speech ends |
-| **LOW_MEMORY_DEGRADED**| System low-memory warning (`onTrimMemory()`) | **< 10 MB** | **< 2%** | Clear all in-memory caches, flush log buffers to disk |
+| **LOW_MEMORY_DEGRADED**| System low-memory warning (`onTrimMemory()`) | **< 10 MB** | **< 2%** | Clear in-memory caches, flush log buffers to disk |
 
 ---
 
-## 4. `ResourceManager` Subsystem
-
-The **`ResourceManager`** monitors device system health and enforces memory trimming:
+## 4. `ResourceManager` Memory Trimming Implementation
 
 ```kotlin
 class ResourceManager(private val context: Context) : ComponentCallbacks2 {
 
-    enum class MemoryState {
-        NORMAL,
-        MODERATE,
-        LOW,
-        CRITICAL
-    }
+    enum class MemoryState { NORMAL, MODERATE, LOW, CRITICAL }
 
     private var currentMemoryState = MemoryState.NORMAL
 
@@ -89,7 +82,7 @@ class ResourceManager(private val context: Context) : ComponentCallbacks2 {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
                 currentMemoryState = MemoryState.CRITICAL
                 evictCaches(aggressive = true)
-                System.gc() // Hint GC during critical memory pressure
+                releaseNonEssentialResources()
             }
             ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
             ComponentCallbacks2.TRIM_MEMORY_MODERATE,
@@ -105,7 +98,7 @@ class ResourceManager(private val context: Context) : ComponentCallbacks2 {
     }
 
     private fun releaseNonEssentialResources() {
-        // Shutdown TTS engine, release STT recognizer, flush log buffers to SQLite
+        // Shutdown TTS engine, destroy STT recognizer, flush log buffers to SQLite
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {}
@@ -117,16 +110,16 @@ class ResourceManager(private val context: Context) : ComponentCallbacks2 {
 
 ---
 
-## 5. Low-Storage Management & Storage Budgets
+## 5. Storage Budget & WAL File Accounting
 
 To protect low-storage Android devices (e.g., 8 GB or 16 GB internal storage):
 
-### Storage Budget Allocations
-- **App Storage Directory:** `/data/data/com.localagent.app/`
+### Storage Allocations & WAL Accounting
+- **App Storage Directory:** `/data/data/com.localagent.app/files/agent/`
 - **Total Storage Cap:** **30 MB Maximum** across all logs, databases, and evidence files.
-- **Event DB Cap:** 20 MB max (Auto-purged via `LogRetentionManager`).
-- **Memory & Workflow DB Cap:** 5 MB max.
-- **Evidence / Diagnostic Snapshots:** 5 MB max (Max 10 snapshot JSON dumps; oldest deleted when threshold met).
+- **Unified DB Budget Formula:**
+  `DB Total Size = FileSize("agent.db") + FileSize("agent.db-wal") + FileSize("agent.db-shm")`
+- **WAL Checkpoint Policy:** Run `PRAGMA wal_checkpoint(TRUNCATE)` when `agent.db-wal` exceeds 5 MB to prevent unbounded WAL growth.
 
 ---
 
@@ -135,8 +128,8 @@ To protect low-storage Android devices (e.g., 8 GB or 16 GB internal storage):
 On 1 GB RAM Android 8.1 devices, Android's Low Memory Killer (LMK) may terminate the `LocalAgent` app process while in the background.
 
 ### LMK Survival & Recovery Protocol
-1. **Zero State in RAM:** All task states, command queues, and execution logs are committed synchronously to SQLite before waiting for UI transitions.
-2. **Service Binding Recovery:** When Android restarts `AgentAccessibilityService` after process kill, `onServiceConnected()` queries `logs/agent-events.db` for incomplete tasks.
+1. **Zero State in RAM:** All task states, command queues, and execution logs are committed synchronously to SQLite `agent.db` before waiting for UI transitions.
+2. **Service Binding Recovery:** When Android restarts `AgentAccessibilityService` after process kill, `onServiceConnected()` queries `agent.db` for incomplete tasks.
 3. **Graceful Resume:** If an active workflow was interrupted by LMK death:
    - Mark interrupted task as `TASK_INTERRUPTED_BY_LMK`.
    - Capture fresh live `ObservationSnapshot`.

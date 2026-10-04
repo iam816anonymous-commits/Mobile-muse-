@@ -2,14 +2,14 @@
 
 ## 1. Executive Summary & Core Philosophy
 
-**LocalAgent** is a modular, low-RAM, offline-first Android device agent capable of observing, reasoning about, and safely executing actions on Android devices. It prioritizes **deterministic automation first**, with optional AI learning and planning layers sitting above it.
+**LocalAgent** is a modular, low-RAM, offline-first Android device agent capable of observing, reasoning about, and safely executing actions on Android devices. It prioritizes **deterministic automation first**, with optional AI learning, research, and planning layers sitting above it.
 
 ### Core Architectural Mandates
 1. **Deterministic Core Without LLM:** The execution engine must function 100% deterministically without requiring an LLM or cloud connectivity.
 2. **One Command → One Execution Pipeline:** Every input channel (Console, Movable Overlay, Voice, Automated Test Harness, Future AI Planner, Future Browser Agent) normalizes user intent into a single unified `NormalizedCommand`. There are **no separate action executors** for different input surfaces.
 3. **API 27 Baseline (Android 8.1):** The core agent targets Android 8.1 / API level 27 as its primary baseline for low-RAM devices while gracefully incorporating modern API compatibility adapters up to API 36+.
-4. **No Fake Success:** `performAction() == true` from Android Accessibility APIs is treated only as `DISPATCHED`. Complete execution requires live node reacquisition, ancestor traversal, and post-action UI observation diff verification.
-5. **Low-RAM First:** Memory footprint must be kept minimal through event-driven processing, lazy initialization, short-lived AccessibilityNodeInfo snapshot primitives, and bounded local storage.
+4. **No Fake Success:** `performAction() == true` from Android Accessibility APIs is treated only as `DISPATCHED`. Complete execution requires live node reacquisition, ancestor traversal, and action-specific post-action UI observation diff verification.
+5. **Low-RAM First Across All Phases:** Memory footprint is kept minimal through event-driven processing, lazy initialization, short-lived AccessibilityNodeInfo snapshot primitives, immediate `.recycle()` calls, and bounded local storage with strict WAL/journal accounting.
 
 ---
 
@@ -36,14 +36,15 @@
                                                  │
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
-                     │                  CAPABILITY RESOLVER                   │
-                     │  Check Prerequisites, Permissions, and API Tiers       │
+                     │         CAPABILITY REGISTRY & POLICY ENGINE            │
+                     │  CapabilityRegistry ──► ActionPolicyEngine             │
+                     │  (Check Risk Tiers: LOW, MEDIUM, HIGH, CRITICAL)       │
                      └───────────────────────────┬────────────────────────────┘
                                                  │
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
                      │                  TARGET RESOLVER                       │
-                     │  Live Node Acquisition ──► Ancestor Traversal          │
+                     │  Single Live Node Acquisition ──► Ancestor Traversal   │
                      │  (Clickable / Long-Clickable / Scrollable / Editable)  │
                      └───────────────────────────┬────────────────────────────┘
                                                  │
@@ -56,70 +57,87 @@
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
                      │               OBSERVATION & VERIFICATION               │
-                     │  Fresh UI Snapshot Capture ──► State-Diff Engine      │
-                     │  (SUCCESS / DISPATCHED_UNVERIFIED / TARGET_NOT_FOUND)  │
+                     │  Single Root Snapshot Capture ──► VerificationStrategy │
+                     │  (SUCCESS_VERIFIED / DISPATCHED_UNVERIFIED / FAILED)   │
                      └───────────────────────────┬────────────────────────────┘
                                                  │
                                                  ▼
                      ┌────────────────────────────────────────────────────────┐
                      │               PERSISTENCE & AUDIT LOGGING              │
-                     │  Structured EventLogger ──► SQLite/Room Event DB       │
+                     │  Structured EventLogger ──► Unified agent.db           │
                      │  Episodic Memory / Procedural Workflow Storage         │
                      └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Detailed Component Architecture
+## 3. Capability Registry & Action Policy Subsystem
 
-### 3.1 Input Normalization & Universal Command Pipeline
-Regardless of origin, every user or agent action is translated into a standardized data model:
+### 3.1 Capability Registry
+The **`CapabilityRegistry`** acts as the central source of truth for querying available agent capabilities on the current device state:
 
 ```kotlin
-data class NormalizedCommand(
-    val id: String = UUID.randomUUID().toString(),
-    val source: CommandSource, // CONSOLE, OVERLAY, VOICE, AUTOMATION, AI, BROWSER
-    val actionType: ActionType, // CLICK, LONG_CLICK, TEXT_INPUT, SCROLL_FORWARD, BACK, HOME, etc.
-    val targetSelector: TargetSelector?,
-    val parameters: Map<String, String> = emptyMap(),
-    val timestamp: Long = System.currentTimeMillis()
+data class CapabilityDescriptor(
+    val id: String, // e.g., "UI_CLICK", "GLOBAL_BACK", "STRUCTURED_PROBLEM_SOLVER", "RESEARCH_ENGINE"
+    val name: String,
+    val category: CapabilityCategory, // NAVIGATION, UI_CONTROL, SYSTEM, HARDWARE, VOICE, RESEARCH, SOLVER, AI
+    val minApi: Int,
+    val requiredPermissions: List<String>,
+    val requiredSpecialAccess: List<SpecialAccessType>,
+    val riskLevel: ActionRiskLevel,
+    val resourceCost: ResourceCostTier,
+    val executionAdapter: String,
+    val verificationStrategy: String,
+    val fallbackStrategy: String?,
+    val isAvailableOnCurrentDevice: Boolean
 )
+
+enum class ActionRiskLevel {
+    LOW,       // Observe, scroll, click non-sensitive elements, open public app
+    MEDIUM,    // Toggle Wi-Fi, change brightness, adjust volume, input text in non-sensitive fields
+    HIGH,      // Send messages, delete files, modify system settings, grant app access
+    CRITICAL   // Financial purchases, security setting changes, factory reset, credential input
+}
 ```
 
-1. **`CommandRegistry`**: Maintains the catalog of known action types, required permissions, syntax rules, and capability mappings.
-2. **`GoalDispatcher`**: Queues and sequences incoming `NormalizedCommand` objects, ensuring thread-safe, non-overlapping action dispatch.
-3. **`ActionPlanner`**: Decomposes multi-step intents into sequential deterministic sub-commands.
-4. **`CapabilityResolver`**: Queries the `PermissionManager` and device API capability registry to confirm whether the required action is runnable on the current device and state.
+### 3.2 Action Policy Engine
+Before any action is dispatched, the **`ActionPolicyEngine`** evaluates the command:
 
-### 3.2 Accessibility & Target Resolution Subsystem
-- **Live Node Acquisition**: Never caches `AccessibilityNodeInfo` references across execution bounds. Live nodes are fetched on-demand via `AccessibilityService.rootInActiveWindow`.
-- **Actionable Ancestor Traversal**:
-  - `CLICK`: Search target node; if not clickable, traverse up the node hierarchy until a node with `isClickable == true` is found.
-  - `LONG_CLICK`: Search target node; if not long-clickable, traverse up to `isLongClickable == true`.
-  - `SCROLL`: Search target node; if not scrollable, traverse up to `isScrollable == true`.
-  - `TEXT_INPUT`: Search target node; locate `isEditable == true` target or perform focus + text replacement.
-- **Node Release**: Immediately recycle/release `AccessibilityNodeInfo` objects to avoid memory leaks on Android 8.1.
-
-### 3.3 Observation & Verification Subsystem
-- **Observation Snapshot**: Captures a lightweight, immutable representation of the UI tree containing only primitives (`package`, `activity`, `text`, `contentDescription`, `resourceId`, `bounds`, `flags`).
-- **State-Diff Engine**: Compares `Pre-Action Snapshot` and `Post-Action Snapshot` after a settle delay (e.g., 200ms–500ms).
-- **Result Classification**:
-  - `SUCCESS_VERIFIED`: Action dispatched and expected state change observed (e.g., window changed, text modified, checkbox toggled).
-  - `DISPATCHED_UNVERIFIED`: Action dispatched (`performAction()` returned true), but no observable UI diff occurred within timeout.
-  - `ACTION_FAILED`: `performAction()` returned false.
-  - `TARGET_NOT_FOUND`: Target selector failed to match any live node.
-  - `CAPABILITY_UNAVAILABLE`: Prerequisites or permissions missing.
-
-### 3.4 Storage & Event Audit Subsystem
-- **App-Private Storage (`/data/data/com.localagent.app/files/agent/`)**:
-  - `logs/agent-events.db`: SQLite/Room database storing all structured event logs.
-  - `memory/workflows.json`: Procedural sequence definitions.
-  - `evidence/`: Optional diagnostic snapshots (JSON UI trees / failure screenshots).
-- **Log Rotation Policy**: Enforces bounded storage (e.g., max 20 MB total log size), rolling over logs daily or when size thresholds are met, automatically compressing or purging expired logs.
+```text
+NormalizedCommand
+       ↓
+CapabilityDescriptor Lookup
+       ↓
+Risk Level Evaluation
+       ├─► LOW: Direct Dispatch
+       ├─► MEDIUM: Logged Dispatch + Policy Check
+       ├─► HIGH: User Interactive Confirmation Required
+       └─► CRITICAL: Explicit Auth / Strict User Confirmation Required
+```
 
 ---
 
-## 4. Proposed Repository & Directory Structure
+## 4. Specialized Reasoning Subsystems
+
+### 4.1 Structured Problem Solver Subsystem (e.g., Sudoku, Puzzle Games, Form Solving)
+The agent includes a dedicated **Structured Problem Solver** subsystem for domain-specific UI automation tasks:
+1. **Board / UI Observation:** Capture live UI primitive snapshot.
+2. **State Construction:** Convert visual grid / elements into a structured domain model (e.g., 9x9 Sudoku matrix).
+3. **Deterministic Solver Execution:** Run deterministic backtracking or constraint satisfaction solver in pure Kotlin.
+4. **Action Sequence Generation:** Generate normalized `UI_CLICK` / `UI_TEXT_INPUT` commands.
+5. **Step-by-Step Verification:** Execute and verify state changes after each placement.
+
+### 4.2 Trip & General Research Engine
+Separate from browser page observation, the **Research & Planning Engine** coordinates multi-step research goals (e.g., *"Plan a 3-day trip from Bengaluru to Hampi under ₹10,000"*):
+1. **Goal Decomposition:** Deconstruct request into search queries, destination criteria, and constraints.
+2. **Source Gathering:** Execute web queries via browser or API adapters.
+3. **Fact & Constraint Extraction:** Extract structured travel options, prices, and places into `agent.db`.
+4. **Plan Generation:** Build a structured itinerary with citations.
+5. **User Review & Approval:** Present research report before executing any booking or reservation actions.
+
+---
+
+## 5. Proposed Repository & Directory Structure
 
 ```text
 LocalAgent/
@@ -141,90 +159,13 @@ LocalAgent/
 ├── RISKS_AND_LIMITATIONS.md
 │
 ├── app/                        # Android App Module (View system, UI overlays, Console UI)
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/localagent/
-│   │   │   │   ├── app/        # Application class, lifecycle, DI setup
-│   │   │   │   ├── ui/         # Console Activity, Permission Center, Settings UI
-│   │   │   │   └── overlay/    # Movable Overlay WindowManager service & controller
-│   │   │   ├── res/            # Layouts (Android View System), resources, values
-│   │   │   └── AndroidManifest.xml
-│   │   └── test/               # App-level unit tests
-│   └── build.gradle
-│
-├── core/                       # Pure Kotlin / Core Domain Architecture Module
-│   ├── src/
-│   │   ├── main/java/com/localagent/core/
-│   │   │   ├── command/        # NormalizedCommand, CommandRegistry, Syntax Parsers
-│   │   │   ├── execution/      # GoalDispatcher, ActionPlanner, ExecutionEngine
-│   │   │   ├── result/         # ExecutionResult, ResultCode, StateDiff
-│   │   │   ├── capability/     # CapabilityResolver, Prerequisites
-│   │   │   ├── policy/         # Action Risk Classifier, Security Guardrails
-│   │   │   └── lifecycle/      # Agent state machine (ACTIVE, IDLE, PAUSED)
-│   │   └── test/               # Pure Kotlin JUnit unit tests
-│   └── build.gradle
-│
-├── accessibility/              # Android Accessibility Engine Module
-│   ├── src/
-│   │   ├── main/java/com/localagent/accessibility/
-│   │   │   ├── service/        # AgentAccessibilityService implementation
-│   │   │   ├── observation/    # Live node capture, Snapshot Generator
-│   │   │   ├── resolver/       # TargetResolver, Ancestor Traversal
-│   │   │   └── actions/        # Global & Node Action Executors
-│   │   └── test/
-│   └── build.gradle
-│
-├── system/                     # Permissions, System APIs & Hardware Module
-│   ├── src/
-│   │   ├── main/java/com/localagent/system/
-│   │   │   ├── permissions/    # PermissionManager, Special Access Checking
-│   │   │   ├── apps/           # AppResolver, AppLauncher, LaunchVerifier
-│   │   │   ├── hardware/       # Volume, Brightness, Flashlight, Media Controls
-│   │   │   └── settings/       # System Settings Read/Write Adapters
-│   │   └── test/
-│   └── build.gradle
-│
-├── voice/                      # STT & TTS Integration Module
-│   ├── src/
-│   │   ├── main/java/com/localagent/voice/
-│   │   │   ├── stt/            # SpeechInputProvider, On-Device Recognizer Adapter
-│   │   │   └── tts/            # SpeechOutputProvider, Android TextToSpeech Adapter
-│   │   └── test/
-│   └── build.gradle
-│
-├── storage/                    # SQLite / Local Persistence Module
-│   ├── src/
-│   │   ├── main/java/com/localagent/storage/
-│   │   │   ├── db/             # Room Database, DAOs, Entities
-│   │   │   ├── logger/         # Structured EventLogger Implementation
-│   │   │   └── files/          # Bounded File Storage & Retention Manager
-│   │   └── test/
-│   └── build.gradle
-│
-├── memory/                     # Memory & Procedural Workflow Engine
-│   ├── src/
-│   │   ├── main/java/com/localagent/memory/
-│   │   │   ├── episodic/       # Task execution history
-│   │   │   ├── procedural/     # Workflow definitions & revalidation
-│   │   │   └── semantic/       # App package knowledge & semantic mappings
-│   │   └── test/
-│   └── build.gradle
-│
-└── testing/                    # Master Automated Device Test Harness
-    ├── src/
-    │   ├── main/java/com/localagent/testing/
-    │   │   ├── runner/         # Device Test Suite Executor
-    │   │   ├── contracts/      # Phase Test Contracts & Validation Specs
-    │   │   └── evidence/       # Test Evidence Collector & Diagnostic Generator
-    │   └── test/
-    └── build.gradle
+├── core/                       # Pure Kotlin Domain Core (Commands, Dispatcher, Policy Engine, Capability Registry)
+├── accessibility/              # Android Accessibility Engine Module (Service, Observation, Ancestor Resolver)
+├── system/                     # Permissions, System APIs, Hardware Controls & App Launchers
+├── voice/                      # STT & TTS Integration Module (Multilingual EN, TE, KN, HI)
+├── storage/                    # Unified Local Storage Module (SQLite agent.db & File Management)
+├── memory/                     # Episodic, Semantic, Procedural Workflows & Knowledge Base
+├── research/                   # Web Research, Trip Planning & External Knowledge Ingestion
+├── solver/                     # Structured Problem Solver (Sudoku, Grid & Form Solvers)
+└── testing/                    # Master Automated Test Harness & Diagnostic Test Center UI
 ```
-
----
-
-## 5. Key Architecture Design Patterns
-
-1. **Adapter Pattern for API Tiers:** System APIs differ across API 27 through API 36+. All platform interactions are wrapped in platform compatibility adapters (e.g., `GlobalActionAdapter`, `VolumeControlAdapter`).
-2. **Strategy Pattern for Action Resolution:** Target resolution strategies (`ViewByIdStrategy`, `ExactTextStrategy`, `ContentDescriptionStrategy`, `AncestorTraversalStrategy`) are tried in prioritized sequence.
-3. **Observer Pattern for Event Logging:** Components publish structured events to `EventLogger`; storage listeners save to SQLite without blocking UI or execution threads.
-4. **State Pattern for Lifecycle & Resource States:** Agent states (`IDLE`, `EXECUTING`, `OBSERVING`, `VOICE_ACTIVE`, `LOW_MEMORY_DEGRADED`) enforce power and RAM budgets.

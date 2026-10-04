@@ -1,34 +1,33 @@
 # OBSERVATION_MODEL.md — UI Observation Engine & Snapshot Model
 
-## 1. Executive Summary & Low-RAM Constraints
+## 1. Executive Summary & Core Architectural Rules
 
 The **Observation Subsystem** serves as the agent's primary visual and structural sensing engine. It converts raw Android system `AccessibilityNodeInfo` tree structures into lightweight, immutable, serializable **`ObservationSnapshot`** objects.
 
-### Critical Low-RAM Rules
-1. **Never Retain Live Node Trees:** Holding `AccessibilityNodeInfo` trees causes severe memory leaks and `StaleStateException` crashes.
-2. **Immediate Node Recycling:** Every `AccessibilityNodeInfo` fetched from `rootInActiveWindow` must have `.recycle()` called immediately after primitive extraction on API levels 27–29.
-3. **Bounded Primitive Storage:** Extract only essential primitive fields (`text`, `contentDescription`, `viewId`, `className`, `bounds`, `flags`).
-4. **On-Demand Capture:** Capture UI snapshots only when an action requires target resolution or post-action verification—no continuous background tree polling.
+### Fundamental Observation Rules
+1. **Single-Root Capture Protocol:** Acquire `rootInActiveWindow` **EXACTLY ONCE** per snapshot cycle. Extract package, activity, window ID, and node primitives, then recycle every acquired node reference immediately. **NEVER call `rootInActiveWindow` a second time during snapshot construction.**
+2. **Immediate Node Recycling:** Call `.recycle()` on every retrieved `AccessibilityNodeInfo` instance in `finally` blocks to prevent native C++ memory leaks on Android 8.1 (API 27).
+3. **Stable Node Identity vs Instance ID:** Distinguish `nodeIdentity` (stable cross-snapshot matching key based on resource ID, class, bounds, text, content description, and structural path) from `observationInstanceId` (ephemeral snapshot-specific counter).
+4. **Complete Primitive Bounds Extraction:** Always extract complete bounding boxes via `node.getBoundsInScreen(rect)` into `RectPrimitive(left, top, right, bottom)`.
 
 ---
 
-## 2. Snapshot Data Structure
+## 2. Snapshot Data Structure & Node Identity Model
 
 ```kotlin
 data class ObservationSnapshot(
     val snapshotId: String = UUID.randomUUID().toString(),
     val timestamp: Long = System.currentTimeMillis(),
     val packageName: String,
-    val activityName: String?,
     val windowId: Int,
     val totalNodeCount: Int,
-    val nodes: List<NodePrimitive>,
-    val isSystemWindow: Boolean = false
+    val nodes: List<NodePrimitive>
 )
 
 data class NodePrimitive(
-    val nodeId: Int,
-    val parentNodeId: Int?,
+    val observationInstanceId: Int, // Ephemeral index within this snapshot
+    val nodeIdentity: String,       // Stable matching key across snapshots
+    val parentInstanceId: Int?,
     val viewIdResourceName: String?,
     val className: String,
     val text: String?,
@@ -43,7 +42,8 @@ data class NodePrimitive(
     val isEnabled: Boolean,
     val isFocused: Boolean,
     val isSelected: Boolean,
-    val isVisibleToUser: Boolean
+    val isVisibleToUser: Boolean,
+    val structuralPath: String      // Path in UI tree, e.g., "0/1/3/2"
 )
 
 data class RectPrimitive(
@@ -59,33 +59,71 @@ data class RectPrimitive(
 }
 ```
 
+### Node Identity Matching Algorithm (`nodeIdentity`)
+To track UI nodes across screen updates without relying on ephemeral counters:
+```kotlin
+fun generateNodeIdentity(
+    packageName: String,
+    viewId: String?,
+    className: String,
+    text: String?,
+    contentDescription: String?,
+    bounds: RectPrimitive,
+    structuralPath: String
+): String {
+    // 1. Primary match: Stable resource ID + Package
+    if (!viewId.isNull_or_empty()) {
+        return "$packageName:$viewId"
+    }
+    // 2. Secondary match: Class + Content Description + Bounds
+    if (!contentDescription.isNull_or_empty()) {
+        return "$className:cd='$contentDescription':${bounds.left},${bounds.top}"
+    }
+    // 3. Tertiary match: Class + Text + Bounds
+    if (!text.isNull_or_empty()) {
+        return "$className:txt='$text':${bounds.left},${bounds.top}"
+    }
+    // 4. Structural fallback: Class + Structural Path + Bounds
+    return "$className:path=$structuralPath:${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}"
+}
+```
+
 ---
 
-## 3. Observation Capture & Node Recycling Pipeline
+## 3. Single-Root Capture & Recycling Pipeline Implementation
 
 ```kotlin
 class ObservationSnapshotGenerator(private val service: AccessibilityService) {
 
     fun captureSnapshot(): ObservationSnapshot {
+        // Step 1: Acquire single root node reference ONCE
         val rootNode = service.rootInActiveWindow
             ?: return ObservationSnapshot.empty()
 
         val primitives = mutableListOf<NodePrimitive>()
-        var counter = 0
+        var instanceCounter = 0
+        val extractedPackageName = rootNode.packageName?.toString() ?: "unknown"
+        val extractedWindowId = rootNode.windowId
 
         try {
-            traverseAndExtract(rootNode, parentId = null, primitives = primitives, idGenerator = { counter++ })
+            // Step 2: Traverse tree, extract primitives, and recycle nodes
+            traverseAndExtract(
+                node = rootNode,
+                parentInstanceId = null,
+                path = "0",
+                packageName = extractedPackageName,
+                primitives = primitives,
+                idGenerator = { instanceCounter++ }
+            )
         } finally {
-            // Explicitly recycle root node to free native C++ AccessibilityNodeInfo allocations on API 27
+            // Step 3: Guaranteed recycling of root node
             rootNode.recycle()
         }
 
-        val foregroundPackage = primitives.firstOrNull()?.className ?: service.packageName.toString()
-
+        // Step 4: Construct immutable ObservationSnapshot (no live AccessibilityNodeInfo retained)
         return ObservationSnapshot(
-            packageName = service.rootInActiveWindow?.packageName?.toString() ?: "unknown",
-            activityName = null, // Extracted via UsageStats or AccessibilityEvent
-            windowId = service.rootInActiveWindow?.windowId ?: -1,
+            packageName = extractedPackageName,
+            windowId = extractedWindowId,
             totalNodeCount = primitives.size,
             nodes = primitives
         )
@@ -93,28 +131,48 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
 
     private fun traverseAndExtract(
         node: AccessibilityNodeInfo,
-        parentId: Int?,
+        parentInstanceId: Int?,
+        path: String,
+        packageName: String,
         primitives: MutableList<NodePrimitive>,
         idGenerator: () -> Int
     ) {
-        val currentId = idGenerator()
+        val currentInstanceId = idGenerator()
+
+        // Extract bounding box via Android Rect API
+        val androidRect = android.graphics.Rect()
+        node.getBoundsInScreen(androidRect)
+        val boundsPrimitive = RectPrimitive(
+            left = androidRect.left,
+            top = androidRect.top,
+            right = androidRect.right,
+            bottom = androidRect.bottom
+        )
+
+        val viewId = node.viewIdResourceName
+        val className = node.className?.toString() ?: ""
+        val text = node.text?.toString()
+        val cd = node.contentDescription?.toString()
+
+        val stableIdentity = generateNodeIdentity(
+            packageName = packageName,
+            viewId = viewId,
+            className = className,
+            text = text,
+            contentDescription = cd,
+            bounds = boundsPrimitive,
+            structuralPath = path
+        )
 
         val primitive = NodePrimitive(
-            nodeId = currentId,
-            parentNodeId = parentId,
-            viewIdResourceName = node.viewIdResourceName,
-            className = node.className?.toString() ?: "",
-            text = node.text?.toString(),
-            contentDescription = node.contentDescription?.toString(),
-            boundsInScreen = RectPrimitive(
-                left = 0, top = 0, right = 0, bottom = 0
-            ).also { rect ->
-                val androidRect = android.graphics.Rect()
-                node.getBoundsInScreen(androidRect)
-                rect.apply {
-                    // Populate primitive rect
-                }
-            },
+            observationInstanceId = currentInstanceId,
+            nodeIdentity = stableIdentity,
+            parentInstanceId = parentInstanceId,
+            viewIdResourceName = viewId,
+            className = className,
+            text = text,
+            contentDescription = cd,
+            boundsInScreen = boundsPrimitive,
             isClickable = node.isClickable,
             isLongClickable = node.isLongClickable,
             isScrollable = node.isScrollable,
@@ -124,15 +182,24 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
             isEnabled = node.isEnabled,
             isFocused = node.isFocused,
             isSelected = node.isSelected,
-            isVisibleToUser = node.isVisibleToUser
+            isVisibleToUser = node.isVisibleToUser,
+            structuralPath = path
         )
 
         primitives.add(primitive)
 
+        // Traverse children
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
             try {
-                traverseAndExtract(child, currentId, primitives, idGenerator)
+                traverseAndExtract(
+                    node = child,
+                    parentInstanceId = currentInstanceId,
+                    path = "$path/$i",
+                    packageName = packageName,
+                    primitives = primitives,
+                    idGenerator = idGenerator
+                )
             } finally {
                 child.recycle() // Recycle child node immediately after processing
             }
@@ -143,31 +210,29 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
 
 ---
 
-## 4. Snapshot Diffing & Verification Engine
+## 4. Snapshot Diffing & State-Diff Model
 
-The **`SnapshotDiffEngine`** compares two `ObservationSnapshot` instances (`PreState` vs `PostState`) captured before and after an action dispatch to determine whether an observable UI state change occurred.
+The **`SnapshotDiffEngine`** compares two `ObservationSnapshot` instances (`PreState` vs `PostState`) to compute a comprehensive state-diff result.
 
 ```kotlin
 data class SnapshotDiffResult(
     val hasObservableChange: Boolean,
     val packageChanged: Boolean,
-    val activeWindowChanged: Boolean,
-    val textChangedNodes: List<TextDiff>,
-    val addedNodesCount: Int,
-    val removedNodesCount: Int,
-    val checkedStateToggled: Boolean
+    val windowChanged: Boolean,
+    val addedNodeIdentities: List<String>,
+    val removedNodeIdentities: List<String>,
+    val textChanges: List<TextDiff>,
+    val boundsChanges: List<BoundsDiff>,
+    val visibilityChanges: List<VisibilityDiff>,
+    val scrollContainerChanges: List<ScrollContainerDiff>,
+    val checkedStateChanges: List<CheckedStateDiff>,
+    val focusChanges: List<FocusDiff>
 )
 
-data class TextDiff(
-    val nodeId: Int,
-    val viewId: String?,
-    val oldText: String?,
-    val newText: String?
-)
+data class TextDiff(val nodeIdentity: String, val oldText: String?, val newText: String?)
+data class BoundsDiff(val nodeIdentity: String, val oldBounds: RectPrimitive, val newBounds: RectPrimitive)
+data class VisibilityDiff(val nodeIdentity: String, val wasVisible: Boolean, val isVisible: Boolean)
+data class ScrollContainerDiff(val containerIdentity: String, val shiftedNodeCount: Int)
+data class CheckedStateDiff(val nodeIdentity: String, val wasChecked: Boolean, val isChecked: Boolean)
+data class FocusDiff(val nodeIdentity: String, val gainedFocus: Boolean)
 ```
-
-### State-Diff Rules
-1. **Package / Window Diff:** If `PreState.packageName != PostState.packageName` or `PreState.windowId != PostState.windowId`, `packageChanged = true` (Verifies `APP_LAUNCH`, `GLOBAL_HOME`, `GLOBAL_BACK`).
-2. **Text Diff:** Iterate nodes by View ID or bounds; if target text modified, `textChangedNodes.add(...)` (Verifies `UI_TEXT_INPUT`, calculator display updates).
-3. **Checked State Diff:** If target node `isChecked` toggled from false to true, `checkedStateToggled = true` (Verifies switch/checkbox toggle).
-4. **Node Count / Layout Diff:** If `addedNodesCount > 0` or `removedNodesCount > 0`, UI structure changed (Verifies list scrolling, popups, menu dialogs).

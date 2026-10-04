@@ -17,7 +17,7 @@ Every major decision is categorized by:
 - **URL / Source:** [MacroDroid Official Website](https://macrodroid.com/) & [MacroDroid Helper](https://macrodroid.com/helper/)
 - **SOURCE FACT:** MacroDroid uses a modular **Trigger → Action → Constraint** automation architecture. Its UI Interaction action depends on Android AccessibilityService to detect screen elements and perform touch interactions.
 - **ARCHITECTURAL INFERENCE:** Automation capabilities should be modular, composable plugins rather than monolithic procedural scripts.
-- **LOCALAGENT DESIGN:** LocalAgent adopts composable `Capability` blocks and a unified `GoalDispatcher` pipeline.
+- **LOCALAGENT DESIGN:** LocalAgent adopts composable `CapabilityDescriptor` blocks and a unified `GoalDispatcher` pipeline.
 
 ### 2.2 Automate by LlamaLab Research
 - **URL / Source:** [Automate Documentation — Interact Block](https://llamalab.com/automate/doc/block/interact.html)
@@ -35,7 +35,7 @@ Every major decision is categorized by:
 - **URL / Source:** [Android Developers — AccessibilityService](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService)
 - **SOURCE FACT:** `AccessibilityService.performGlobalAction()` provides system-level global navigation (`GLOBAL_ACTION_BACK`, `GLOBAL_ACTION_HOME`, `GLOBAL_ACTION_RECENTS`). `getSystemActions()` allows runtime querying of available global actions. `AccessibilityNodeInfo` objects can become stale as windows update.
 - **ARCHITECTURAL INFERENCE:** `performAction() == true` merely indicates dispatch to the framework, not verified UI mutation. Live nodes must be reacquired before execution.
-- **LOCALAGENT DESIGN:** Implemented in `ACTION_CONTRACTS.md` with explicit pre/post state-diff verification.
+- **LOCALAGENT DESIGN:** Implemented in `ACTION_CONTRACTS.md` with explicit pre/post state-diff verification and actionable ancestor traversal.
 
 ### 2.5 Android Special Permissions & Low-RAM Documentation
 - **URL / Source:** [Android Developers — Request Special Permissions](https://developer.android.com/training/permissions/requesting-special) & [NotificationListenerService](https://developer.android.com/reference/android/service/notification/NotificationListenerService)
@@ -46,11 +46,11 @@ Every major decision is categorized by:
 ### 2.6 Android Low-RAM & Low Memory Killer (LMK) Guidance
 - **URL / Source:** [Android Developers — Performance & Low Memory Killer](https://developer.android.com/topic/performance/issues/lmk)
 - **SOURCE FACT:** On entry-level Android devices (1 GB–2 GB RAM), LMK terminates background processes under RAM pressure.
-- **ARCHITECTURAL INFERENCE:** The agent must be zero-state in RAM, committing execution logs and task states to SQLite synchronously so it can recover cleanly after process death.
+- **ARCHITECTURAL INFERENCE:** The agent must be zero-state in RAM, committing execution logs and task states to SQLite `agent.db` synchronously so it can recover cleanly after process death.
 - **LOCALAGENT DESIGN:** Persistent SQLite storage and process recovery protocol (`LOW_RAM_DESIGN.md`).
 
 ### 2.7 Android Agent Security & Indirect Prompt Injection Research
 - **URL / Source:** [arXiv:2608.08939 — Indirect Prompt Injection against Android UI Agents](https://arxiv.org/abs/2608.08939)
 - **SOURCE FACT:** AI UI agents relying on accessibility metadata and screenshots are highly vulnerable to indirect prompt injection embedded in webpage text or third-party app UIs.
 - **ARCHITECTURAL INFERENCE:** Screen text and external content must be treated strictly as UNTRUSTED DATA, never executable instructions.
-- **LOCALAGENT DESIGN:** Implemented in `EXTERNAL_KNOWLEDGE_ARCHITECTURE.md` via `KnowledgeSanitizer` and `ActionPolicyEngine`.
+- **LOCALAGENT DESIGN:** Implemented in `EXTERNAL_KNOWLEDGE_ARCHITECTURE.md` via `<untrusted_external_content>` tags and `ActionPolicyEngine`.
