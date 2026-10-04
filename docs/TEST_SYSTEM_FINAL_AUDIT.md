@@ -20,9 +20,9 @@ This document presents the final integrity audit of the **LocalAgent Test & Trac
 | **Pure JVM Unit Tests** | Pure Kotlin domain logic tests in `:core` module | **19** | PASS (100% via `./gradlew :core:test`) |
 | **Robolectric Integration Tests** | Android framework & Room DB tests in `:app` module | **18** | PASS (100% via `./gradlew :app:testDebugUnitTest`) |
 | **Instrumentation Device Tests** | On-device `androidTest` cases | **0** | NOT_REQUIRED (Phase 0–2 covered by unit/Robolectric) |
-| **Physical Device Test Procedures**| Real phone manual verification procedures | **1** | PASS (Audited procedure in `PHYSICAL_DEVICE_TEST_PLAN.md`) |
+| **Physical Device Test Procedures**| Real phone manual verification procedures | **1** | **NOT_RUN** (Specified in `PHYSICAL_DEVICE_TEST_PLAN.md`; pending real phone execution) |
 | **Manual Specification Audits** | Document consistency audits | **2** | PASS (Audited in `docs/CROSS_DOCUMENT_CONSISTENCY_MATRIX.md`) |
-| **TOTAL TEST CASES SPECIFIED** | Total across all classifications | **40** | **100% Verified** |
+| **TOTAL TEST CASES SPECIFIED** | Total across all classifications | **40** | **37 Automated Passed, 1 Physical Procedure Pending** |
 
 ---
 
@@ -73,11 +73,13 @@ This document presents the final integrity audit of the **LocalAgent Test & Trac
    - `testRecognizedGrammarParsedAndDispatched()` -> PASS
 5. **`DurableMemoryStorageManagerTest.kt` (6 tests):**
    - `testWriteAndReadDurableRecord()` -> PASS
-   - `testDurableMemorySurvivesAppPrivateDirectoryDeletion()` -> PASS
+   - `testDurableMemorySurvivesAppPrivateDirectoryDeletion()` -> PASS (Simulated Folder Wipe)
    - `testIntegrityCheckDetectsTampering()` -> PASS
    - `testListRecordsFilterByCategory()` -> PASS
    - `testSchemaMigration()` -> PASS
    - `testDeleteRecord()` -> PASS
+
+*Note: `DurableMemoryStorageManagerTest.testDurableMemorySurvivesAppPrivateDirectoryDeletion()` is an automated Robolectric simulation test that verifies logic across app-private folder wipes; it does NOT prove actual physical Android OS uninstall/reinstall survival.*
 
 ---
 
@@ -88,7 +90,7 @@ This document presents the final integrity audit of the **LocalAgent Test & Trac
 | **Total Executable Tests** | **37** | 19 Pure JVM + 18 Robolectric |
 | **Passed Executable Tests** | **37** | 100% PASS via `./gradlew test` |
 | **Failed Executable Tests** | **0** | None |
-| **Not Run / Blocked Tests** | **0** | None |
+| **Physical Device Test Procedures**| **1** | **NOT_RUN** (`P2-DEV-001` in `PHYSICAL_DEVICE_TEST_PLAN.md`) |
 | **Requirements without Coverage**| **0** | All Phase 0–2 requirements mapped in `TEST_TRACEABILITY_MATRIX.md` |
 | **Tests without Requirements** | **0** | All 37 test methods mapped to stable Test IDs |
 | **Permission-Dependent Tests** | **7** | `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, SAF Document Tree |
@@ -113,8 +115,10 @@ All test suites were verified using standard Gradle execution commands:
 
 ---
 
-## 6. Final Audit Decision
+## 6. Final Audit Decisions
 
-### **FINAL DECISION: TEST SYSTEM = PASS**
+### **AUTOMATED TEST SYSTEM: PASS**
+- All 37 automated JVM and Robolectric tests pass cleanly via `./gradlew test`.
 
-The automated test system is genuinely consistent, permission-aware, fully traceable, and 100% verified across all executable unit/Robolectric test suites and manual physical-device procedures.
+### **PHYSICAL DEVICE VERIFICATION: NOT_RUN**
+- The physical phone manual test procedure (`P2-DEV-001`) is specified in `PHYSICAL_DEVICE_TEST_PLAN.md` and pending real phone installation and execution.

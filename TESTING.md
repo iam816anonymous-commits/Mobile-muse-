@@ -6,7 +6,17 @@ This document explains how developers, architects, and automated CI pipelines in
 
 ---
 
-## 2. Frequently Asked Questions
+## 2. Test Classification & Terminology Mandate
+
+LocalAgent strictly distinguishes automated unit tests from physical device verification:
+1. **Pure JVM Unit Tests:** Execute in pure Java/Kotlin JVM environment (`core/src/test/`). 19 test methods active.
+2. **Robolectric Integration Tests:** Execute Android framework and Room database logic in Robolectric runner (`app/src/test/`). 18 test methods active.
+3. **Automated Simulation Tests:** Robolectric tests simulating app-private directory deletion (`testDurableMemorySurvivesAppPrivateDirectoryDeletion`). These verify storage fallback logic, but do NOT count as proof of physical Android OS uninstall/reinstall survival.
+4. **Physical Device Test Procedures:** Step-by-step manual test procedures for physical phone hardware (`PHYSICAL_DEVICE_TEST_PLAN.md`). Marked `NOT_RUN` until executed on a physical Android phone.
+
+---
+
+## 3. Frequently Asked Questions
 
 ### 1. Where are the executable tests?
 Executable tests reside in standard Gradle source sets:
@@ -23,7 +33,7 @@ Test specifications and requirement matrices are organized by phase:
 
 ### 3. Where are the test reports?
 - Phase Test Reports: `docs/PHASE_0_TEST_REPORT.md`, `docs/PHASE_1_TEST_REPORT.md`, `docs/PHASE_2_TEST_REPORT.md`
-- System Audit Report: `docs/TEST_SYSTEM_AUDIT_REPORT.md`
+- System Audit Reports: `docs/TEST_SYSTEM_AUDIT_REPORT.md`, `docs/TEST_SYSTEM_FINAL_AUDIT.md`
 - JUnit HTML Reports: `core/build/reports/tests/test/index.html` and `app/build/reports/tests/testDebugUnitTest/index.html`
 - Android Lint Report: `app/build/reports/lint-results-debug.html`
 
@@ -65,7 +75,7 @@ Lookup the failing test class or method in `tests/TEST_TRACEABILITY_MATRIX.md` t
 
 ---
 
-## 3. GitHub Actions CI Test Artifacts
+## 4. GitHub Actions CI Test Artifacts
 
 GitHub Actions runs `./gradlew test lint assembleDebug` on every push and pull request. CI test artifacts preserved under Actions include:
 - `unit-test-reports`: HTML and XML results from `:core` and `:app`

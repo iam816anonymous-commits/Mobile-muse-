@@ -17,7 +17,7 @@ This document specifies the test cases for Phase 2 (Persistent Storage & Unified
 - **Test Type:** AUTOMATED_UNIT
 - **Executable Test Location:** `app/src/test/java/com/localagent/app/storage/RoomEventRepositoryTest.kt` -> `testInsertAndQueryEvent()`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.storage.RoomEventRepositoryTest"`
-- **Permissions:** NONE
+- **Permissions:** NONE (Simulated in-memory / cache DB)
 - **Hardware:** NONE
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
@@ -56,10 +56,10 @@ This document specifies the test cases for Phase 2 (Persistent Storage & Unified
 - **Preconditions:** Insert historical event `HISTORICAL_EVENT_001` into `agent.db`.
 - **Input:** Launch `MainActivity` via Robolectric.
 - **Expected Result:** `tvRecentEvents.text` displays `HISTORICAL_EVENT_001` followed by live `Foundation Test UI Ready` event.
-- **Test Type:** AUTOMATED_UNIT
+- **Test Type:** AUTOMATED_ROBOLECTRIC
 - **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/MainActivityEventHydrationTest.kt` -> `testEventHistoryHydratedFromDatabaseOnLaunch()`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.MainActivityEventHydrationTest"`
-- **Permissions:** NONE
+- **Permissions:** Simulated UI environment
 - **Hardware:** NONE
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
@@ -70,25 +70,26 @@ This document specifies the test cases for Phase 2 (Persistent Storage & Unified
 - **Preconditions:** External durable memory directory available.
 - **Input:** Write `DurableRecord`, tamper with file payload directly on disk, verify integrity.
 - **Expected Result:** Read verifies checksum; tampered file returns `CHECKSUM_MISMATCH`.
-- **Test Type:** AUTOMATED_UNIT
+- **Test Type:** AUTOMATED_ROBOLECTRIC
 - **Executable Test Location:** `app/src/test/java/com/localagent/app/storage/DurableMemoryStorageManagerTest.kt` -> `testIntegrityCheckDetectsTampering()`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.storage.DurableMemoryStorageManagerTest"`
-- **Permissions:** `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`
-- **Hardware:** Shared Storage
+- **Permissions:** Simulated storage checks
+- **Hardware:** Simulated file system
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
 
 ### P2-MEM-002
-- **Requirement:** Durable Memory Survival Across App-Private Directory Deletion (Uninstall Simulation)
+- **Requirement:** Durable Memory Survival Across App-Private Directory Deletion (Simulation)
 - **Purpose:** Proves long-term memory stored in internal shared storage (`/sdcard/LocalAgent/memory/`) survives even if app-private directory (`/data/data/com.localagent.app/files/`) is wiped.
+- **Note:** *This is an automated Robolectric simulation test that verifies logic across app-private directory deletion; it does NOT prove actual physical Android OS uninstall/reinstall survival.*
 - **Preconditions:** `DurableMemoryStorageManager` writes record to custom external directory.
 - **Input:** Delete `context.filesDir/agent/memory` completely, then call `readRecord()`.
 - **Expected Result:** Record is discovered and restored from durable external storage.
-- **Test Type:** AUTOMATED_UNIT
+- **Test Type:** AUTOMATED_ROBOLECTRIC_SIMULATION
 - **Executable Test Location:** `app/src/test/java/com/localagent/app/storage/DurableMemoryStorageManagerTest.kt` -> `testDurableMemorySurvivesAppPrivateDirectoryDeletion()`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.storage.DurableMemoryStorageManagerTest"`
-- **Permissions:** `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`
-- **Hardware:** Shared Storage
+- **Permissions:** Simulated storage checks
+- **Hardware:** Simulated file system
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
 
@@ -101,7 +102,7 @@ This document specifies the test cases for Phase 2 (Persistent Storage & Unified
 - **Test Type:** PHYSICAL_DEVICE
 - **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 2)
 - **Execution Command:** Manual phone installation & File Manager inspection
-- **Permissions:** `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, SAF Document Tree
+- **Permissions:** `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, SAF Document Tree (Real physical device grants required)
 - **Hardware:** Physical Android Smartphone
-- **Evidence:** `docs/STORAGE_PERSISTENCE_AUDIT_REPORT.md`
-- **Status:** PASS
+- **Evidence:** Pending physical phone test execution
+- **Status:** NOT_RUN

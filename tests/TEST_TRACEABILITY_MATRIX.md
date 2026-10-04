@@ -4,7 +4,7 @@
 
 This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
-Every requirement must map to an automated unit test, an instrumentation test, or an audited physical-device test procedure.
+Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
 ---
 
@@ -21,12 +21,12 @@ Every requirement must map to an automated unit test, an instrumentation test, o
 
 | Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
 |---|---|---|---|---|---|
-| Canonical command grammar parsing | P1-CMD-001 | AUTOMATED_UNIT | `CommandNormalizerTest.kt` | `./gradlew :core:test` | PASS |
-| Unknown command rejection at normalizer | P1-CMD-002 | AUTOMATED_UNIT | `CommandNormalizerTest.kt` | `./gradlew :core:test` | PASS |
-| Empty / whitespace input rejection | P1-CMD-003 | AUTOMATED_UNIT | `CommandNormalizerTest.kt` | `./gradlew :core:test` | PASS |
-| Action Policy Engine risk evaluation | P1-POL-001 | AUTOMATED_UNIT | `ActionPolicyEngineTest.kt` | `./gradlew :core:test` | PASS |
-| Priority queue & execution locking | P1-QUEUE-001 | AUTOMATED_UNIT | `GoalDispatcherTest.kt` | `./gradlew :core:test` | PASS |
-| Task lifecycle & LMK recovery state | P1-LIFE-001 | AUTOMATED_UNIT | `TaskLifecycleTest.kt` | `./gradlew :core:test` | PASS |
+| Canonical command grammar parsing | P1-CMD-001 | AUTOMATED_JVM | `CommandNormalizerTest.kt` | `./gradlew :core:test` | PASS |
+| Unknown command rejection at normalizer | P1-CMD-002 | AUTOMATED_JVM | `CommandNormalizerTest.kt` | `./gradlew :core:test` | PASS |
+| Empty / whitespace input rejection | P1-CMD-003 | AUTOMATED_JVM | `CommandNormalizerTest.kt` | `./gradlew :core:test` | PASS |
+| Action Policy Engine risk evaluation | P1-POL-001 | AUTOMATED_JVM | `ActionPolicyEngineTest.kt` | `./gradlew :core:test` | PASS |
+| Priority queue & execution locking | P1-QUEUE-001 | AUTOMATED_JVM | `GoalDispatcherTest.kt` | `./gradlew :core:test` | PASS |
+| Task lifecycle & LMK recovery state | P1-LIFE-001 | AUTOMATED_JVM | `TaskLifecycleTest.kt` | `./gradlew :core:test` | PASS |
 
 ---
 
@@ -34,10 +34,10 @@ Every requirement must map to an automated unit test, an instrumentation test, o
 
 | Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
 |---|---|---|---|---|---|
-| Event persistence in Room `agent.db` | P2-LOG-001 | AUTOMATED_UNIT | `RoomEventRepositoryTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Storage footprint pruning & retention cap | P2-CAP-001 | AUTOMATED_UNIT | `RoomEventRepositoryTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Sensitive metadata JSON sanitization | P2-SEC-001 | AUTOMATED_UNIT | `RoomEventRepositoryTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Diagnostic UI event stream DB hydration | P2-UI-001 | AUTOMATED_UNIT | `MainActivityEventHydrationTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Durable memory record SHA-256 integrity | P2-MEM-001 | AUTOMATED_UNIT | `DurableMemoryStorageManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Durable memory survival across uninstall | P2-MEM-002 | AUTOMATED_UNIT | `DurableMemoryStorageManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Physical phone uninstall survival procedure | P2-DEV-001 | PHYSICAL_DEVICE| `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 2 | Manual Installation on Physical Phone | PASS |
+| Event persistence in Room `agent.db` | P2-LOG-001 | AUTOMATED_ROBOLECTRIC | `RoomEventRepositoryTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Storage footprint pruning & retention cap | P2-CAP-001 | AUTOMATED_ROBOLECTRIC | `RoomEventRepositoryTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Sensitive metadata JSON sanitization | P2-SEC-001 | AUTOMATED_ROBOLECTRIC | `RoomEventRepositoryTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Diagnostic UI event stream DB hydration | P2-UI-001 | AUTOMATED_ROBOLECTRIC | `MainActivityEventHydrationTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Durable memory record SHA-256 integrity | P2-MEM-001 | AUTOMATED_ROBOLECTRIC | `DurableMemoryStorageManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Durable memory app-private deletion simulation | P2-MEM-002 | AUTOMATED_ROBOLECTRIC_SIMULATION | `DurableMemoryStorageManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS (Simulated) |
+| Physical phone uninstall survival procedure | P2-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 2 | Manual Installation on Physical Phone | **NOT_RUN** |
