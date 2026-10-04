@@ -18,48 +18,30 @@ To guarantee low-RAM stability, the codebase strictly forbids:
 4. **NO Continuous Screen Capture or Background OCR:** Screen capture and OCR run strictly on-demand.
 5. **NO Unbounded Logs in RAM:** All logging streams directly to disk via buffered SQLite transactions in unified `agent.db`.
 6. **NO Unnecessary Background Services:** Services run in passive mode or unbind immediately when idle.
-7. **NO Manual `System.gc()` Calls in Core Architecture:** Do not rely on `System.gc()` calls for memory management; manage object lifecycles, clear references, and recycle native nodes deterministically.
+7. **NO Routine `System.gc()` Calls in Core Architecture:** Do not rely on `System.gc()` calls for memory management; manage object lifecycles, clear references, and recycle native nodes deterministically.
 
 ---
 
-## 3. Cross-Phase Low-RAM Architectural Rules
+## 3. Engineering Memory Targets & Memory Threshold States
 
-```text
-                     ┌───────────────────────────────────────────────┐
-                     │               ResourceManager                 │
-                     │  Monitors RAM, Battery, Storage, Thermal State│
-                     └───────────────────────┬───────────────────────┘
-                                             │
-                                             ▼
-                     ┌───────────────────────────────────────────────┐
-                     │            Agent Execution Lifecycle          │
-                     │   IDLE ◄──► ACTIVE ◄──► LOW_MEMORY_DEGRADED   │
-                     └───────────────────────┬───────────────────────┘
-                                             │
-                                             ▼
-                     ┌───────────────────────────────────────────────┐
-                     │         Cross-Phase Operating Rules           │
-                     │  1. Single-Root Capture + Immediate .recycle()│
-                     │  2. Bounded Primitive Snapshot Objects        │
-                     │  3. On-Demand Speech Recognizer & TTS         │
-                     │  4. Unified agent.db + WAL File Accounting    │
-                     │  5. Passive Degradation if A11y Unbound       │
-                     └───────────────────────────────────────────────┘
+Rather than guaranteeing arbitrary memory numbers, LocalAgent defines explicit engineering target thresholds. Memory behavior is evaluated against a reference **Android 8.1 / API 27 Low-RAM Test Profile (1.5 GB RAM hardware/emulator)**.
+
+```kotlin
+enum class SystemMemoryThreshold {
+    TARGET,   // Normal execution within budget bounds
+    WARNING,  // Moderate memory pressure (TRIM_MEMORY_RUNNING_MODERATE)
+    CRITICAL  // Severe memory pressure (TRIM_MEMORY_RUNNING_CRITICAL / Low RAM)
+}
 ```
 
-### 3.1 Immediate `AccessibilityNodeInfo` Recycling Protocol
-On Android 8.1 (API 27), every call to `rootInActiveWindow` or `node.getChild(i)` allocates native C++ memory backing structures. To prevent native memory exhaustion:
-- Every retrieved `AccessibilityNodeInfo` must be processed into a primitive `NodePrimitive` data object.
-- `.recycle()` must be called explicitly in `finally` blocks on every node reference.
+### Engineering Memory Footprint Targets (API 27 Reference Profile)
 
-### 3.2 Operating State & Resource Footprint Metric Targets
-
-| Agent State | System Activity | Target Heap Footprint | Target CPU Usage | Resource Allocation |
+| Agent State | System Activity | TARGET Heap | WARNING Threshold | CRITICAL Threshold |
 |---|---|---|---|---|
-| **IDLE** | Listening for Accessibility events or user input | **< 15 MB** | **~0%** | Accessibility Service bound (passive) |
-| **EXECUTING** | Target resolution, action dispatch, snapshot diff | **< 35 MB** | **5% – 15%** | Active execution thread running |
-| **VOICE_ACTIVE** | STT recording or TTS speech synthesis | **< 45 MB** | **10% – 25%** | Speech recognizer active; destroyed immediately when speech ends |
-| **LOW_MEMORY_DEGRADED**| System low-memory warning (`onTrimMemory()`) | **< 10 MB** | **< 2%** | Clear in-memory caches, flush log buffers to disk |
+| **IDLE** | Passive listening for Accessibility events or user input | **< 15 MB** | **15 MB – 25 MB** | **> 25 MB** (Flush caches, trim buffers) |
+| **EXECUTING** | Target resolution, action dispatch, snapshot diff | **< 35 MB** | **35 MB – 50 MB** | **> 50 MB** (Drop diff history, recycle snapshot) |
+| **VOICE_ACTIVE** | STT recording or TTS speech synthesis | **< 45 MB** | **45 MB – 60 MB** | **> 60 MB** (Destroy STT recognizer immediately) |
+| **LOW_MEMORY_DEGRADED**| System low-memory callback (`onTrimMemory()`) | **< 10 MB** | **10 MB – 15 MB** | Clear all in-memory caches, commit `agent.db` WAL |
 
 ---
 
@@ -68,26 +50,24 @@ On Android 8.1 (API 27), every call to `rootInActiveWindow` or `node.getChild(i)
 ```kotlin
 class ResourceManager(private val context: Context) : ComponentCallbacks2 {
 
-    enum class MemoryState { NORMAL, MODERATE, LOW, CRITICAL }
-
-    private var currentMemoryState = MemoryState.NORMAL
+    private var currentThreshold = SystemMemoryThreshold.TARGET
 
     override fun onTrimMemory(level: Int) {
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
-                currentMemoryState = MemoryState.MODERATE
+                currentThreshold = SystemMemoryThreshold.WARNING
                 evictCaches(aggressive = false)
             }
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> {
-                currentMemoryState = MemoryState.CRITICAL
+                currentThreshold = SystemMemoryThreshold.CRITICAL
                 evictCaches(aggressive = true)
                 releaseNonEssentialResources()
             }
             ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
             ComponentCallbacks2.TRIM_MEMORY_MODERATE,
             ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
-                currentMemoryState = MemoryState.CRITICAL
+                currentThreshold = SystemMemoryThreshold.CRITICAL
                 releaseNonEssentialResources()
             }
         }

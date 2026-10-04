@@ -1,4 +1,4 @@
-# DEFINITION_OF_DONE.md — Definition of Done Specification
+# DEFINITION_OF_DONE.md — Multi-Tiered Definition of Done Specification
 
 ## 1. Overview & Quality Mandate
 
@@ -6,117 +6,57 @@ In **LocalAgent**, a phase or feature is **NEVER** considered complete merely be
 
 ---
 
-## 2. Universal Phase Completion Checklist
+## 2. Multi-Tiered Phase Completion Checklist
 
-Before any implementation phase can be marked complete, all of the following criteria must be satisfied:
+Before any implementation phase can be marked complete, all of the following criteria must be satisfied across eight explicit validation gates:
 
-### A. Architectural & Contract Compliance
-- [ ] Code strictly follows the universal execution pipeline (`NormalizedCommand` → `GoalDispatcher` → `ActionPolicyEngine` → `CapabilityRegistry` → `TargetResolver` → `ActionExecutor` → `VerificationStrategy` → `EventLogger`).
-- [ ] No isolated or duplicated action execution logic exists (Overlay, Console, Voice, Automation, and AI use the exact same execution pipeline).
-- [ ] No hardcoded dependencies on modern Android APIs without an API 27 (Android 8.1) fallback or compatibility adapter.
-- [ ] Code is modular and dependency-light (no Jetpack Compose, no Hilt/Koin, no heavy ML frameworks).
+### Gate 1: ARCHITECTURE COMPLETE
+- [ ] Architecture design adheres strictly to the universal execution pipeline (`NormalizedCommand` → `GoalDispatcher` → `ActionPolicyEngine` → `CapabilityRegistry` → `TargetResolver` → `ActionExecutor` → `VerificationStrategy` → `EventLogger`).
+- [ ] Interface boundaries defined with pluggable adapters (no direct tight coupling between UI, speech, AI, or system drivers).
+- [ ] All API differences across Android 8.1 (API 27) through Android 15+ (API 36+) documented with fallback adapters.
 
-### B. Multi-Tiered Automated Testing Verification
-- [ ] **Tier A (Pure Unit Tests):** 100% of pure Kotlin domain logic unit tests pass via `./gradlew test`.
-- [ ] **Tier B (Contract & Parity Tests):** In-app `TestCenter` verifies action contract execution and cross-channel parity (Console vs Overlay vs Voice) without requiring a physical device.
-- [ ] **Tier C (Instrumentation Tests):** Android instrumentation tests pass via `./gradlew connectedAndroidTest`.
-- [ ] **Negative & Policy Tests:** Tests explicitly verify graceful handling of missing permissions, missing targets, disabled accessibility service, stale nodes, action risk policy blocks, and process death.
+### Gate 2: CODE COMPLETE
+- [ ] Code strictly written in idiomatic, dependency-light Kotlin.
+- [ ] No Jetpack Compose, no Hilt/Koin, no permanent ML resident frameworks.
+- [ ] Single `rootInActiveWindow` snapshot extraction implemented with explicit `.recycle()` calls in `finally` blocks.
+- [ ] Passive degradation logic implemented for unbound accessibility or revoked permissions.
 
-### C. Real-Device Physical Verification (Android 8.1 / API 27 Baseline)
-- [ ] Action verified on a physical device or emulator running Android 8.1 (API 27).
-- [ ] Action execution proven via action-specific `VerificationStrategy` state diffs (e.g., text changed, window navigated, checked state toggled), not just `performAction() == true`.
-- [ ] No UI freezing, ANR (Application Not Responding), or memory leaks during continuous action dispatch.
+### Gate 3: TIER A UNIT TEST PASS
+- [ ] 100% of pure Kotlin domain logic unit tests pass via `./gradlew test`.
+- [ ] Command normalization, risk policy evaluation, queue priorities, state-diff logic, and prompt injection tag wrapping verified.
 
-### D. Logging & Audit Verification
-- [ ] Every action dispatch, target resolution step, API result, observation diff, and error produces a structured entry in `agent.db`.
-- [ ] Log entries include timestamp, correlation ID, subsystem, action type, package/activity, result code, and execution duration.
-- [ ] Unified SQLite storage limits and WAL/SHM file size policies are enforced.
+### Gate 4: TIER B CONTRACT & PARITY TEST PASS
+- [ ] In-app `TestCenter` suite confirms action contract execution without physical device interaction.
+- [ ] Cross-channel parity verified: Dispatching `NormalizedCommand` via Console, Movable Overlay, or Voice produces identical `AgentEvent` traces and execution results.
+- [ ] SQLite `agent.db` migrations and WAL file checkpoint accounting verified.
 
-### E. Resource & Cross-Phase Low-RAM Verification
-- [ ] Heap footprint remains within low-RAM targets (< 35 MB during active execution, < 15 MB idle).
-- [ ] All acquired `AccessibilityNodeInfo` instances are recycled immediately after snapshot generation via explicit `.recycle()` calls.
-- [ ] Idle background state uses ~0% CPU and zero active polling timers.
+### Gate 5: TIER C DEVICE & E2E TEST PASS
+- [ ] Executed and verified on an actual physical device or emulator running Android 8.1 / API level 27 baseline.
+- [ ] Action execution proven via action-specific `VerificationStrategy` state diffs (e.g., target text changed, window navigated, checked state toggled), NOT merely `performAction() == true`.
+- [ ] E2E interactions verified across real target applications (Settings, Calculator, Files, Chrome Browser).
+
+### Gate 6: OBSERVATION VERIFIED
+- [ ] Single-root capture protocol verified; zero secondary calls to `rootInActiveWindow` per snapshot.
+- [ ] `NodeIdentityConfidence` assigned to every primitive (`EXACT`, `HIGH`, `MEDIUM`, `LOW`, `EPHEMERAL`).
+- [ ] Node recycling verified; zero un-recycled `AccessibilityNodeInfo` objects remaining in native C++ heap.
+
+### Gate 7: LOGGING & AUDIT VERIFIED
+- [ ] Action dispatch, target resolution, risk policy checks, API results, observation diffs, and errors written to `agent.db`.
+- [ ] Correlation IDs cleanly trace multi-step workflows.
+- [ ] Total storage footprint (`agent.db` + `agent.db-wal` + `agent.db-shm`) verified within 30 MB cap.
+
+### Gate 8: DOCUMENTATION COMPLETE
+- [ ] Source code fully documented with KDoc comments explaining thread safety and lifecycle rules.
+- [ ] Phase evidence JSON report generated and saved to `evidence/` directory.
+- [ ] `docs/PHASE_[N]_COMPLETION_REPORT.md` written detailing test results, memory profiles, and known limitations.
 
 ---
 
-## 3. Phase-Specific Completion Gates
+## 3. Explicit Prohibition of "False Success" Claims
 
-### Phase 1: Foundation & Domain Core
-- [ ] `NormalizedCommand` schema finalized and serializable.
-- [ ] `CapabilityRegistry` and `ActionPolicyEngine` initialized with risk tiers (LOW, MEDIUM, HIGH, CRITICAL).
-- [ ] Thread-safe `GoalDispatcher` unit tests pass with concurrent command dispatch.
+The following conditions are **STRICTLY PROHIBITED** from being claimed as completion:
 
-### Phase 2: Persistent Storage & Logging
-- [ ] Unified SQLite `agent.db` creates tables correctly on API 27.
-- [ ] `EventLogger` writes 1,000 continuous structured logs without dropping events or exceeding storage quotas (accounting for DB, WAL, and SHM files).
-- [ ] Automated log retention purges expired records when database reaches size limit.
-
-### Phase 3: Permission & Capability Manager
-- [ ] In-app Permission Center correctly reflects status for runtime permissions and special access (Accessibility, Overlay, Usage Access, Write Settings, Notification Listener).
-- [ ] Launching system permission settings screens works seamlessly on API 27 through API 36+.
-
-### Phase 4: Accessibility Service Foundation
-- [ ] `AgentAccessibilityService` binds successfully on Android 8.1.
-- [ ] Passive service lifecycle handles disconnections gracefully; actions return `ACCESSIBILITY_UNAVAILABLE` while non-accessibility features (Console, Settings, Overlay, Logging) remain fully operational.
-
-### Phase 5: Observation Engine
-- [ ] Single `rootInActiveWindow` snapshot extraction completes in < 100ms.
-- [ ] Node identity matching strategy successfully tracks nodes across screen updates using resource ID, bounds, text, and structural path.
-- [ ] All `AccessibilityNodeInfo` objects are recycled without native C++ memory leaks.
-
-### Phase 6: Universal Action Engine
-- [ ] Actionable ancestor traversal (`findClickableAncestor`, `findLongClickableAncestor`, `findScrollableAncestor`, `findEditableTarget`) correctly resolves target views.
-- [ ] Live node re-acquisition prevents stale node exceptions.
-
-### Phase 7: Global & UI Action Execution
-- [ ] `BACK`, `HOME`, `RECENTS`, `CLICK`, `LONG_CLICK`, `TEXT_INPUT`, and `SCROLL` execute and verify action-specific UI state diffs.
-- [ ] `BACK` action uses navigation-aware verification strategy rather than relying solely on package/activity changes.
-
-### Phase 8: Application Control Engine
-- [ ] `AppResolver` maps app labels to installed package names on API 27+.
-- [ ] `AppLauncher` launches target app and verifies foreground package within 3-second timeout.
-
-### Phase 9: Command Console UI
-- [ ] Text commands typed in Console execute via `GoalDispatcher`.
-- [ ] Console log view displays real-time execution events from `EventLogger`.
-
-### Phase 10: Automated Test Center
-- [ ] In-app `TestCenter` UI executes contract and parity test suites without physical device interaction.
-
-### Phase 11: Movable Overlay Surface
-- [ ] Overlay renders using `TYPE_APPLICATION_OVERLAY` on API 27+.
-- [ ] Overlay buttons dispatch identical `NormalizedCommand`s as Console and achieve identical execution results.
-
-### Phase 12: Hardware & System Controls
-- [ ] Volume, Brightness, and Wi-Fi panel controls adjust system settings when permissions are granted.
-- [ ] Unsupported or restricted hardware actions return explicit risk/permission error codes.
-
-### Phase 13: Speech STT / TTS Subsystem
-- [ ] Speech recognizer captures multilingual commands (EN, TE, KN, HI) and destroys recognizer immediately when idle.
-
-### Phase 14: Workflow & Automation Engine
-- [ ] Sequential multi-step workflows execute deterministically.
-
-### Phase 15: Episodic Memory & Learning
-- [ ] Successful action sequences stored in procedural memory and re-validated against live UI before replay.
-
-### Phase 16: Browser Research Foundation
-- [ ] Browser elements observed safely; webpage content isolated from command pipeline.
-
-### Phase 17: External Knowledge Ingestion
-- [ ] Exported ChatGPT/Gemini chat files parsed into structured knowledge entries with source provenance hashes.
-
-### Phase 18: Structured Problem Solver
-- [ ] Grid/board state extracted into structured model and solved via deterministic solver (e.g. Sudoku).
-
-### Phase 19: Trip & General Research Engine
-- [ ] Multi-step research goal decomposed, travel options extracted, and itinerary generated with citations.
-
-### Phase 20: On-Device / Cloud AI Planner
-- [ ] AI planner outputs strict JSON plans conforming to `NormalizedCommand` schema and passing `ActionPolicyEngine` checks.
-
-### Phase 21: Resource Hardening & Recovery
-- [ ] Agent state resumes seamlessly after simulated Low Memory Killer (LMK) process termination.
-
-### Phase 22: Master Device Certification
-- [ ] Master automated test runner executes on physical API 27 hardware with 100% test pass rate.
+1. **"Build Succeeds" != "Feature Works":** Successful compilation is a prerequisite, not proof of functionality.
+2. **"Unit Tests Pass" != "Real Device Execution Works":** Passing mock unit tests does not prove that Android's Accessibility framework or target applications respond correctly on real hardware.
+3. **"`performAction() == true`" != "Action Verified":** An Android framework return value of `true` indicates only that the event was dispatched; execution is complete ONLY when `VerificationStrategy` confirms the target UI state diff.
+4. **"Console Works" != "System Complete":** A feature is complete ONLY when Console, Overlay, and Voice achieve full execution parity through the universal `GoalDispatcher`.

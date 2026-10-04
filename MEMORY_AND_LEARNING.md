@@ -1,4 +1,4 @@
-# MEMORY_AND_LEARNING.md — Memory & Learning Subsystem Architecture
+# MEMORY_AND_LEARNING.md — Memory, Learning & Task Lifecycle Architecture
 
 ## 1. Executive Summary
 
@@ -11,83 +11,90 @@
 
 ---
 
-## 2. Memory Subsystem Architecture
+## 2. Goal State & Task Lifecycle Architecture
+
+LocalAgent manages task execution using explicit state machines to guarantee thread safety, concurrency control, and crash recovery.
+
+### 2.1 Goal State Model (`GoalState`)
+Higher-level user goals (e.g., *"Open Calculator and calculate 125 x 37"*) progress through explicit goal states:
+
+```kotlin
+enum class GoalState {
+    CREATED,      // Goal received and parsed
+    PLANNING,     // Goal decomposed into sequential NormalizedCommands
+    READY,        // Sub-commands queued in GoalDispatcher
+    EXECUTING,    // Active command dispatched to device
+    WAITING,      // Settle delay or post-action observation capture
+    VERIFYING,    // Action-specific VerificationStrategy evaluating UI state diff
+    COMPLETED,    // Goal criteria satisfied and verified
+    FAILED,       // Sub-step failed or state diff unverified after retries
+    CANCELLED,    // Explicitly cancelled by user via Overlay/Console
+    INTERRUPTED,  // Interrupted by Low Memory Killer (LMK) process termination
+    RECOVERING    // Process restarted; re-evaluating active window to resume
+}
+
+data class GoalVerification(
+    val goalId: String,
+    val targetCriterion: VerificationCriterion,
+    val isGoalSatisfied: Boolean,
+    val verificationTimestamp: Long = System.currentTimeMillis()
+)
+```
+
+### 2.2 Task Lifecycle Contract (`TaskLifecycle`)
+Individual tasks and sub-commands obey a strict state machine with defined legal transitions:
 
 ```text
-                     ┌───────────────────────────────────────────────┐
-                     │            Universal Event Stream             │
-                     │  Actions, Observations, Verification Results  │
-                     └───────────────────────┬───────────────────────┘
-                                             │
-                                             ▼
-                     ┌───────────────────────────────────────────────┐
-                     │            Memory Pipeline Engine             │
-                     └───────┬───────────────┬───────────────┬───────┘
-                             │               │               │
-                             ▼               ▼               ▼
-                   ┌─────────────────┐ ┌───────────┐ ┌───────────────┐
-                   │  Episodic Table │ │Procedural │ │Semantic Table │
-                   │ Task Execution  │ │ Workflows │ │ App Structure │
-                   │  & Diagnostics  │ │ Definitions│ │  & Vocabulary │
-                   └─────────────────┘ └───────────┘ └───────────────┘
+  [CREATED] ──► [QUEUED] ──► [RUNNING] ──► [WAITING] ──► [VERIFYING] ──► [COMPLETED]
+                   │             │             │             │
+                   ▼             ▼             ▼             ▼
+              [CANCELLED]   [CANCELLING]   [FAILED]    [INTERRUPTED]
+                                                              │
+                                                              ▼
+                                                        [RECOVERING]
 ```
+
+#### Task Recovery Protocol
+- **Process Death (LMK):** Synchronous SQLite commits ensure state is saved before transitions. Upon restart, `TaskLifecycle` queries `agent.db` for tasks in `INTERRUPTED` state, captures a fresh `ObservationSnapshot`, and prompts user or resumes.
+- **Accessibility Service Disconnect:** Tasks transition to `WAITING` with error `ACCESSIBILITY_UNAVAILABLE`. Passive subsystems remain active.
+- **Overlay Service Restart:** Overlay re-binds to `GoalDispatcher` state without interrupting running background tasks.
+- **Device Rotation / Screen Off:** Active step pauses in `WAITING` state until screen power state turns on or window settles.
 
 ---
 
-## 3. Four Tiers of Agent Memory
+## 3. Concurrency & Execution Lock Policy
 
-### 3.1 Working Memory (Short-Term / Ephemeral)
+Device UI automation requires strict single-threaded access to the Android Accessibility Service.
+
+### Execution Lock Policy Rules
+1. **Single Foreground Device Transaction:** Only **ONE** active device-control transaction may manipulate the Accessibility execution channel at a time.
+2. **Channel Convergence Queue:** Simultaneous requests from Console, Overlay, Voice, or AI Planners pass through `GoalDispatcher`'s thread-safe Priority Queue:
+   ```text
+   CONSOLE (Priority 1 - User Manual Override)
+   OVERLAY (Priority 1 - User Manual Override)
+   VOICE   (Priority 2 - Spoken Command)
+   AI      (Priority 3 - Autonomous Step)
+   ```
+3. **Execution Lock:** Before executing an action, `GoalDispatcher` acquires `AccessibilityExecutionLock`. Secondary incoming actions wait in queue or return `RESULT_BUSY`.
+4. **Asynchronous Non-Device Operations:** Logging, memory reading, web research, and solver math run asynchronously without locking the Accessibility channel.
+
+---
+
+## 4. Four Tiers of Agent Memory
+
+### 4.1 Working Memory (Short-Term / Ephemeral)
 - **Scope:** In-memory state maintained during active task execution.
 - **Contents:** Current goal, active step index, current UI snapshot diff, retry attempts counter, variables extracted during step execution.
 - **Lifecycle:** Cleared immediately upon task completion, cancellation, or failure.
 
-### 3.2 Episodic Memory (Task Experience History)
+### 4.2 Episodic Memory (Task Experience History)
 - **Scope:** Persistent execution history stored in `episodes` table inside `agent.db`.
 - **Contents:** Task goal summary, package/activity context, executed action sequence, success/failure result, total duration, verification diff summary.
 - **Retention:** Max 500 recent episodes or 14 days, auto-pruned.
 
-### 3.3 Semantic Memory (App Structure & Domain Knowledge)
+### 4.3 Semantic Memory (App Structure & Domain Knowledge)
 - **Scope:** Persistent knowledge about applications, package labels, and custom semantic mappings stored in `semantic_data` table inside `agent.db`.
-- **Contents:**
-  - Package to app label mappings (e.g., `"Settings"` → `"com.android.settings"`).
-  - UI layout patterns (e.g., *"Calculator digit buttons contain non-clickable TextViews inside clickable MaterialButtons"*).
-  - User-approved preferences (e.g., *"Preferred media player = Spotify"*).
 
-### 3.4 Procedural Memory (Learned Workflows & Sequences)
+### 4.4 Procedural Memory (Learned Workflows & Sequences)
 - **Scope:** Reusable multi-step automation workflows stored in `workflows` table inside `agent.db`.
-- **Contents:** Trigger conditions, parameter definitions, sequential action templates, expected pre/post verification criteria.
-- **Revalidation Protocol:** When replaying a procedural workflow, the agent executes target resolution against the live `ObservationSnapshot` for every step. If target resolution fails or UI structure has changed, the agent aborts procedural replay and falls back to deterministic planning or prompts the user.
-
----
-
-## 4. Learning from Experience Engine
-
-```kotlin
-data class LearnedWorkflow(
-    val workflowId: String = UUID.randomUUID().toString(),
-    val name: String, // e.g., "Open Calculator and Add Numbers"
-    val targetPackage: String,
-    val triggerIntent: String,
-    val steps: List<WorkflowStep>,
-    val successCount: Int = 1,
-    val failureCount: Int = 0,
-    val confidenceScore: Double = 1.0,
-    val createdAt: Long = System.currentTimeMillis(),
-    val lastVerifiedAt: Long = System.currentTimeMillis()
-)
-
-data class WorkflowStep(
-    val stepNumber: Int,
-    val actionType: ActionType,
-    val targetSelector: TargetSelector,
-    val parameterKey: String?,
-    val expectedVerification: VerificationCriterion
-)
-```
-
-### Automatic Workflow Discovery Flow
-1. User executes a successful sequence of actions manually via Console, Overlay, or Voice.
-2. The `WorkflowExtractor` detects a completed goal state.
-3. If the sequence succeeded with 100% verified UI diffs, the agent prompts: *"Save this sequence as a shortcut workflow?"*
-4. Upon user approval, the sequence is saved to `workflows` table in `agent.db` with a user-assigned label.
-5. On subsequent runs, issuing the label executes the procedural workflow with live node revalidation at each step.
+- **Revalidation Protocol:** Replaying a procedural workflow re-evaluates the live `ObservationSnapshot` for every step. Stale node references are NEVER replayed blindly.

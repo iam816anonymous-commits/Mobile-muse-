@@ -16,7 +16,29 @@ The **Speech Subsystem** enables hands-free voice interaction, translating spoke
 
 ---
 
-## 2. Pluggable Provider Interfaces
+## 2. Language Engine Status & Capability Detection
+
+Voice capabilities are runtime-detected per language using the `LanguageEngineStatus` model:
+
+```kotlin
+enum class LanguageEngineStatus {
+    AVAILABLE,          // Language engine installed and ready (online or offline)
+    OFFLINE_AVAILABLE,  // Language model downloaded and locally executable offline
+    NETWORK_REQUIRED,   // Language model supported but requires active internet connection
+    UNAVAILABLE,        // Language model not supported or not installed on current ROM
+    NOT_SUPPORTED       // API level or device hardware lacks recognition capability
+}
+
+data class SpeechLanguageCapability(
+    val languageCode: String, // e.g., "en-US", "te-IN", "kn-IN", "hi-IN"
+    val sttStatus: LanguageEngineStatus,
+    val ttsStatus: LanguageEngineStatus
+)
+```
+
+---
+
+## 3. Pluggable Provider Interfaces
 
 ```kotlin
 interface SpeechInputProvider {
@@ -24,8 +46,7 @@ interface SpeechInputProvider {
     fun startListening(listener: SpeechInputListener)
     fun stopListening()
     fun destroy()
-    fun isLanguageSupported(languageCode: String): Boolean
-    fun isOfflineRecognitionSupported(): Boolean
+    fun checkLanguageCapability(languageCode: String): SpeechLanguageCapability
 }
 
 interface SpeechInputListener {
@@ -41,43 +62,8 @@ interface SpeechOutputProvider {
     fun speak(textToSpeak: String, languageCode: String, utteranceId: String)
     fun stop()
     fun shutdown()
-    fun isLanguageAvailable(languageCode: String): Boolean
+    fun checkLanguageCapability(languageCode: String): SpeechLanguageCapability
 }
-```
-
----
-
-## 3. STT / TTS Subsystem Architecture
-
-```text
-               ┌───────────────────────────────────────────────┐
-               │           User Spoken Utterance               │
-               │      (English, Telugu, Kannada, Hindi)        │
-               └───────────────────────┬───────────────────────┘
-                                       │
-                                       ▼
-               ┌───────────────────────────────────────────────┐
-               │            SpeechInputProvider                │
-               │   Wraps Android SpeechRecognizer (API 27+)    │
-               └───────────────────────┬───────────────────────┘
-                                       │
-                                       ▼
-               ┌───────────────────────────────────────────────┐
-               │         Multilingual Command Normalizer       │
-               │   Maps "కలిపించు 7" / "click seven" → CLICK(7) │
-               └───────────────────────┬───────────────────────┘
-                                       │
-                                       ▼
-               ┌───────────────────────────────────────────────┐
-               │           Universal GoalDispatcher            │
-               │   Executes action via Universal Core Pipeline  │
-               └───────────────────────┬───────────────────────┘
-                                       │
-                                       ▼
-               ┌───────────────────────────────────────────────┐
-               │            SpeechOutputProvider               │
-               │   Synthesizes status response via TextToSpeech│
-               └───────────────────────────────────────────────┘
 ```
 
 ---
@@ -89,11 +75,13 @@ On Android 8.1 (API 27), offline voice recognition models for Indian regional la
 ### Language Resolution Protocol
 1. **Locale Query:** Query `TextToSpeech.isLanguageAvailable(Locale(languageCode))` and `RecognizerIntent.ACTION_GET_LANGUAGE_DETAILS`.
 2. **Capability Check:**
-   - If language model is available offline → Execute local STT/TTS.
-   - If language model requires network and device is online → Execute system recognizer.
-   - If language model unavailable → Gracefully inform user via TTS in fallback language (English) and log `STT_LANGUAGE_UNAVAILABLE`.
+   - If `LanguageEngineStatus` is `OFFLINE_AVAILABLE` → Execute local STT/TTS.
+   - If `NETWORK_REQUIRED` and device is online → Execute system recognizer.
+   - If `UNAVAILABLE` → Gracefully inform user via TTS in fallback language (English), log `STT_LANGUAGE_UNAVAILABLE`, and fallback to Console keyboard input.
 
 ### Multilingual Command Syntax Normalization Rules
+
+Spoken utterances in any supported language converge into identical `NormalizedCommand` objects:
 
 | Language | Spoken Utterance Sample | Normalized Intent |
 |---|---|---|

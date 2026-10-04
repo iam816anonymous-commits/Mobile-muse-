@@ -7,12 +7,116 @@ The **Observation Subsystem** serves as the agent's primary visual and structura
 ### Fundamental Observation Rules
 1. **Single-Root Capture Protocol:** Acquire `rootInActiveWindow` **EXACTLY ONCE** per snapshot cycle. Extract package, activity, window ID, and node primitives, then recycle every acquired node reference immediately. **NEVER call `rootInActiveWindow` a second time during snapshot construction.**
 2. **Immediate Node Recycling:** Call `.recycle()` on every retrieved `AccessibilityNodeInfo` instance in `finally` blocks to prevent native C++ memory leaks on Android 8.1 (API 27).
-3. **Stable Node Identity vs Instance ID:** Distinguish `nodeIdentity` (stable cross-snapshot matching key based on resource ID, class, bounds, text, content description, and structural path) from `observationInstanceId` (ephemeral snapshot-specific counter).
-4. **Complete Primitive Bounds Extraction:** Always extract complete bounding boxes via `node.getBoundsInScreen(rect)` into `RectPrimitive(left, top, right, bottom)`.
+3. **Snapshot-Local Metadata Disclaimer:** `observationInstanceId` and `parentInstanceId` are **ephemeral, snapshot-local metadata ONLY**. They MUST NEVER be used as cross-snapshot node identities or persistent targets.
+4. **Identity Confidence Model:** Every node primitive is assigned a composite identity and a `NodeIdentityConfidence` rating (`EXACT`, `HIGH`, `MEDIUM`, `LOW`, `EPHEMERAL`).
+5. **Complete Primitive Bounds Extraction:** Always extract complete bounding boxes via `node.getBoundsInScreen(rect)` into `RectPrimitive(left, top, right, bottom)`.
 
 ---
 
-## 2. Snapshot Data Structure & Node Identity Model
+## 2. Node Identity Confidence Model & Composite Matching
+
+Target matching across UI state updates cannot rely solely on a single attribute like Resource ID or text. LocalAgent uses a composite identity strategy and classifies identity confidence explicitly.
+
+```kotlin
+enum class NodeIdentityConfidence {
+    EXACT,     // Unique resource ID in package OR unique content description
+    HIGH,      // Resource ID + Class + Bounds OR Text + Class + Structural Path
+    MEDIUM,    // Text + Class + Approximate Bounds OR Class + Parent Context + Index
+    LOW,       // Class + Structural Path fallback in dynamic container
+    EPHEMERAL  // Unidentifiable dynamic node (e.g., transient loading indicator)
+}
+
+data class NodeIdentity(
+    val identityKey: String,
+    val confidence: NodeIdentityConfidence,
+    val matchStrategy: IdentityMatchStrategy
+)
+
+enum class IdentityMatchStrategy {
+    RESOURCE_ID_PACKAGE,
+    RESOURCE_ID_CLASS_BOUNDS,
+    CONTENT_DESC_CLASS_BOUNDS,
+    TEXT_CLASS_PATH,
+    PARENT_INDEX_PATH_FALLBACK,
+    EPHEMERAL_UNMATCHED
+}
+```
+
+### Composite Node Identity Generation Protocol
+```kotlin
+fun generateNodeIdentity(
+    packageName: String,
+    viewId: String?,
+    className: String,
+    text: String?,
+    contentDescription: String?,
+    bounds: RectPrimitive,
+    structuralPath: String,
+    parentClass: String?,
+    siblingIndex: Int
+): NodeIdentity {
+    // 1. EXACT Match: Unique Resource ID within Package
+    if (!viewId.isNullOrEmpty()) {
+        return NodeIdentity(
+            identityKey = "$packageName:$viewId",
+            confidence = NodeIdentityConfidence.EXACT,
+            matchStrategy = IdentityMatchStrategy.RESOURCE_ID_PACKAGE
+        )
+    }
+
+    // 2. HIGH Match: Content Description + Class + Bounds
+    if (!contentDescription.isNullOrEmpty()) {
+        return NodeIdentity(
+            identityKey = "$className:cd='$contentDescription':${bounds.left},${bounds.top}",
+            confidence = NodeIdentityConfidence.HIGH,
+            matchStrategy = IdentityMatchStrategy.CONTENT_DESC_CLASS_BOUNDS
+        )
+    }
+
+    // 3. HIGH Match: Text + Class + Structural Path
+    if (!text.isNullOrEmpty()) {
+        return NodeIdentity(
+            identityKey = "$className:txt='$text':path=$structuralPath",
+            confidence = NodeIdentityConfidence.HIGH,
+            matchStrategy = IdentityMatchStrategy.TEXT_CLASS_PATH
+        )
+    }
+
+    // 4. MEDIUM Match: Parent Context + Sibling Index + Class
+    if (!parentClass.isNullOrEmpty()) {
+        return NodeIdentity(
+            identityKey = "$parentClass/[$siblingIndex]::$className:${bounds.width}x${bounds.height}",
+            confidence = NodeIdentityConfidence.MEDIUM,
+            matchStrategy = IdentityMatchStrategy.PARENT_INDEX_PATH_FALLBACK
+        )
+    }
+
+    // 5. LOW / EPHEMERAL Fallback
+    return NodeIdentity(
+        identityKey = "$className:path=$structuralPath:${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}",
+        confidence = NodeIdentityConfidence.LOW,
+        matchStrategy = IdentityMatchStrategy.EPHEMERAL_UNMATCHED
+    )
+}
+```
+
+### Handling Complex UI Containers
+1. **RecyclerView / ListView / GridView Items:**
+   - Items in scrollable containers lack unique View IDs for individual cells.
+   - Matching uses `ContainerIdentity` + `RelativeChildPath` + `ChildText/ContentDescription`.
+   - When scrolled, off-screen nodes are destroyed by Android framework; newly visible nodes are matched as new instances with `HIGH` or `MEDIUM` confidence based on text/content description.
+2. **Repeated Nodes (e.g., Calculator Digit Buttons or Lists):**
+   - Disambiguated using `text` or `contentDescription` combined with `bounds` center coordinates.
+3. **Dynamic / Animated UIs:**
+   - During active layout animations, node bounds mutate continuously.
+   - Nodes are evaluated using `text` and `viewId` while ignoring exact bounds during animation settle windows.
+4. **Behavior on LOW Confidence or Unsafe Matches:**
+   - If a target node matches with `LOW` or `EPHEMERAL` confidence, `TargetResolver` aborts direct dispatch and attempts **Semantic Re-resolution** (re-scanning active window for text or parent container).
+   - If match remains ambiguous, action returns `ResultCode.TARGET_NOT_FOUND` or requests fresh observation snapshot rather than risking mis-clicking an incorrect node.
+
+---
+
+## 3. Snapshot Data Structures
 
 ```kotlin
 data class ObservationSnapshot(
@@ -25,9 +129,9 @@ data class ObservationSnapshot(
 )
 
 data class NodePrimitive(
-    val observationInstanceId: Int, // Ephemeral index within this snapshot
-    val nodeIdentity: String,       // Stable matching key across snapshots
-    val parentInstanceId: Int?,
+    val observationInstanceId: Int, // Ephemeral index within THIS snapshot ONLY (Local Metadata)
+    val parentInstanceId: Int?,     // Ephemeral parent index within THIS snapshot ONLY (Local Metadata)
+    val identity: NodeIdentity,      // Stable composite matching key & confidence rating
     val viewIdResourceName: String?,
     val className: String,
     val text: String?,
@@ -43,7 +147,7 @@ data class NodePrimitive(
     val isFocused: Boolean,
     val isSelected: Boolean,
     val isVisibleToUser: Boolean,
-    val structuralPath: String      // Path in UI tree, e.g., "0/1/3/2"
+    val structuralPath: String
 )
 
 data class RectPrimitive(
@@ -59,38 +163,9 @@ data class RectPrimitive(
 }
 ```
 
-### Node Identity Matching Algorithm (`nodeIdentity`)
-To track UI nodes across screen updates without relying on ephemeral counters:
-```kotlin
-fun generateNodeIdentity(
-    packageName: String,
-    viewId: String?,
-    className: String,
-    text: String?,
-    contentDescription: String?,
-    bounds: RectPrimitive,
-    structuralPath: String
-): String {
-    // 1. Primary match: Stable resource ID + Package
-    if (!viewId.isNull_or_empty()) {
-        return "$packageName:$viewId"
-    }
-    // 2. Secondary match: Class + Content Description + Bounds
-    if (!contentDescription.isNull_or_empty()) {
-        return "$className:cd='$contentDescription':${bounds.left},${bounds.top}"
-    }
-    // 3. Tertiary match: Class + Text + Bounds
-    if (!text.isNull_or_empty()) {
-        return "$className:txt='$text':${bounds.left},${bounds.top}"
-    }
-    // 4. Structural fallback: Class + Structural Path + Bounds
-    return "$className:path=$structuralPath:${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}"
-}
-```
-
 ---
 
-## 3. Single-Root Capture & Recycling Pipeline Implementation
+## 4. Single-Root Capture & Recycling Pipeline Implementation
 
 ```kotlin
 class ObservationSnapshotGenerator(private val service: AccessibilityService) {
@@ -110,6 +185,8 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
             traverseAndExtract(
                 node = rootNode,
                 parentInstanceId = null,
+                parentClass = null,
+                siblingIndex = 0,
                 path = "0",
                 packageName = extractedPackageName,
                 primitives = primitives,
@@ -132,6 +209,8 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
     private fun traverseAndExtract(
         node: AccessibilityNodeInfo,
         parentInstanceId: Int?,
+        parentClass: String?,
+        siblingIndex: Int,
         path: String,
         packageName: String,
         primitives: MutableList<NodePrimitive>,
@@ -154,20 +233,22 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
         val text = node.text?.toString()
         val cd = node.contentDescription?.toString()
 
-        val stableIdentity = generateNodeIdentity(
+        val compositeIdentity = generateNodeIdentity(
             packageName = packageName,
             viewId = viewId,
             className = className,
             text = text,
             contentDescription = cd,
             bounds = boundsPrimitive,
-            structuralPath = path
+            structuralPath = path,
+            parentClass = parentClass,
+            siblingIndex = siblingIndex
         )
 
         val primitive = NodePrimitive(
             observationInstanceId = currentInstanceId,
-            nodeIdentity = stableIdentity,
             parentInstanceId = parentInstanceId,
+            identity = compositeIdentity,
             viewIdResourceName = viewId,
             className = className,
             text = text,
@@ -195,6 +276,8 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
                 traverseAndExtract(
                     node = child,
                     parentInstanceId = currentInstanceId,
+                    parentClass = className,
+                    siblingIndex = i,
                     path = "$path/$i",
                     packageName = packageName,
                     primitives = primitives,
@@ -210,7 +293,7 @@ class ObservationSnapshotGenerator(private val service: AccessibilityService) {
 
 ---
 
-## 4. Snapshot Diffing & State-Diff Model
+## 5. Snapshot Diffing & State-Diff Model
 
 The **`SnapshotDiffEngine`** compares two `ObservationSnapshot` instances (`PreState` vs `PostState`) to compute a comprehensive state-diff result.
 
@@ -229,10 +312,17 @@ data class SnapshotDiffResult(
     val focusChanges: List<FocusDiff>
 )
 
-data class TextDiff(val nodeIdentity: String, val oldText: String?, val newText: String?)
-data class BoundsDiff(val nodeIdentity: String, val oldBounds: RectPrimitive, val newBounds: RectPrimitive)
-data class VisibilityDiff(val nodeIdentity: String, val wasVisible: Boolean, val isVisible: Boolean)
-data class ScrollContainerDiff(val containerIdentity: String, val shiftedNodeCount: Int)
-data class CheckedStateDiff(val nodeIdentity: String, val wasChecked: Boolean, val isChecked: Boolean)
-data class FocusDiff(val nodeIdentity: String, val gainedFocus: Boolean)
+data class TextDiff(val nodeIdentityKey: String, val oldText: String?, val newText: String?)
+data class BoundsDiff(val nodeIdentityKey: String, val oldBounds: RectPrimitive, val newBounds: RectPrimitive)
+data class VisibilityDiff(val nodeIdentityKey: String, val wasVisible: Boolean, val isVisible: Boolean)
+data class ScrollContainerDiff(
+    val containerIdentityKey: String,
+    val newlyVisibleChildIdentities: List<String>,
+    val disappearedChildIdentities: List<String>,
+    val shiftedChildIdentities: List<String>,
+    val verticalScrollDeltaPx: Int,
+    val isAtBoundary: Boolean
+)
+data class CheckedStateDiff(val nodeIdentityKey: String, val wasChecked: Boolean, val isChecked: Boolean)
+data class FocusDiff(val nodeIdentityKey: String, val gainedFocus: Boolean)
 ```

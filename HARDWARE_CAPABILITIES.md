@@ -20,25 +20,30 @@ All hardware features are strictly categorized into one of five classification t
 
 ---
 
-## 3. Hardware Capability Matrix & Risk Policy
+## 3. Comprehensive Hardware Capability Matrix
 
-| Hardware Capability | Support Tier | Min API | Android Mechanism | Permission / Access | Risk Level | User Confirmation Policy |
-|---|---|---|---|---|---|---|
-| **Volume Up / Down / Mute** | SUPPORTED | API 27 | `AudioManager.setStreamVolume()` | None | LOW | Automatic Execution |
-| **Media Play / Pause / Next / Prev** | SUPPORTED | API 27 | `AudioManager.dispatchMediaKeyEvent()` | None | LOW | Automatic Execution |
-| **Display Brightness Adjust** | LIMITED | API 27 | `Settings.System.putInt(SCREEN_BRIGHTNESS)` | `WRITE_SETTINGS` | MEDIUM | Automatic (if granted) |
-| **Flashlight / Torch On / Off** | SUPPORTED | API 23 | `CameraManager.setTorchMode()` | `CAMERA` (API 27) | LOW | Automatic Execution |
-| **Vibration Feedback** | SUPPORTED | API 27 | `Vibrator.vibrate(VibrationEffect)` | `VIBRATE` | LOW | Automatic Execution |
-| **Screen Auto-Rotate Toggle** | LIMITED | API 27 | `Settings.System.putInt(ACCELEROMETER_ROTATION)` | `WRITE_SETTINGS` | LOW | Automatic (if granted) |
-| **Ringer Mode (Silent/Vibrate/Normal)**| LIMITED | API 27 | `AudioManager.setRingerMode()` | Do Not Disturb Access | MEDIUM | Policy-Dependent |
-| **Bluetooth Toggle** | LIMITED | API 27–32 | `BluetoothAdapter.enable()` / `disable()` | `BLUETOOTH_ADMIN` | MEDIUM | Policy-Dependent |
-| **Wi-Fi Toggle** | RESTRICTED (API 29+) | API 27–28 | Direct API (API 27–28) / UI Automation (API 29+) | `CHANGE_WIFI_STATE` / A11y | MEDIUM | Policy-Dependent |
-| **Airplane Mode Toggle** | RESTRICTED | API 17+ | Settings Page Intent + Accessibility UI Click | Accessibility Service | HIGH | Interactive Confirmation |
-| **Power Off / Reboot Device** | RESTRICTED | API 27+ | Power Menu Dialog via Accessibility (`GLOBAL_ACTION_POWER_DIALOG`) | Accessibility Service | HIGH | Interactive Confirmation |
-| **Lock Screen Display** | SUPPORTED | API 28 | `AccessibilityService.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)` | Accessibility Service | LOW | Automatic Execution |
-| **Screen Off / On Detection** | SUPPORTED | API 27 | BroadcastReceiver (`ACTION_SCREEN_ON`, `ACTION_SCREEN_OFF`) | None | LOW | Passive Monitoring |
-| **NFC Toggle** | RESTRICTED | API 27+ | NFC Settings Panel Intent + Accessibility | Accessibility Service | HIGH | Interactive Confirmation |
-| **Cellular Mobile Data Toggle** | RESTRICTED | API 27+ | Quick Settings Panel Intent + Accessibility | Accessibility Service | HIGH | Interactive Confirmation |
+| Hardware Capability | Support Tier | Min API | Android API / Mechanism | Required Permission / Access | Risk Level | User Confirmation Policy | Platform Limitation & OEM Behavior |
+|---|---|---|---|---|---|---|---|
+| **Volume Up / Down / Mute** | SUPPORTED | API 27 | `AudioManager.setStreamVolume()` | None | LOW | Automatic Execution | Stream volume changes instantly. Mute supported via `ADJUST_MUTE` or volume 0. |
+| **Media Play / Pause / Next / Prev** | SUPPORTED | API 27 | `AudioManager.dispatchMediaKeyEvent()` | None | LOW | Automatic Execution | Dispatches `KEYCODE_MEDIA_PLAY_PAUSE`, `KEYCODE_MEDIA_NEXT`, `KEYCODE_MEDIA_PREVIOUS`. |
+| **Display Brightness Adjust** | LIMITED | API 27 | `Settings.System.putInt(SCREEN_BRIGHTNESS)` | `WRITE_SETTINGS` | MEDIUM | Automatic (if granted) | Auto-brightness must be turned off (`SCREEN_BRIGHTNESS_MODE_MANUAL`) to take effect. |
+| **Flashlight / Torch On / Off** | SUPPORTED | API 23 | `CameraManager.setTorchMode()` | `CAMERA` (API 27) | LOW | Automatic Execution | Fails if camera hardware is in use by another application. |
+| **Vibration Feedback** | SUPPORTED | API 27 | `Vibrator.vibrate(VibrationEffect)` | `VIBRATE` | LOW | Automatic Execution | Works universally across all API levels. |
+| **Screen Auto-Rotate Toggle** | LIMITED | API 27 | `Settings.System.putInt(ACCELEROMETER_ROTATION)` | `WRITE_SETTINGS` | LOW | Automatic (if granted) | Controls system auto-rotate toggle. |
+| **Ringer Mode (Silent/Vibrate/Normal)**| LIMITED | API 27 | `AudioManager.setRingerMode()` | Do Not Disturb Access | MEDIUM | Policy-Dependent | Setting silent mode requires Do Not Disturb access on API 24+. |
+| **Bluetooth Toggle (API 27–32)** | LIMITED | API 27–32 | `BluetoothAdapter.enable()` / `disable()` | `BLUETOOTH_ADMIN` | MEDIUM | Policy-Dependent | **Direct API blocked on API 33+ (Android 13+)**. |
+| **Bluetooth Toggle (API 33+)** | LIMITED | API 33+ | System Intent / Quick Settings UI Flow | Accessibility Service | MEDIUM | Policy-Dependent | Uses Quick Settings UI Automation flow. |
+| **Wi-Fi Toggle (API 27–28)** | SUPPORTED | API 27–28 | `WifiManager.setWifiEnabled()` | `CHANGE_WIFI_STATE` | MEDIUM | Policy-Dependent | Direct API toggle supported on Android 8.1–9.0. |
+| **Wi-Fi Toggle (API 29+)** | RESTRICTED | API 29+ | Settings Panel Intent (`Settings.Panel.ACTION_WIFI`) + A11y | Accessibility Service | MEDIUM | Policy-Dependent | **Direct API strictly blocked on Android 10+**. Switched to UI Automation flow. |
+| **Airplane Mode Toggle** | RESTRICTED | API 17+ | Settings Page Intent + Accessibility UI Click | Accessibility Service | HIGH | Interactive Confirmation | Programmatic modification blocked since API 17. Must use Settings UI Automation. |
+| **Power Off / Reboot Device** | RESTRICTED | API 27+ | Power Menu Dialog via Accessibility (`GLOBAL_ACTION_POWER_DIALOG`) | Accessibility Service | HIGH | Interactive Confirmation | Third-party non-root apps cannot reboot device directly. Uses Power Menu UI. |
+| **Lock Screen Display** | SUPPORTED | API 28 | `AccessibilityService.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)` | Accessibility Service | LOW | Automatic Execution | On API 27, fallback uses legacy Device Policy Manager `lockNow()`. |
+| **Screen Off / On Detection** | SUPPORTED | API 27 | BroadcastReceiver (`ACTION_SCREEN_ON`, `ACTION_SCREEN_OFF`) | None | LOW | Passive Monitoring | Passive event monitoring. |
+| **Do Not Disturb Toggle** | LIMITED | API 27 | `NotificationManager.setInterruptionFilter()` | `ACCESS_NOTIFICATION_POLICY` | MEDIUM | Policy-Dependent | Requires user to grant Notification Policy access in System Settings. |
+| **Location / GPS Toggle** | RESTRICTED | API 27+ | Location Settings Intent + Accessibility UI Click | Accessibility Service | HIGH | Interactive Confirmation | Direct API toggle blocked for non-system apps. |
+| **NFC Toggle** | RESTRICTED | API 27+ | NFC Settings Panel Intent + Accessibility | Accessibility Service | HIGH | Interactive Confirmation | Direct API toggle blocked for non-system apps. |
+| **Mobile Data Toggle** | RESTRICTED | API 27+ | Quick Settings Panel Intent + Accessibility | Accessibility Service | HIGH | Interactive Confirmation | Direct API toggle blocked for non-system apps. |
+| **Wi-Fi Hotspot Toggle** | RESTRICTED | API 27+ | Tethering Settings Intent + Accessibility UI Click | Accessibility Service | HIGH | Interactive Confirmation | Direct API toggle blocked for non-system apps. |
 
 ---
 
