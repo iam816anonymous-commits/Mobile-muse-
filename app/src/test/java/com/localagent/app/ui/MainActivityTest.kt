@@ -32,6 +32,8 @@ class MainActivityTest {
         assertTrue(app.capabilityRegistry.isCapabilitySupported("UI_CLICK", deviceApi = 27))
         assertTrue(app.capabilityRegistry.isCapabilitySupported("GLOBAL_BACK", deviceApi = 27))
         assertTrue(app.capabilityRegistry.isCapabilitySupported("UI_SCROLL_FORWARD", deviceApi = 27))
+        assertTrue(app.capabilityRegistry.isCapabilitySupported("OBSERVE", deviceApi = 27))
+        assertTrue(app.capabilityRegistry.isCapabilitySupported("AGENT_STATUS", deviceApi = 27))
     }
 
     @Test
@@ -40,6 +42,15 @@ class MainActivityTest {
         assertTrue(parseResult is CommandParseResult.UnknownCommand)
 
         // Verify unknown command does not enter GoalDispatcher queue
+        assertEquals(0, app.goalDispatcher.getQueueSize())
+    }
+
+    @Test
+    fun testEmptyInputReturnsInvalidInput() {
+        val parseResult = normalizer.parseInput("  ", CommandSource.CONSOLE)
+        assertTrue(parseResult is CommandParseResult.InvalidInput)
+
+        // Verify invalid input does not enter GoalDispatcher queue
         assertEquals(0, app.goalDispatcher.getQueueSize())
     }
 
@@ -59,7 +70,7 @@ class MainActivityTest {
     }
 
     @Test
-    fun testAllPhase1CommandsSupportedByRegistry() {
+    fun testAllCanonicalCommandsSupportedByGrammarAndRegistry() {
         val commandsToTest = listOf(
             "back" to ActionType.GLOBAL_BACK,
             "home" to ActionType.GLOBAL_HOME,
@@ -67,7 +78,14 @@ class MainActivityTest {
             "click 7" to ActionType.UI_CLICK,
             "long click 7" to ActionType.UI_LONG_CLICK,
             "scroll down" to ActionType.UI_SCROLL_FORWARD,
+            "scroll forward" to ActionType.UI_SCROLL_FORWARD,
             "scroll up" to ActionType.UI_SCROLL_BACKWARD,
+            "scroll backward" to ActionType.UI_SCROLL_BACKWARD,
+            "observe" to ActionType.OBSERVE,
+            "observe current" to ActionType.OBSERVE,
+            "test observe" to ActionType.OBSERVE,
+            "status" to ActionType.AGENT_STATUS,
+            "action status" to ActionType.AGENT_STATUS,
             "launch Settings" to ActionType.APP_LAUNCH
         )
 
@@ -75,6 +93,7 @@ class MainActivityTest {
             val parseResult = normalizer.parseInput(input, CommandSource.CONSOLE)
             assertTrue(parseResult is CommandParseResult.Success, "Failed for input: $input")
             assertEquals(expectedType, parseResult.command.actionType)
+            assertTrue(app.capabilityRegistry.isCapabilitySupported(expectedType.name, deviceApi = 27))
         }
     }
 }

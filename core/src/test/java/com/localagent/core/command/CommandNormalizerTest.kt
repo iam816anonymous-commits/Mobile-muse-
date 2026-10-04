@@ -65,23 +65,23 @@ class CommandNormalizerTest {
     fun testValidObserveAndStatusCommands() {
         val observe1 = normalizer.parseInput("observe", CommandSource.CONSOLE)
         assertTrue(observe1 is CommandParseResult.Success)
-        assertEquals("OBSERVE", observe1.command.parameters["intent"])
+        assertEquals(ActionType.OBSERVE, observe1.command.actionType)
 
         val observe2 = normalizer.parseInput("observe current", CommandSource.CONSOLE)
         assertTrue(observe2 is CommandParseResult.Success)
-        assertEquals("OBSERVE", observe2.command.parameters["intent"])
+        assertEquals(ActionType.OBSERVE, observe2.command.actionType)
 
         val observe3 = normalizer.parseInput("test observe", CommandSource.CONSOLE)
         assertTrue(observe3 is CommandParseResult.Success)
-        assertEquals("OBSERVE", observe3.command.parameters["intent"])
+        assertEquals(ActionType.OBSERVE, observe3.command.actionType)
 
         val status1 = normalizer.parseInput("status", CommandSource.CONSOLE)
         assertTrue(status1 is CommandParseResult.Success)
-        assertEquals("STATUS", status1.command.parameters["intent"])
+        assertEquals(ActionType.AGENT_STATUS, status1.command.actionType)
 
         val status2 = normalizer.parseInput("action status", CommandSource.CONSOLE)
         assertTrue(status2 is CommandParseResult.Success)
-        assertEquals("STATUS", status2.command.parameters["intent"])
+        assertEquals(ActionType.AGENT_STATUS, status2.command.actionType)
     }
 
     @Test
@@ -126,7 +126,7 @@ class CommandNormalizerTest {
     }
 
     @Test
-    fun testEmptyInputHandling() {
+    fun testEmptyInputHandlingReturnsInvalidInput() {
         val empty = normalizer.parseInput("", CommandSource.CONSOLE)
         assertTrue(empty is CommandParseResult.InvalidInput)
 

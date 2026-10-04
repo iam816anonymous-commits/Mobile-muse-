@@ -9,7 +9,7 @@ sealed class CommandParseResult {
 class CommandNormalizer {
 
     fun parseInput(input: String, source: CommandSource): CommandParseResult {
-        val trimmed = input.trim().replaceAll("\\s+", " ")
+        val trimmed = input.trim().replace(Regex("\\s+"), " ")
         if (trimmed.isEmpty()) {
             return CommandParseResult.InvalidInput()
         }
@@ -85,19 +85,17 @@ class CommandNormalizer {
             )
             lower == "scroll" -> CommandParseResult.UnknownCommand(trimmed, "Scroll command requires a direction parameter (e.g. scroll up, scroll down)")
 
-            // Observation & Diagnostics
+            // Observation & System Status
             lower == "observe" || lower == "observe current" || lower == "test observe" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
-                    actionType = ActionType.UI_SCROLL_FORWARD,
-                    parameters = mapOf("intent" to "OBSERVE")
+                    actionType = ActionType.OBSERVE
                 )
             )
             lower == "status" || lower == "action status" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
-                    actionType = ActionType.UI_SCROLL_FORWARD,
-                    parameters = mapOf("intent" to "STATUS")
+                    actionType = ActionType.AGENT_STATUS
                 )
             )
 
@@ -120,9 +118,5 @@ class CommandNormalizer {
 
             else -> CommandParseResult.UnknownCommand(trimmed)
         }
-    }
-
-    private fun String.replaceAll(regex: String, replacement: String): String {
-        return this.replace(Regex(regex), replacement)
     }
 }

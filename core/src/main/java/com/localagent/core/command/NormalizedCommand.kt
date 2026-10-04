@@ -44,6 +44,10 @@ enum class ActionType {
     SPEECH_STT,
     SPEECH_TTS,
 
+    // Observation & System Status
+    OBSERVE,
+    AGENT_STATUS,
+
     // Solver & Research
     STRUCTURED_PROBLEM_SOLVER,
     TRIP_RESEARCH_ENGINE,

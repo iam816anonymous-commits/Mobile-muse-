@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
 
         when (val parseResult = commandNormalizer.parseInput(input, CommandSource.CONSOLE)) {
             is CommandParseResult.InvalidInput -> {
-                val resultText = "Result: ${ResultCode.UNKNOWN_COMMAND} | Reason: ${parseResult.reason}"
+                val resultText = "Result: ${ResultCode.INVALID_INPUT} | Reason: ${parseResult.reason}"
                 binding.tvLatestResult.text = resultText
                 logEvent("[COMMAND_REJECTED] $resultText")
                 return
@@ -92,14 +92,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun executeNormalizedCommand(command: NormalizedCommand): String {
-        val intent = command.parameters["intent"]
-        if (intent == "OBSERVE") {
-            return "Command: OBSERVE | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Phase 5 Observation Engine Required)"
-        }
-        if (intent == "STATUS") {
-            return "Command: STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y DISCONNECTED, Core Ready"
-        }
-
         return when (command.actionType) {
             ActionType.GLOBAL_BACK -> "Command: GLOBAL_BACK | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.GLOBAL_HOME -> "Command: GLOBAL_HOME | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
@@ -108,6 +100,8 @@ class MainActivity : AppCompatActivity() {
             ActionType.UI_LONG_CLICK -> "Command: UI_LONG_CLICK | Target: ${command.targetSelector} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.UI_SCROLL_FORWARD -> "Command: UI_SCROLL_FORWARD | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.UI_SCROLL_BACKWARD -> "Command: UI_SCROLL_BACKWARD | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
+            ActionType.OBSERVE -> "Command: OBSERVE | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Phase 5 Observation Engine Required)"
+            ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y DISCONNECTED, Core Ready"
             ActionType.APP_LAUNCH -> "Command: APP_LAUNCH | Target: ${command.parameters["appLabel"]} | Status: ${ResultCode.DISPATCHED_BUT_NOT_VERIFIED} | Reason: App launch dispatched without foreground verification"
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }

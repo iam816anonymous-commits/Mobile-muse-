@@ -96,6 +96,26 @@ class LocalAgentApplication : Application() {
             )
             registerCapability(
                 CapabilityRule(
+                    capabilityId = "OBSERVE",
+                    name = "UI Observation",
+                    category = CapabilityCategory.UI_CONTROL,
+                    minApi = 27,
+                    verificationStrategy = "SnapshotDiffStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
+                    capabilityId = "AGENT_STATUS",
+                    name = "Agent System Status",
+                    category = CapabilityCategory.SYSTEM,
+                    minApi = 27,
+                    verificationStrategy = "StatusReportStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
                     capabilityId = "APP_LAUNCH",
                     name = "App Launch",
                     category = CapabilityCategory.SYSTEM,
