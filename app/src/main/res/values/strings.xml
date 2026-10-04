@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">LocalAgent</string>
+    <string name="accessibility_service_description">LocalAgent Read-Only UI Observation Service used to inspect visible screen elements.</string>
+</resources>

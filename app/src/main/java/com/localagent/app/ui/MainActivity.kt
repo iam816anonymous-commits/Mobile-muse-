@@ -3,9 +3,11 @@ package com.localagent.app.ui
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.localagent.app.LocalAgentApplication
+import com.localagent.app.accessibility.AgentAccessibilityService
 import com.localagent.app.databinding.ActivityMainBinding
 import com.localagent.core.command.*
 import com.localagent.core.logging.AgentEvent
@@ -38,6 +40,11 @@ class MainActivity : AppCompatActivity() {
         updateStorageDiagnostics()
     }
 
+    override fun onResume() {
+        super.onResume()
+        updateStorageDiagnostics()
+    }
+
     private fun setupListeners() {
         binding.btnExecute.setOnClickListener {
             val input = binding.etCommandInput.text.toString()
@@ -54,6 +61,15 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnTestWriteMemory.setOnClickListener {
             testWriteDurableMemoryRecord()
+        }
+
+        binding.btnOpenAccessibilitySettings.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+            } catch (e: Exception) {
+                logEvent("[ACCESSIBILITY] Error opening Settings: ${e.message}")
+            }
         }
     }
 
@@ -321,6 +337,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun executeNormalizedCommand(command: NormalizedCommand): String {
         return when (command.actionType) {
+            ActionType.OBSERVE -> {
+                if (AgentAccessibilityService.isBound) {
+                    val snapshot = AgentAccessibilityService.INSTANCE?.captureLiveSnapshot()
+                    if (snapshot != null) {
+                        "Command: OBSERVE | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount} | Truncated: ${snapshot.truncationInfo.isTruncated}"
+                    } else {
+                        "Command: OBSERVE | Status: ${ResultCode.ACTION_FAILED} | Reason: Null snapshot"
+                    }
+                } else {
+                    "Command: OBSERVE | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Open Settings to enable)"
+                }
+            }
             ActionType.GLOBAL_BACK -> "Command: GLOBAL_BACK | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.GLOBAL_HOME -> "Command: GLOBAL_HOME | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.GLOBAL_RECENTS -> "Command: GLOBAL_RECENTS | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
@@ -328,8 +356,7 @@ class MainActivity : AppCompatActivity() {
             ActionType.UI_LONG_CLICK -> "Command: UI_LONG_CLICK | Target: ${command.targetSelector} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.UI_SCROLL_FORWARD -> "Command: UI_SCROLL_FORWARD | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
             ActionType.UI_SCROLL_BACKWARD -> "Command: UI_SCROLL_BACKWARD | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.OBSERVE -> "Command: OBSERVE | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Phase 5 Observation Engine Required)"
-            ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y DISCONNECTED, Core Ready"
+            ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y ${if (AgentAccessibilityService.isBound) "BOUND" else "DISCONNECTED"}, Core Ready"
             ActionType.APP_LAUNCH -> "Command: APP_LAUNCH | Target: ${command.parameters["appLabel"]} | Status: ${ResultCode.DISPATCHED_BUT_NOT_VERIFIED} | Reason: App launch dispatched without foreground verification"
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }
@@ -348,6 +375,8 @@ class MainActivity : AppCompatActivity() {
         val app = application as? LocalAgentApplication ?: return
         val session = app.eventLogger.getActiveSession()
         val durableStatus = app.durableStorageManager.getAvailabilityStatus()
+        val a11yBound = AgentAccessibilityService.isBound
+        val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
 
         // Asynchronous storage fetch off UI thread
         Thread {
@@ -359,6 +388,7 @@ class MainActivity : AppCompatActivity() {
                 val durableRecordsCount = app.durableStorageManager.listRecords().size
 
                 runOnUiThread {
+                    binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
                     binding.tvEventStorageDiagnostics.text = "DB Name: agent.db | Location: APP_PRIVATE (/data/data/.../files/agent/)\nSession: ${session.sessionId.take(8)}... | Events: $count | DB Footprint: ${bytes / 1024} KB | Latest: $lastEvent"
                     binding.tvDurableMemoryDiagnostics.text = "Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: $durableStatus | Durable Records: $durableRecordsCount | Last Write: $lastWriteStatus"
                 }

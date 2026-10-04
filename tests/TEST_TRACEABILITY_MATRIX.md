@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
+This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3.1) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
 Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
@@ -41,3 +41,14 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Durable memory record SHA-256 integrity | P2-MEM-001 | AUTOMATED_ROBOLECTRIC | `DurableMemoryStorageManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Durable memory app-private deletion simulation | P2-MEM-002 | AUTOMATED_ROBOLECTRIC_SIMULATION | `DurableMemoryStorageManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS (Simulated) |
 | Physical phone uninstall survival procedure | P2-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 2 | Manual Installation on Physical Phone | **NOT_RUN** |
+
+---
+
+## 5. Phase 3.1 — Accessibility Observation Foundation Traceability
+
+| Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
+|---|---|---|---|---|---|
+| Observation snapshot & JSON serialization | P3-OBS-001 | AUTOMATED_JVM | `ObservationDomainModelsTest.kt` | `./gradlew :core:test` | PASS |
+| Traversal bounds enforcement (`MAX_NODES=500`, `MAX_DEPTH=30`) | P3-OBS-002 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Read-only observation guarantee (zero action execution) | P3-OBS-003 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone accessibility observation procedure | P3-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Enablement in Android Settings | **NOT_RUN** |
