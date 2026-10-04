@@ -1,4 +1,4 @@
-# ACTION_CONTRACTS.md — Action Contracts & Verification Specifications
+# ACTION_CONTRACTS.md — Target-Aware Action Contracts & Verification Specifications
 
 ## 1. Executive Summary
 
@@ -30,8 +30,8 @@ The architecture defines explicit result categories. The system **never claims v
 | `TARGET_NOT_ACTIONABLE` | Target found, but no actionable ancestor matched capability requirement. | Failed | Non-actionable container | Abort action |
 | `TARGET_STALE` | Target node state mutated or window closed before dispatch. | Failed | Window transitioned before dispatch | Reacquire live window |
 | `ACCESSIBILITY_UNAVAILABLE` | Accessibility service unbound or disconnected. | Unavailable | Service disconnected | Prompt user / Passive fallback |
-| `PERMISSION_REQUIRED` | Capability missing mandatory system permission or special access. | Denied | Missing permission | Launch Permission Center |
 | `POLICY_BLOCKED` | Action blocked by `ActionPolicyEngine` (HIGH/CRITICAL risk without user confirmation). | Denied | Policy restriction | Request user confirmation |
+| `PERMISSION_REQUIRED` | Capability missing mandatory system permission or special access. | Denied | Missing permission | Launch Permission Center |
 | `CAPABILITY_UNAVAILABLE` | Action unsupported on device, API level, or current app state. | Unavailable | Device restriction | Abort action |
 | `TIMEOUT` | Post-action verification window timed out before state settled. | Failed | Animation lag / ANR | Retry step |
 | `CANCELLED` | Task or goal explicitly cancelled by user via Overlay/Console. | Cancelled | User cancellation | Stop goal execution |
@@ -53,22 +53,28 @@ sealed class VerificationStrategy {
         diff: SnapshotDiffResult
     ): VerificationResult
 
-    // Calculator / Target-Specific Click Verification
-    data class TargetClickStrategy(val expectedTargetViewId: String? = null) : VerificationStrategy() {
+    // Target-Specific Click Verification
+    data class TargetClickStrategy(
+        val expectedTargetViewId: String? = null,
+        val expectedDestinationPackage: String? = null,
+        val expectedDestinationWindow: String? = null
+    ) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
             preState: ObservationSnapshot,
             postState: ObservationSnapshot,
             diff: SnapshotDiffResult
         ): VerificationResult {
-            // Target-aware check: verify target node or expected view area specifically mutated
-            val targetMutated = diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey || it.nodeIdentityKey == expectedTargetViewId } ||
+            // Target-aware check 1: Verify target node text/checked state mutated specifically
+            val targetMutated = diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey || (expectedTargetViewId != null && it.nodeIdentityKey.contains(expectedTargetViewId)) } ||
                     diff.checkedStateChanges.any { it.nodeIdentityKey == targetIdentityKey }
 
-            val screenNavigated = diff.packageChanged || diff.windowChanged || diff.addedNodeIdentities.size > 3
+            // Target-aware check 2: Explicitly expected navigation outcome reached
+            val expectedNavigationOccurred = (expectedDestinationPackage != null && postState.packageName == expectedDestinationPackage) ||
+                    (expectedDestinationWindow != null && postState.windowId.toString() == expectedDestinationWindow)
 
             return when {
-                targetMutated || screenNavigated -> VerificationResult.SuccessVerified
+                targetMutated || expectedNavigationOccurred -> VerificationResult.SuccessVerified
                 diff.hasObservableChange -> VerificationResult.DispatchedButNotVerified("UI mutated elsewhere, but target node state did not mutate specifically")
                 else -> VerificationResult.DispatchedButNotVerified("No observable change detected post-click")
             }
@@ -97,7 +103,7 @@ sealed class VerificationStrategy {
         }
     }
 
-    // Text Input Verification
+    // Text Input Verification (Strictly tied to target identity or re-resolved target node)
     data class TextInputStrategy(val expectedText: String) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
@@ -105,15 +111,23 @@ sealed class VerificationStrategy {
             postState: ObservationSnapshot,
             diff: SnapshotDiffResult
         ): VerificationResult {
-            // Verify specific target field text matches expected string
-            val targetField = postState.nodes.firstOrNull { it.identity.identityKey == targetIdentityKey || it.isEditable || it.isFocused }
-            val isVerified = targetField?.text == expectedText || diff.textChanges.any { (it.nodeIdentityKey == targetIdentityKey || it.nodeIdentityKey == targetField?.identity?.identityKey) && it.newText == expectedText }
-            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Text in target field did not match expected string: '$expectedText'")
+            // Verify specific target field text matches expected string (never arbitrary field)
+            val targetField = postState.nodes.firstOrNull { it.identity.identityKey == targetIdentityKey }
+                ?: postState.nodes.firstOrNull { it.isFocused && it.isEditable }
+
+            val isVerified = targetField?.text == expectedText ||
+                    diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey && it.newText == expectedText }
+
+            return if (isVerified) {
+                VerificationResult.SuccessVerified
+            } else {
+                VerificationResult.DispatchedButNotVerified("Text in target field specifically did not match expected string: '$expectedText'")
+            }
         }
     }
 
-    // Formal Scroll Verification Strategy
-    object ScrollVerificationStrategy : VerificationStrategy() {
+    // Container-Specific Scroll Verification Strategy
+    data class ScrollVerificationStrategy(val expectedDirection: ScrollDirection = ScrollDirection.FORWARD) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
             preState: ObservationSnapshot,
@@ -128,34 +142,36 @@ sealed class VerificationStrategy {
                     VerificationResult.SuccessVerified
                 }
                 containerDiff?.isAtBoundary == true -> {
-                    VerificationResult.NoScrollPossible("Scrollable container reached boundary end or beginning")
-                }
-                diff.boundsChanges.isNotEmpty() || diff.addedNodeIdentities.isNotEmpty() -> {
-                    VerificationResult.SuccessVerified
+                    VerificationResult.NoScrollPossible("Scrollable container is demonstrably at boundary $expectedDirection")
                 }
                 else -> {
-                    VerificationResult.DispatchedButNotVerified("Scroll action dispatched, but no descendant node shifted position")
+                    VerificationResult.DispatchedButNotVerified("Scroll action dispatched, but no descendant node of the target scroll container shifted position")
                 }
             }
         }
     }
 
-    // Navigation-Aware Back Strategy
-    data class NavigationAwareBackStrategy(val expectedPreviousState: NavigationState? = null) : VerificationStrategy() {
+    // Navigation & Layer-Aware Back Strategy
+    data class NavigationAwareBackStrategy(
+        val expectedPreviousPackage: String? = null,
+        val expectedPreviousWindow: Int? = null
+    ) : VerificationStrategy() {
         override fun verify(
             targetIdentityKey: String?,
             preState: ObservationSnapshot,
             postState: ObservationSnapshot,
             diff: SnapshotDiffResult
         ): VerificationResult {
-            // Legitimate outcomes: previous activity, closed popup/dialog, dismissed keyboard, launcher return
-            val isVerified = diff.packageChanged ||
-                    diff.windowChanged ||
-                    diff.removedNodeIdentities.size > 2 ||
-                    preState.totalNodeCount != postState.totalNodeCount ||
-                    (expectedPreviousState != null && postState.packageName == expectedPreviousState.packageName)
+            // Layer-aware checks: Transition to previous activity/window, package, dismissed dialog/popup, keyboard dismissal, launcher return
+            val activityWindowNavigated = diff.packageChanged || diff.windowChanged
+            val expectedPackageReached = expectedPreviousPackage != null && postState.packageName == expectedPreviousPackage
+            val expectedWindowReached = expectedPreviousWindow != null && postState.windowId == expectedPreviousWindow
+            val popupDismissed = preState.windowId != postState.windowId
 
-            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Back pressed, but active window layout remained identical")
+            return when {
+                activityWindowNavigated || expectedPackageReached || expectedWindowReached || popupDismissed -> VerificationResult.SuccessVerified
+                else -> VerificationResult.DispatchedButNotVerified("Back pressed, but active navigation/window layer remained identical")
+            }
         }
     }
 
@@ -168,17 +184,17 @@ sealed class VerificationStrategy {
             diff: SnapshotDiffResult
         ): VerificationResult {
             val isVerified = when (expectedOutcome) {
-                LongClickOutcome.CONTEXT_MENU -> diff.addedNodeIdentities.isNotEmpty() || diff.windowChanged
-                LongClickOutcome.TEXT_SELECTION -> diff.focusChanges.isNotEmpty() || diff.boundsChanges.isNotEmpty()
-                LongClickOutcome.EXPECTED_UI_RESULT -> diff.packageChanged || diff.windowChanged || diff.textChanges.isNotEmpty()
+                LongClickOutcome.CONTEXT_MENU -> diff.windowChanged || diff.addedNodeIdentities.any { it.contains("menu") || it.contains("popup") }
+                LongClickOutcome.TEXT_SELECTION -> diff.focusChanges.any { it.nodeIdentityKey == targetIdentityKey }
+                LongClickOutcome.EXPECTED_UI_RESULT -> diff.packageChanged || diff.windowChanged || diff.textChanges.any { it.nodeIdentityKey == targetIdentityKey }
                 LongClickOutcome.NO_DETERMINISTIC_EXPECTATION -> diff.hasObservableChange
             }
-            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Long click executed, but expected outcome '$expectedOutcome' was not observed")
+            return if (isVerified) VerificationResult.SuccessVerified else VerificationResult.DispatchedButNotVerified("Long click executed, but expected outcome '$expectedOutcome' was not observed on target")
         }
     }
 }
 
-data class NavigationState(val packageName: String, val windowId: Int)
+enum class ScrollDirection { FORWARD, BACKWARD }
 enum class LongClickOutcome { CONTEXT_MENU, TEXT_SELECTION, EXPECTED_UI_RESULT, NO_DETERMINISTIC_EXPECTATION }
 
 sealed class VerificationResult {
