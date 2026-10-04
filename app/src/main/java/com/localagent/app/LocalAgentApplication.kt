@@ -1,9 +1,16 @@
 package com.localagent.app
 
 import android.app.Application
+import com.localagent.app.logging.UnifiedEventLogger
+import com.localagent.app.storage.AgentDatabase
+import com.localagent.app.storage.RoomEventRepository
 import com.localagent.core.capability.*
 import com.localagent.core.execution.GoalDispatcher
+import com.localagent.core.logging.AgentEvent
+import com.localagent.core.logging.EventSeverity
+import com.localagent.core.logging.EventSubsystem
 import com.localagent.core.policy.ActionPolicyEngine
+import java.io.File
 
 class LocalAgentApplication : Application() {
 
@@ -16,6 +23,12 @@ class LocalAgentApplication : Application() {
     lateinit var goalDispatcher: GoalDispatcher
         private set
 
+    lateinit var eventRepository: RoomEventRepository
+        private set
+
+    lateinit var eventLogger: UnifiedEventLogger
+        private set
+
     override fun onCreate() {
         super.onCreate()
         initializeCoreDomain()
@@ -23,6 +36,11 @@ class LocalAgentApplication : Application() {
 
     // Public method for testing and Activity initialization
     fun initializeCoreDomain() {
+        val db = AgentDatabase.getInstance(this)
+        val dbFile = File(filesDir, "agent/${AgentDatabase.DATABASE_NAME}")
+        eventRepository = RoomEventRepository(db.eventDao(), db.sessionDao(), dbFile)
+        eventLogger = UnifiedEventLogger(eventRepository)
+
         capabilityRegistry = CapabilityRegistry().apply {
             registerCapability(
                 CapabilityRule(
@@ -128,5 +146,16 @@ class LocalAgentApplication : Application() {
 
         policyEngine = ActionPolicyEngine(capabilityRegistry)
         goalDispatcher = GoalDispatcher()
+
+        eventLogger.logEvent(
+            AgentEvent(
+                eventId = java.util.UUID.randomUUID().toString(),
+                sessionId = eventLogger.getActiveSession().sessionId,
+                subsystem = EventSubsystem.SYSTEM,
+                eventType = "APPLICATION_INITIALIZED",
+                severity = EventSeverity.INFO,
+                metadataJson = "{\"minSdk\":27,\"targetSdk\":34}"
+            )
+        )
     }
 }

@@ -1,5 +1,6 @@
 package com.localagent.app.ui
 
+import androidx.test.core.app.ApplicationProvider
 import com.localagent.app.LocalAgentApplication
 import com.localagent.core.command.CommandNormalizer
 import com.localagent.core.command.CommandParseResult
@@ -7,10 +8,15 @@ import com.localagent.core.command.CommandSource
 import com.localagent.core.command.ActionType
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+@RunWith(RobolectricTestRunner::class)
+@Config(application = LocalAgentApplication::class)
 class MainActivityTest {
 
     private lateinit var app: LocalAgentApplication
@@ -18,7 +24,7 @@ class MainActivityTest {
 
     @Before
     fun setUp() {
-        app = LocalAgentApplication()
+        app = ApplicationProvider.getApplicationContext<LocalAgentApplication>()
         app.initializeCoreDomain()
         normalizer = CommandNormalizer()
     }
@@ -28,6 +34,8 @@ class MainActivityTest {
         assertNotNull(app.capabilityRegistry)
         assertNotNull(app.policyEngine)
         assertNotNull(app.goalDispatcher)
+        assertNotNull(app.eventRepository)
+        assertNotNull(app.eventLogger)
 
         assertTrue(app.capabilityRegistry.isCapabilitySupported("UI_CLICK", deviceApi = 27))
         assertTrue(app.capabilityRegistry.isCapabilitySupported("GLOBAL_BACK", deviceApi = 27))

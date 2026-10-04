@@ -5,9 +5,14 @@ import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.databinding.ActivityMainBinding
 import com.localagent.core.command.*
+import com.localagent.core.logging.AgentEvent
+import com.localagent.core.logging.EventFilter
+import com.localagent.core.logging.EventSeverity
+import com.localagent.core.logging.EventSubsystem
 import com.localagent.core.policy.PolicyEvaluationResult
 import com.localagent.core.result.ResultCode
 import java.util.LinkedList
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
         setupListeners()
         logEvent("[SYSTEM] Foundation Test UI Ready. Target API: 27 Baseline.")
+        updateStorageDiagnostics()
     }
 
     private fun setupListeners() {
@@ -40,6 +46,21 @@ class MainActivity : AppCompatActivity() {
         val app = application as? LocalAgentApplication
             ?: return
 
+        val activeSessionId = app.eventLogger.getActiveSession().sessionId
+        val correlationId = UUID.randomUUID().toString()
+
+        app.eventLogger.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                correlationId = correlationId,
+                subsystem = EventSubsystem.COMMAND,
+                eventType = "COMMAND_INPUT_RECEIVED",
+                sourceChannel = CommandSource.CONSOLE.name,
+                metadataJson = "{\"rawInput\":\"$input\"}"
+            )
+        )
+
         logEvent("[COMMAND_RECEIVED] Raw Input: '$input'")
 
         when (val parseResult = commandNormalizer.parseInput(input, CommandSource.CONSOLE)) {
@@ -47,17 +68,62 @@ class MainActivity : AppCompatActivity() {
                 val resultText = "Result: ${ResultCode.INVALID_INPUT} | Reason: ${parseResult.reason}"
                 binding.tvLatestResult.text = resultText
                 logEvent("[COMMAND_REJECTED] $resultText")
+
+                app.eventLogger.logEvent(
+                    AgentEvent(
+                        eventId = UUID.randomUUID().toString(),
+                        sessionId = activeSessionId,
+                        correlationId = correlationId,
+                        subsystem = EventSubsystem.COMMAND,
+                        eventType = "COMMAND_REJECTED",
+                        sourceChannel = CommandSource.CONSOLE.name,
+                        resultCode = ResultCode.INVALID_INPUT,
+                        severity = EventSeverity.WARNING,
+                        errorCode = "INVALID_INPUT",
+                        metadataJson = "{\"reason\":\"${parseResult.reason}\"}"
+                    )
+                )
+                updateStorageDiagnostics()
                 return
             }
             is CommandParseResult.UnknownCommand -> {
                 val resultText = "Result: ${ResultCode.UNKNOWN_COMMAND} | Reason: Unrecognized command syntax '${parseResult.rawInput}'"
                 binding.tvLatestResult.text = resultText
                 logEvent("[COMMAND_REJECTED] $resultText")
+
+                app.eventLogger.logEvent(
+                    AgentEvent(
+                        eventId = UUID.randomUUID().toString(),
+                        sessionId = activeSessionId,
+                        correlationId = correlationId,
+                        subsystem = EventSubsystem.COMMAND,
+                        eventType = "COMMAND_REJECTED",
+                        sourceChannel = CommandSource.CONSOLE.name,
+                        resultCode = ResultCode.UNKNOWN_COMMAND,
+                        severity = EventSeverity.WARNING,
+                        errorCode = "UNKNOWN_COMMAND",
+                        metadataJson = "{\"rawInput\":\"${parseResult.rawInput}\"}"
+                    )
+                )
+                updateStorageDiagnostics()
                 return
             }
             is CommandParseResult.Success -> {
                 val normalizedCmd = parseResult.command
                 logEvent("[COMMAND_PARSED] Action: ${normalizedCmd.actionType} | Target: ${normalizedCmd.targetSelector}")
+
+                app.eventLogger.logEvent(
+                    AgentEvent(
+                        eventId = UUID.randomUUID().toString(),
+                        sessionId = activeSessionId,
+                        correlationId = correlationId,
+                        subsystem = EventSubsystem.COMMAND,
+                        eventType = "COMMAND_PARSED",
+                        actionType = normalizedCmd.actionType.name,
+                        sourceChannel = normalizedCmd.source.name,
+                        metadataJson = "{\"target\":\"${normalizedCmd.targetSelector}\"}"
+                    )
+                )
 
                 // Policy Evaluation
                 val policyResult = app.policyEngine.evaluateCommand(normalizedCmd)
@@ -65,23 +131,80 @@ class MainActivity : AppCompatActivity() {
                     val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
                     binding.tvLatestResult.text = resultText
                     logEvent("[POLICY_EVALUATED] $resultText")
+
+                    app.eventLogger.logEvent(
+                        AgentEvent(
+                            eventId = UUID.randomUUID().toString(),
+                            sessionId = activeSessionId,
+                            correlationId = correlationId,
+                            subsystem = EventSubsystem.POLICY,
+                            eventType = "POLICY_BLOCKED",
+                            actionType = normalizedCmd.actionType.name,
+                            sourceChannel = normalizedCmd.source.name,
+                            resultCode = ResultCode.POLICY_BLOCKED,
+                            severity = EventSeverity.WARNING,
+                            metadataJson = "{\"explanation\":\"${policyResult.explanation}\"}"
+                        )
+                    )
+                    updateStorageDiagnostics()
                     return
                 }
 
                 // Dispatch through Universal Production Pipeline
                 app.goalDispatcher.enqueueCommand(normalizedCmd, priority = 1)
+
+                app.eventLogger.logEvent(
+                    AgentEvent(
+                        eventId = UUID.randomUUID().toString(),
+                        sessionId = activeSessionId,
+                        correlationId = correlationId,
+                        subsystem = EventSubsystem.ACTION,
+                        eventType = "GOAL_QUEUED",
+                        actionType = normalizedCmd.actionType.name,
+                        sourceChannel = normalizedCmd.source.name
+                    )
+                )
+
                 val polled = app.goalDispatcher.pollNextCommandForExecution()
 
                 if (polled != null) {
                     val executionResult = executeNormalizedCommand(polled.command)
                     binding.tvLatestResult.text = executionResult
                     logEvent("[COMMAND_RESULT] $executionResult")
+
+                    app.eventLogger.logEvent(
+                        AgentEvent(
+                            eventId = UUID.randomUUID().toString(),
+                            sessionId = activeSessionId,
+                            correlationId = correlationId,
+                            subsystem = EventSubsystem.ACTION,
+                            eventType = "ACTION_RESULT",
+                            actionType = polled.command.actionType.name,
+                            sourceChannel = polled.command.source.name,
+                            metadataJson = "{\"resultText\":\"$executionResult\"}"
+                        )
+                    )
+
                     app.goalDispatcher.completeExecution()
                 } else {
                     val busyText = "Result: ${ResultCode.TIMEOUT} | Execution channel locked by concurrent transaction"
                     binding.tvLatestResult.text = busyText
                     logEvent("[EXECUTION_LOCK] $busyText")
+
+                    app.eventLogger.logEvent(
+                        AgentEvent(
+                            eventId = UUID.randomUUID().toString(),
+                            sessionId = activeSessionId,
+                            correlationId = correlationId,
+                            subsystem = EventSubsystem.ACTION,
+                            eventType = "EXECUTION_LOCKED",
+                            actionType = normalizedCmd.actionType.name,
+                            resultCode = ResultCode.TIMEOUT,
+                            severity = EventSeverity.WARNING
+                        )
+                    )
                 }
+                updateStorageDiagnostics()
             }
         }
     }
@@ -114,5 +237,24 @@ class MainActivity : AppCompatActivity() {
         recentEventLogs.addLast("${System.currentTimeMillis() % 1000000}: $eventText")
 
         binding.tvRecentEvents.text = recentEventLogs.joinToString("\n")
+    }
+
+    private fun updateStorageDiagnostics() {
+        val app = application as? LocalAgentApplication ?: return
+        val session = app.eventLogger.getActiveSession()
+
+        // Asynchronous storage fetch off UI thread
+        Thread {
+            try {
+                val count = app.eventRepository.getEventCount()
+                val bytes = app.eventRepository.getStorageFootprintBytes()
+                val recentEvents = app.eventRepository.queryEvents(EventFilter(limit = 1))
+                val lastEvent = recentEvents.firstOrNull()?.eventType ?: "NONE"
+
+                runOnUiThread {
+                    binding.tvStorageDiagnostics.text = "Session: ${session.sessionId.take(8)}... | Persisted Events: $count | DB Size: ${bytes / 1024} KB | Latest: $lastEvent"
+                }
+            } catch (_: Exception) {}
+        }.start()
     }
 }
