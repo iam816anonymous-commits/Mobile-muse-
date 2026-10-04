@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="LocalAgent Observation Screen (Phase 3.1)"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvAccessibilityStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Status: SERVICE_UNBOUND | Active Pkg: None"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:textColor="#4A148C" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnOpenAccessibilitySettings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Accessibility Settings"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnObserveCurrentUi"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Observe Current UI"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvCurrentSnapshotHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="CURRENT OBSERVATION SNAPSHOT:"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#000080" />
+
+    <TextView
+        android:id="@+id/tvCurrentSnapshotMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
+        android:textSize="10sp"
+        android:fontFamily="monospace" />
+
+    <TextView
+        android:id="@+id/tvCurrentTreeHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Current Node Tree (Indented Hierarchy):"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="1dp"
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/tvCurrentNodeTree"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No current tree captured."
+            android:textSize="10sp"
+            android:fontFamily="monospace" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/tvExternalSnapshotHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="LAST EXTERNAL APPLICATION SNAPSHOT:"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#004D40" />
+
+    <TextView
+        android:id="@+id/tvExternalSnapshotMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
+        android:textSize="10sp"
+        android:fontFamily="monospace" />
+
+    <TextView
+        android:id="@+id/tvExternalTreeHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Last External Node Tree (Preserved Hierarchy):"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="1dp"
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/tvExternalNodeTree"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No external tree captured."
+            android:textSize="10sp"
+            android:fontFamily="monospace" />
+    </ScrollView>
+
+</LinearLayout>

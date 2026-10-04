@@ -2,7 +2,9 @@ package com.localagent.app.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.os.Build
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import com.localagent.app.LocalAgentApplication
 import com.localagent.core.logging.AgentEvent
 import com.localagent.core.logging.EventSeverity
@@ -21,6 +23,14 @@ class AgentAccessibilityService : AccessibilityService() {
         private set
 
     @Volatile
+    var lastExternalPackageName: String = ""
+        private set
+
+    @Volatile
+    var lastExternalActivityName: String? = null
+        private set
+
+    @Volatile
     var currentObservationSnapshot: ObservationSnapshot? = null
         private set
 
@@ -29,7 +39,6 @@ class AgentAccessibilityService : AccessibilityService() {
         private set
 
     private val extractor = ObservationSnapshotExtractor(maxNodes = 500, maxDepth = 30)
-    private var lastEventTimestamp: Long = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -51,20 +60,21 @@ class AgentAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        val now = System.currentTimeMillis()
-        if (now - lastEventTimestamp < 150) { // 150ms event debouncing
-            return
-        }
-        lastEventTimestamp = now
-
-        event.packageName?.toString()?.let { pkg ->
-            if (pkg.isNotBlank()) activePackageName = pkg
+        val pkg = event.packageName?.toString() ?: ""
+        if (pkg.isNotBlank()) {
+            activePackageName = pkg
+            if (pkg != "com.localagent.app") {
+                lastExternalPackageName = pkg
+            }
         }
 
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             event.className?.toString()?.let { cls ->
                 if (cls.isNotBlank() && cls.contains(".")) {
                     activeActivityName = cls
+                    if (pkg.isNotBlank() && pkg != "com.localagent.app") {
+                        lastExternalActivityName = cls
+                    }
                 }
             }
         }
@@ -111,66 +121,88 @@ class AgentAccessibilityService : AccessibilityService() {
             )
         )
 
+        // 1. Capture primary active root node
         val rootNode = rootInActiveWindow
-        if (rootNode == null) {
-            val failedSnapshot = ObservationSnapshot(
+        val primarySnapshot = if (rootNode != null) {
+            try {
+                extractor.extractSnapshot(
+                    rootNodeInfo = rootNode,
+                    packageName = rootNode.packageName?.toString() ?: activePackageName,
+                    activityName = activeActivityName,
+                    windowId = rootNode.windowId
+                )
+            } finally {
+                rootNode.recycle()
+            }
+        } else {
+            ObservationSnapshot(
                 packageName = activePackageName,
                 activityName = activeActivityName,
                 nodeCount = 0
             )
-            currentObservationSnapshot = failedSnapshot
-            if (activePackageName.isNotBlank() && activePackageName != "com.localagent.app") {
-                lastExternalObservationSnapshot = failedSnapshot
-            }
-            app?.eventLogger?.logEvent(
-                AgentEvent(
-                    eventId = UUID.randomUUID().toString(),
-                    sessionId = activeSessionId,
-                    subsystem = EventSubsystem.OBSERVATION,
-                    eventType = "OBSERVATION_FAILED",
-                    severity = EventSeverity.WARNING,
-                    metadataJson = "{\"reason\":\"rootInActiveWindow returned null\"}"
-                )
-            )
-            return failedSnapshot
         }
+
+        currentObservationSnapshot = primarySnapshot
+
+        val primaryPkg = primarySnapshot.packageName.ifBlank { activePackageName }
+        if (primaryPkg.isNotBlank() && primaryPkg != "com.localagent.app") {
+            lastExternalObservationSnapshot = primarySnapshot
+        }
+
+        // 2. If primary snapshot is LocalAgent, attempt to inspect interactive windows for last external window
+        if (primaryPkg == "com.localagent.app" || primaryPkg.isBlank()) {
+            val externalSnapshotFromWindows = findExternalWindowSnapshot()
+            if (externalSnapshotFromWindows != null) {
+                lastExternalObservationSnapshot = externalSnapshotFromWindows
+            }
+        }
+
+        val eventType = if (primarySnapshot.truncationInfo.isTruncated) {
+            "OBSERVATION_TRUNCATED"
+        } else {
+            "OBSERVATION_COMPLETED"
+        }
+
+        app?.eventLogger?.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.OBSERVATION,
+                eventType = eventType,
+                metadataJson = "{\"pkg\":\"$primaryPkg\",\"nodeCount\":${primarySnapshot.nodeCount},\"truncated\":${primarySnapshot.truncationInfo.isTruncated}}"
+            )
+        )
+
+        return primarySnapshot
+    }
+
+    private fun findExternalWindowSnapshot(): ObservationSnapshot? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return null
 
         try {
-            val snapshot = extractor.extractSnapshot(
-                rootNodeInfo = rootNode,
-                packageName = activePackageName,
-                activityName = activeActivityName,
-                windowId = rootNode.windowId
-            )
-
-            currentObservationSnapshot = snapshot
-
-            // Preserve external snapshot if the observed package is NOT LocalAgent itself
-            val pkg = snapshot.packageName.ifBlank { activePackageName }
-            if (pkg.isNotBlank() && pkg != "com.localagent.app") {
-                lastExternalObservationSnapshot = snapshot
+            val interactiveWindows = windows ?: return null
+            for (window in interactiveWindows) {
+                val windowRoot: AccessibilityNodeInfo? = window.root
+                if (windowRoot != null) {
+                    try {
+                        val pkg = windowRoot.packageName?.toString() ?: ""
+                        if (pkg.isNotBlank() && pkg != "com.localagent.app") {
+                            return extractor.extractSnapshot(
+                                rootNodeInfo = windowRoot,
+                                packageName = pkg,
+                                activityName = lastExternalActivityName,
+                                windowId = window.id
+                            )
+                        }
+                    } finally {
+                        windowRoot.recycle()
+                    }
+                }
             }
-
-            val eventType = if (snapshot.truncationInfo.isTruncated) {
-                "OBSERVATION_TRUNCATED"
-            } else {
-                "OBSERVATION_COMPLETED"
-            }
-
-            app?.eventLogger?.logEvent(
-                AgentEvent(
-                    eventId = UUID.randomUUID().toString(),
-                    sessionId = activeSessionId,
-                    subsystem = EventSubsystem.OBSERVATION,
-                    eventType = eventType,
-                    metadataJson = "{\"pkg\":\"$pkg\",\"nodeCount\":${snapshot.nodeCount},\"truncated\":${snapshot.truncationInfo.isTruncated}}"
-                )
-            )
-
-            return snapshot
-        } finally {
-            rootNode.recycle()
+        } catch (e: Exception) {
+            System.err.println("AgentAccessibilityService: Error inspecting windows: ${e.message}")
         }
+        return null
     }
 
     companion object {

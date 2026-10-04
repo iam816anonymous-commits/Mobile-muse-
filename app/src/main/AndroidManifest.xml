@@ -22,6 +22,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.ObservationActivity"
+            android:exported="true"
+            android:label="Observation Screen" />
+
         <service
             android:name=".accessibility.AgentAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"

@@ -53,13 +53,29 @@
         android:fontFamily="monospace"
         android:textColor="#004D40" />
 
-    <Button
-        android:id="@+id/btnOpenAccessibilitySettings"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="Open Accessibility Settings"
-        android:textSize="10sp" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnOpenAccessibilitySettings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="A11y Settings"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnOpenObservationScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Node Tree Screen"
+            android:textSize="10sp" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tvEventStorageHeader"

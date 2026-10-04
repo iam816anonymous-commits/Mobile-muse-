@@ -71,6 +71,15 @@ class MainActivity : AppCompatActivity() {
                 logEvent("[ACCESSIBILITY] Error opening Settings: ${e.message}")
             }
         }
+
+        binding.btnOpenObservationScreen.setOnClickListener {
+            try {
+                val intent = Intent(this, ObservationActivity::class.java)
+                startActivity(intent)
+            } catch (e: Exception) {
+                logEvent("[OBSERVATION] Error launching ObservationActivity: ${e.message}")
+            }
+        }
     }
 
     private fun testWriteDurableMemoryRecord() {

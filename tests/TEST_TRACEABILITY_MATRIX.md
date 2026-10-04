@@ -51,4 +51,6 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Observation snapshot & JSON serialization | P3-OBS-001 | AUTOMATED_JVM | `ObservationDomainModelsTest.kt` | `./gradlew :core:test` | PASS |
 | Traversal bounds enforcement (`MAX_NODES=500`, `MAX_DEPTH=30`) | P3-OBS-002 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Read-only observation guarantee (zero action execution) | P3-OBS-003 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Physical phone accessibility observation procedure | P3-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Enablement in Android Settings | **NOT_RUN** |
+| Dedicated Observation Screen node tree rendering | P3-UI-002 | AUTOMATED_ROBOLECTRIC | `ObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone local accessibility observation procedure | P3-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Enablement in Android Settings | **NOT_RUN** |
+| Physical phone external application observation procedure | P3-DEV-002 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Launch of Chrome/Settings | **NOT_RUN** |

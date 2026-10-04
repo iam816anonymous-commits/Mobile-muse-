@@ -50,12 +50,40 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
 
+### P3-UI-002
+- **Requirement:** Dedicated Observation Screen Node Tree Rendering
+- **Purpose:** Proves `ObservationActivity` formats snapshot nodes into an indented visual tree and displays current and external snapshots separately.
+- **Preconditions:** `ObservationActivity` launched in test controller.
+- **Input:** Call `renderSnapshotNodeTree()` on `ObservationSnapshot`.
+- **Expected Result:** Tree string formats depth indentation (`ROOT`, `├──`, `└──`) and node attributes.
+- **Test Type:** AUTOMATED_ROBOLECTRIC
+- **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/ObservationActivityTest.kt` -> `testNodeTreeRenderingFormatting()`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.ObservationActivityTest"`
+- **Permissions:** Simulated UI environment
+- **Hardware:** NONE
+- **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
+- **Status:** PASS
+
 ### P3-DEV-001
-- **Requirement:** Physical Phone Accessibility Enablement & Live UI Observation Procedure
+- **Requirement:** Physical Phone Accessibility Enablement & Local UI Observation Procedure
 - **Purpose:** Verifies that enabling `AgentAccessibilityService` in Android Settings transitions status to `READY (BOUND)` and captures live visible UI hierarchy without performing action execution.
 - **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent installed.
 - **Input:** Open Settings -> Accessibility -> Enable LocalAgent. Return to app and click "Observe UI".
 - **Expected Result:** UI status displays `READY (BOUND)`. Active package, activity, node count, and tree hierarchy displayed. Zero actions executed.
+- **Test Type:** PHYSICAL_DEVICE
+- **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3)
+- **Execution Command:** Manual phone execution
+- **Permissions:** `android.permission.BIND_ACCESSIBILITY_SERVICE` (User grant in Android Accessibility Settings)
+- **Hardware:** Physical Android Smartphone
+- **Evidence:** Pending physical phone test execution
+- **Status:** NOT_RUN
+
+### P3-DEV-002
+- **Requirement:** Physical Phone External Application Observation Procedure (Chrome/Settings/Calculator/YouTube)
+- **Purpose:** Verifies that `AgentAccessibilityService` captures live external application windows and preserves `lastExternalObservationSnapshot` when returning to LocalAgent.
+- **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent and Chrome installed.
+- **Input:** Open Chrome manually. Switch back to LocalAgent manually and open Observation Screen.
+- **Expected Result:** Current Snapshot shows `com.localagent.app` AND Last External Snapshot shows `com.android.chrome`. Indented node tree displays Chrome UI nodes. Zero actions executed.
 - **Test Type:** PHYSICAL_DEVICE
 - **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3)
 - **Execution Command:** Manual phone execution
