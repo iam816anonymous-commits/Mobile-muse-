@@ -18,7 +18,7 @@ Testing in **LocalAgent** is a core product feature and architectural gatekeeper
 
 ## 2. GitHub CI/CD Foundation & Workflow Architecture
 
-The CI/CD pipeline (`.github/workflows/ci.yml`) executes automated validation on every push and pull request targeting development and main branches.
+The CI/CD pipeline (`.github/workflows/ci.yml`) executes automated validation on every push and pull request targeting development (`phase-*`) and main branches.
 
 ```text
 PUSH / PULL REQUEST
@@ -27,25 +27,28 @@ PUSH / PULL REQUEST
 1. Checkout Repository (actions/checkout@v4)
        │
        ▼
-2. Toolchain Setup (JDK 17 Temurin, Gradle Build Action)
+2. Toolchain Setup (JDK 17 Temurin, gradle/actions/setup-gradle@v3)
        │
        ▼
-3. Run Level 1 Unit Tests (`./gradlew test`)
+3. Ensure Executable Wrapper (`chmod +x gradlew`)
        │
        ▼
-4. Assemble Debug APK (`./gradlew assembleDebug`)
+4. Run Level 1 Unit Tests (`./gradlew test`)
        │
        ▼
-5. Artifact Collection & Upload (actions/upload-artifact@v4)
+5. Assemble Debug APK (`./gradlew assembleDebug`)
+       │
+       ▼
+6. Artifact Collection & Upload (actions/upload-artifact@v4)
    ├── `unit-test-reports` (Retention: 7 days)
    └── `localagent-debug-apk` (Retention: 14 days)
 ```
 
 ### Local Equivalent Commands
-CI/CD uses identical local Gradle tasks to ensure 100% validation parity:
-- **Run Unit Tests:** `./gradlew test` (or `gradle test`)
-- **Assemble Debug APK:** `./gradlew assembleDebug` (or `gradle assembleDebug`)
-- **Clean Build:** `./gradlew clean` (or `gradle clean`)
+CI/CD uses identical local Gradle Wrapper tasks to ensure 100% validation parity:
+- **Run Unit Tests:** `./gradlew test`
+- **Assemble Debug APK:** `./gradlew assembleDebug`
+- **Clean Build:** `./gradlew clean`
 
 ---
 
