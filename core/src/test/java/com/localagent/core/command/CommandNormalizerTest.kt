@@ -15,50 +15,122 @@ class CommandNormalizerTest {
     }
 
     @Test
-    fun testUnknownCommandReturnsUnknownCommandResult() {
-        val result1 = normalizer.parseInput("not real cmd", CommandSource.CONSOLE)
-        assertTrue(result1 is CommandParseResult.UnknownCommand)
-        assertEquals("not real cmd", result1.rawInput)
+    fun testValidNavigationCommands() {
+        val back = normalizer.parseInput("back", CommandSource.CONSOLE)
+        assertTrue(back is CommandParseResult.Success)
+        assertEquals(ActionType.GLOBAL_BACK, back.command.actionType)
 
-        val result2 = normalizer.parseInput("xyz abc 123", CommandSource.CONSOLE)
-        assertTrue(result2 is CommandParseResult.UnknownCommand)
-        assertEquals("xyz abc 123", result2.rawInput)
+        val home = normalizer.parseInput("home", CommandSource.CONSOLE)
+        assertTrue(home is CommandParseResult.Success)
+        assertEquals(ActionType.GLOBAL_HOME, home.command.actionType)
+
+        val recents = normalizer.parseInput("recents", CommandSource.CONSOLE)
+        assertTrue(recents is CommandParseResult.Success)
+        assertEquals(ActionType.GLOBAL_RECENTS, recents.command.actionType)
     }
 
     @Test
-    fun testKnownCommandsRecognized() {
-        val backResult = normalizer.parseInput("back", CommandSource.CONSOLE)
-        assertTrue(backResult is CommandParseResult.Success)
-        assertEquals(ActionType.GLOBAL_BACK, backResult.command.actionType)
+    fun testValidClickAndLongClickCommands() {
+        val click = normalizer.parseInput("click 7", CommandSource.CONSOLE)
+        assertTrue(click is CommandParseResult.Success)
+        assertEquals(ActionType.UI_CLICK, click.command.actionType)
+        assertEquals(TargetSelector.ByText("7"), click.command.targetSelector)
 
-        val homeResult = normalizer.parseInput("home", CommandSource.CONSOLE)
-        assertTrue(homeResult is CommandParseResult.Success)
-        assertEquals(ActionType.GLOBAL_HOME, homeResult.command.actionType)
-
-        val clickResult = normalizer.parseInput("click 7", CommandSource.CONSOLE)
-        assertTrue(clickResult is CommandParseResult.Success)
-        assertEquals(ActionType.UI_CLICK, clickResult.command.actionType)
-
-        val launchResult = normalizer.parseInput("launch Settings", CommandSource.CONSOLE)
-        assertTrue(launchResult is CommandParseResult.Success)
-        assertEquals(ActionType.APP_LAUNCH, launchResult.command.actionType)
+        val longClick = normalizer.parseInput("long click 7", CommandSource.CONSOLE)
+        assertTrue(longClick is CommandParseResult.Success)
+        assertEquals(ActionType.UI_LONG_CLICK, longClick.command.actionType)
+        assertEquals(TargetSelector.ByText("7"), longClick.command.targetSelector)
     }
 
     @Test
-    fun testEmptyAndWhitespaceInputHandling() {
-        val emptyResult = normalizer.parseInput("", CommandSource.CONSOLE)
-        assertTrue(emptyResult is CommandParseResult.InvalidInput)
+    fun testValidScrollCommands() {
+        val scrollUp = normalizer.parseInput("scroll up", CommandSource.CONSOLE)
+        assertTrue(scrollUp is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_BACKWARD, scrollUp.command.actionType)
 
-        val whitespaceResult = normalizer.parseInput("   ", CommandSource.CONSOLE)
-        assertTrue(whitespaceResult is CommandParseResult.InvalidInput)
+        val scrollBackward = normalizer.parseInput("scroll backward", CommandSource.CONSOLE)
+        assertTrue(scrollBackward is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_BACKWARD, scrollBackward.command.actionType)
+
+        val scrollDown = normalizer.parseInput("scroll down", CommandSource.CONSOLE)
+        assertTrue(scrollDown is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_FORWARD, scrollDown.command.actionType)
+
+        val scrollForward = normalizer.parseInput("scroll forward", CommandSource.CONSOLE)
+        assertTrue(scrollForward is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_FORWARD, scrollForward.command.actionType)
     }
 
     @Test
-    fun testMalformedClickOrLaunchReturnsUnknownCommand() {
-        val malformedClick = normalizer.parseInput("click ", CommandSource.CONSOLE)
-        assertTrue(malformedClick is CommandParseResult.UnknownCommand)
+    fun testValidObserveAndStatusCommands() {
+        val observe1 = normalizer.parseInput("observe", CommandSource.CONSOLE)
+        assertTrue(observe1 is CommandParseResult.Success)
+        assertEquals("OBSERVE", observe1.command.parameters["intent"])
 
-        val malformedLaunch = normalizer.parseInput("launch ", CommandSource.CONSOLE)
-        assertTrue(malformedLaunch is CommandParseResult.UnknownCommand)
+        val observe2 = normalizer.parseInput("observe current", CommandSource.CONSOLE)
+        assertTrue(observe2 is CommandParseResult.Success)
+        assertEquals("OBSERVE", observe2.command.parameters["intent"])
+
+        val observe3 = normalizer.parseInput("test observe", CommandSource.CONSOLE)
+        assertTrue(observe3 is CommandParseResult.Success)
+        assertEquals("OBSERVE", observe3.command.parameters["intent"])
+
+        val status1 = normalizer.parseInput("status", CommandSource.CONSOLE)
+        assertTrue(status1 is CommandParseResult.Success)
+        assertEquals("STATUS", status1.command.parameters["intent"])
+
+        val status2 = normalizer.parseInput("action status", CommandSource.CONSOLE)
+        assertTrue(status2 is CommandParseResult.Success)
+        assertEquals("STATUS", status2.command.parameters["intent"])
+    }
+
+    @Test
+    fun testValidLaunchCommand() {
+        val launch = normalizer.parseInput("launch Settings", CommandSource.CONSOLE)
+        assertTrue(launch is CommandParseResult.Success)
+        assertEquals(ActionType.APP_LAUNCH, launch.command.actionType)
+        assertEquals("Settings", launch.command.parameters["appLabel"])
+    }
+
+    @Test
+    fun testUnknownCommandsReturnUnknownCommand() {
+        val unknown1 = normalizer.parseInput("not real cmd", CommandSource.CONSOLE)
+        assertTrue(unknown1 is CommandParseResult.UnknownCommand)
+        assertEquals("not real cmd", unknown1.rawInput)
+
+        val unknown2 = normalizer.parseInput("xyz abc 123", CommandSource.CONSOLE)
+        assertTrue(unknown2 is CommandParseResult.UnknownCommand)
+
+        val missingClickTarget = normalizer.parseInput("click", CommandSource.CONSOLE)
+        assertTrue(missingClickTarget is CommandParseResult.UnknownCommand)
+
+        val missingLongClickTarget = normalizer.parseInput("long click", CommandSource.CONSOLE)
+        assertTrue(missingLongClickTarget is CommandParseResult.UnknownCommand)
+
+        val missingScrollDir = normalizer.parseInput("scroll", CommandSource.CONSOLE)
+        assertTrue(missingScrollDir is CommandParseResult.UnknownCommand)
+
+        val missingLaunchApp = normalizer.parseInput("launch", CommandSource.CONSOLE)
+        assertTrue(missingLaunchApp is CommandParseResult.UnknownCommand)
+    }
+
+    @Test
+    fun testWhitespaceAndCaseNormalization() {
+        val spaces = normalizer.parseInput("   click   7   ", CommandSource.CONSOLE)
+        assertTrue(spaces is CommandParseResult.Success)
+        assertEquals(ActionType.UI_CLICK, spaces.command.actionType)
+
+        val uppercase = normalizer.parseInput("SCROLL DOWN", CommandSource.CONSOLE)
+        assertTrue(uppercase is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_FORWARD, uppercase.command.actionType)
+    }
+
+    @Test
+    fun testEmptyInputHandling() {
+        val empty = normalizer.parseInput("", CommandSource.CONSOLE)
+        assertTrue(empty is CommandParseResult.InvalidInput)
+
+        val whitespace = normalizer.parseInput("    ", CommandSource.CONSOLE)
+        assertTrue(whitespace is CommandParseResult.InvalidInput)
     }
 }

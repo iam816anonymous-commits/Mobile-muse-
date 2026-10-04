@@ -36,11 +36,61 @@ class LocalAgentApplication : Application() {
             )
             registerCapability(
                 CapabilityRule(
+                    capabilityId = "UI_LONG_CLICK",
+                    name = "UI Long Click",
+                    category = CapabilityCategory.UI_CONTROL,
+                    minApi = 27,
+                    verificationStrategy = "FlexibleLongClickStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
+                    capabilityId = "UI_SCROLL_FORWARD",
+                    name = "UI Scroll Forward",
+                    category = CapabilityCategory.UI_CONTROL,
+                    minApi = 27,
+                    verificationStrategy = "ScrollVerificationStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
+                    capabilityId = "UI_SCROLL_BACKWARD",
+                    name = "UI Scroll Backward",
+                    category = CapabilityCategory.UI_CONTROL,
+                    minApi = 27,
+                    verificationStrategy = "ScrollVerificationStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
                     capabilityId = "GLOBAL_BACK",
                     name = "Global Back",
                     category = CapabilityCategory.NAVIGATION,
                     minApi = 27,
                     verificationStrategy = "NavigationAwareBackStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
+                    capabilityId = "GLOBAL_HOME",
+                    name = "Global Home",
+                    category = CapabilityCategory.NAVIGATION,
+                    minApi = 27,
+                    verificationStrategy = "LauncherPackageMatchStrategy",
+                    riskLevel = ActionRiskLevel.LOW
+                )
+            )
+            registerCapability(
+                CapabilityRule(
+                    capabilityId = "GLOBAL_RECENTS",
+                    name = "Global Recents",
+                    category = CapabilityCategory.NAVIGATION,
+                    minApi = 27,
+                    verificationStrategy = "RecentsWindowDiffStrategy",
                     riskLevel = ActionRiskLevel.LOW
                 )
             )

@@ -9,7 +9,7 @@ sealed class CommandParseResult {
 class CommandNormalizer {
 
     fun parseInput(input: String, source: CommandSource): CommandParseResult {
-        val trimmed = input.trim()
+        val trimmed = input.trim().replaceAll("\\s+", " ")
         if (trimmed.isEmpty()) {
             return CommandParseResult.InvalidInput()
         }
@@ -17,6 +17,7 @@ class CommandNormalizer {
         val lower = trimmed.lowercase()
 
         return when {
+            // Navigation
             lower == "back" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
@@ -35,17 +36,12 @@ class CommandNormalizer {
                     actionType = ActionType.GLOBAL_RECENTS
                 )
             )
-            lower == "observe" -> CommandParseResult.Success(
-                NormalizedCommand(
-                    source = source,
-                    actionType = ActionType.UI_SCROLL_FORWARD, // Mapped for observation trigger request
-                    parameters = mapOf("intent" to "OBSERVE")
-                )
-            )
+
+            // Clicks
             lower.startsWith("click ") -> {
                 val target = trimmed.substring(6).trim()
                 if (target.isEmpty()) {
-                    CommandParseResult.UnknownCommand(trimmed, "Click command requires target parameter")
+                    CommandParseResult.UnknownCommand(trimmed, "Click command requires a target parameter")
                 } else {
                     CommandParseResult.Success(
                         NormalizedCommand(
@@ -56,10 +52,60 @@ class CommandNormalizer {
                     )
                 }
             }
+            lower == "click" -> CommandParseResult.UnknownCommand(trimmed, "Click command requires a target parameter")
+
+            lower.startsWith("long click ") -> {
+                val target = trimmed.substring(11).trim()
+                if (target.isEmpty()) {
+                    CommandParseResult.UnknownCommand(trimmed, "Long click command requires a target parameter")
+                } else {
+                    CommandParseResult.Success(
+                        NormalizedCommand(
+                            source = source,
+                            actionType = ActionType.UI_LONG_CLICK,
+                            targetSelector = TargetSelector.ByText(target)
+                        )
+                    )
+                }
+            }
+            lower == "long click" -> CommandParseResult.UnknownCommand(trimmed, "Long click command requires a target parameter")
+
+            // Scrolling
+            lower == "scroll down" || lower == "scroll forward" -> CommandParseResult.Success(
+                NormalizedCommand(
+                    source = source,
+                    actionType = ActionType.UI_SCROLL_FORWARD
+                )
+            )
+            lower == "scroll up" || lower == "scroll backward" -> CommandParseResult.Success(
+                NormalizedCommand(
+                    source = source,
+                    actionType = ActionType.UI_SCROLL_BACKWARD
+                )
+            )
+            lower == "scroll" -> CommandParseResult.UnknownCommand(trimmed, "Scroll command requires a direction parameter (e.g. scroll up, scroll down)")
+
+            // Observation & Diagnostics
+            lower == "observe" || lower == "observe current" || lower == "test observe" -> CommandParseResult.Success(
+                NormalizedCommand(
+                    source = source,
+                    actionType = ActionType.UI_SCROLL_FORWARD,
+                    parameters = mapOf("intent" to "OBSERVE")
+                )
+            )
+            lower == "status" || lower == "action status" -> CommandParseResult.Success(
+                NormalizedCommand(
+                    source = source,
+                    actionType = ActionType.UI_SCROLL_FORWARD,
+                    parameters = mapOf("intent" to "STATUS")
+                )
+            )
+
+            // App Launch
             lower.startsWith("launch ") -> {
                 val appLabel = trimmed.substring(7).trim()
                 if (appLabel.isEmpty()) {
-                    CommandParseResult.UnknownCommand(trimmed, "Launch command requires application label parameter")
+                    CommandParseResult.UnknownCommand(trimmed, "Launch command requires an application label parameter")
                 } else {
                     CommandParseResult.Success(
                         NormalizedCommand(
@@ -70,7 +116,13 @@ class CommandNormalizer {
                     )
                 }
             }
+            lower == "launch" -> CommandParseResult.UnknownCommand(trimmed, "Launch command requires an application label parameter")
+
             else -> CommandParseResult.UnknownCommand(trimmed)
         }
+    }
+
+    private fun String.replaceAll(regex: String, replacement: String): String {
+        return this.replace(Regex(regex), replacement)
     }
 }
