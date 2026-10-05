@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.localagent.app.LocalAgentApplication
+import com.localagent.app.accessibility.AccessibilityLifecycleState
 import com.localagent.app.accessibility.AgentAccessibilityService
 
 enum class PermissionTier {
@@ -81,15 +83,24 @@ class PermissionManager(private val context: Context) {
     }
 
     fun checkAccessibilityPermission(): PermissionDescriptor {
-        val isBound = AgentAccessibilityService.isBound
-        val status = if (isBound) PermissionStatus.SPECIAL_ACCESS_GRANTED else PermissionStatus.SPECIAL_ACCESS_DENIED
+        val app = context.applicationContext as? LocalAgentApplication
+        val monitorState = app?.accessibilityConnectionMonitor?.connectionInfo?.state
+            ?: if (AgentAccessibilityService.isBound) AccessibilityLifecycleState.BOUND else AccessibilityLifecycleState.UNBOUND
+
+        val isBound = AgentAccessibilityService.isBound || monitorState == AccessibilityLifecycleState.BOUND
+        val status = when (monitorState) {
+            AccessibilityLifecycleState.BOUND -> PermissionStatus.SPECIAL_ACCESS_GRANTED
+            AccessibilityLifecycleState.CONNECTING -> PermissionStatus.REQUIRES_USER_INTENT
+            AccessibilityLifecycleState.DEGRADED, AccessibilityLifecycleState.DISCONNECTING -> PermissionStatus.SPECIAL_ACCESS_DENIED
+            AccessibilityLifecycleState.UNBOUND -> PermissionStatus.SPECIAL_ACCESS_DENIED
+        }
 
         return PermissionDescriptor(
             id = PERABILITY_ACCESSIBILITY,
             name = "Accessibility Service",
             description = "Allows observing UI hierarchy and performing read-only UI observations",
             category = PermissionCategory.REQUIRED_NOW,
-            targetPhase = "Phase 3 (Current)",
+            targetPhase = "Phase 3 / Phase 4 Foundation",
             tier = PermissionTier.SPECIAL_APP_ACCESS,
             manifestPermission = Manifest.permission.BIND_ACCESSIBILITY_SERVICE,
             status = status,
@@ -97,7 +108,7 @@ class PermissionManager(private val context: Context) {
             isRequiredNow = true,
             isRequestableInCurrentPhase = true,
             dependentCapabilities = listOf("UI_OBSERVE", "GLOBAL_BACK", "GLOBAL_HOME", "GLOBAL_RECENTS"),
-            passiveDegradationSummary = "Console UI, EventLogger, and Storage remain 100% active. A11y observations return ACCESSIBILITY_UNAVAILABLE."
+            passiveDegradationSummary = "Lifecycle State: $monitorState. Console UI, EventLogger, and Storage remain 100% active. A11y observations return ACCESSIBILITY_UNAVAILABLE."
         )
     }
 
@@ -289,7 +300,7 @@ class PermissionManager(private val context: Context) {
     fun getSettingsIntentForPermission(permissionId: String): Intent {
         val desc = getAllPermissions().find { it.id == permissionId }
         if (desc != null && !desc.isRequestableInCurrentPhase) {
-            throw IllegalArgumentException("Permission $permissionId belongs to future ${desc.targetPhase} and cannot launch settings intents in Phase 3.")
+            throw IllegalArgumentException("Permission $permissionId belongs to future ${desc.targetPhase} and cannot launch settings intents in Phase 3/4.")
         }
 
         return when (permissionId) {

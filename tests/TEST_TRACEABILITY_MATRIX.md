@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3.1, Phase 3.2, Phase 3.3) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
+This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
 Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
@@ -44,35 +44,23 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 
 ---
 
-## 5. Phase 3.1 — Accessibility Observation Foundation Traceability
+## 5. Phase 3 — Permission Center & UI Consolidation Traceability
 
 | Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
 |---|---|---|---|---|---|
-| Observation snapshot & JSON serialization | P3-OBS-001 | AUTOMATED_JVM | `ObservationDomainModelsTest.kt` | `./gradlew :core:test` | PASS |
-| Traversal bounds enforcement (`MAX_NODES=500`, `MAX_DEPTH=30`) | P3-OBS-002 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Read-only observation guarantee (zero action execution) | P3-OBS-003 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Dedicated Current UI Observation screen | P3-UI-002 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Dedicated External App Observation screen | P3-UI-003 | AUTOMATED_ROBOLECTRIC | `ExternalObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Physical phone local accessibility observation procedure | P3-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Enablement in Android Settings | **NOT_RUN** |
-| Physical phone external application observation procedure | P3-DEV-002 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Launch of Chrome/Settings | **NOT_RUN** |
-| Physical phone Chrome + Recents preservation procedure | P3.1-DEV-EXT-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.3 | Manual Chrome + Recents on Physical Phone | **NOT_RUN** |
+| Centralized permission categorization | P3.3-PERM-001 | AUTOMATED_ROBOLECTRIC | `PermissionManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Permission Center UI & UI Consolidation | P3.3-UI-001 | AUTOMATED_ROBOLECTRIC | `PermissionActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone Permission Center procedure | P3.3-DEV-PERM-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.5 | Manual Permission Center on Physical Phone | **NOT_RUN** |
 
 ---
 
-## 6. Phase 3.2 — Observation Evidence Traceability
+## 6. Phase 4 — Accessibility Service Foundation Traceability
 
 | Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
 |---|---|---|---|---|---|
-| Evidence model & SHA-256 provenance hash | P3.2-EVID-001 | AUTOMATED_JVM | `EvidenceDomainModelsTest.kt` | `./gradlew :core:test` | PASS |
-| Dedicated Evidence UI Screen & Primitive Stream | P3.2-UI-001 | AUTOMATED_ROBOLECTRIC | `EvidenceActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Physical phone Observation Evidence Procedure | P3.2-DEV-EVID-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.4 | Manual Evidence Capture on Physical Phone | **NOT_RUN** |
-
----
-
-## 7. Phase 3.3 — Permission & Capability Manager Traceability
-
-| Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
-|---|---|---|---|---|---|
-| Permission checking & Settings Intent generation | P3.3-PERM-001 | AUTOMATED_ROBOLECTRIC | `PermissionManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Dedicated Permission Center UI Screen | P3.3-UI-001 | AUTOMATED_ROBOLECTRIC | `PermissionActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Physical phone Permission Center & Settings Intent procedure | P3.3-DEV-PERM-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.5 | Manual Permission Center on Physical Phone | **NOT_RUN** |
+| AgentAccessibilityService binding lifecycle monitoring | P4-ACC-001 | AUTOMATED_ROBOLECTRIC | `AccessibilityServiceConnectionMonitorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| AgentAccessibilityService unbinding & passive degradation | P4-ACC-002 | AUTOMATED_ROBOLECTRIC | `AccessibilityServiceConnectionMonitorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| System AccessibilityStateChangeListener integration | P4-LIFE-001 | AUTOMATED_ROBOLECTRIC | `AccessibilityServiceConnectionMonitorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| PermissionManager lifecycle state integration | P4-LIFE-002 | AUTOMATED_ROBOLECTRIC | `PermissionManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Read-only observation preservation during degradation | P4-DEG-001 | AUTOMATED_ROBOLECTRIC | `ObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone Accessibility lifecycle procedure | P4-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.2 | Manual Lifecycle Test on Physical Phone | **NOT_RUN** |

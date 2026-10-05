@@ -130,6 +130,8 @@ class AgentAccessibilityService : AccessibilityService() {
         INSTANCE = this
 
         val app = application as? LocalAgentApplication
+        app?.accessibilityConnectionMonitor?.notifyServiceConnected()
+
         app?.eventLogger?.logEvent(
             AgentEvent(
                 eventId = UUID.randomUUID().toString(),
@@ -187,6 +189,8 @@ class AgentAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         INSTANCE = null
         val app = application as? LocalAgentApplication
+        app?.accessibilityConnectionMonitor?.notifyServiceDisconnected(reason = "ON_UNBIND")
+
         app?.eventLogger?.logEvent(
             AgentEvent(
                 eventId = UUID.randomUUID().toString(),
@@ -197,6 +201,13 @@ class AgentAccessibilityService : AccessibilityService() {
             )
         )
         return super.onUnbind(intent)
+    }
+
+    override fun onDestroy() {
+        INSTANCE = null
+        val app = application as? LocalAgentApplication
+        app?.accessibilityConnectionMonitor?.notifyServiceDisconnected(reason = "ON_DESTROY")
+        super.onDestroy()
     }
 
     @Suppress("DEPRECATION")

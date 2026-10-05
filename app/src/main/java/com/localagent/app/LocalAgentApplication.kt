@@ -1,6 +1,7 @@
 package com.localagent.app
 
 import android.app.Application
+import com.localagent.app.accessibility.AccessibilityServiceConnectionMonitor
 import com.localagent.app.logging.UnifiedEventLogger
 import com.localagent.app.storage.AgentDatabase
 import com.localagent.app.storage.DurableMemoryStorageManager
@@ -37,6 +38,9 @@ class LocalAgentApplication : Application() {
     lateinit var permissionManager: PermissionManager
         private set
 
+    lateinit var accessibilityConnectionMonitor: AccessibilityServiceConnectionMonitor
+        private set
+
     override fun onCreate() {
         super.onCreate()
         initializeCoreDomain()
@@ -51,6 +55,7 @@ class LocalAgentApplication : Application() {
         durableStorageManager = DurableMemoryStorageManager(this)
         durableStorageManager.initializeStorage()
         permissionManager = PermissionManager(this)
+        accessibilityConnectionMonitor = AccessibilityServiceConnectionMonitor(this)
 
         capabilityRegistry = CapabilityRegistry().apply {
             registerCapability(
