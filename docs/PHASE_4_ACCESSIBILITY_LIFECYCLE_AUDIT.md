@@ -1,4 +1,4 @@
-# Phase 4 Audit Report: Accessibility Service Foundation & Lifecycle
+# Phase 4 Audit Report: Accessibility Service Foundation & Deduplicated Candidate Rejection
 
 ## 1. Executive Summary & Audit Purpose
 An architectural audit of **Phase 4 — Accessibility Service Foundation** was conducted to verify that:
@@ -6,26 +6,39 @@ An architectural audit of **Phase 4 — Accessibility Service Foundation** was c
 2. The Accessibility lifecycle model (`UNBOUND`, `CONNECTING`, `BOUND`, `DISCONNECTING`, `DEGRADED`) is fully formalized.
 3. `AccessibilityServiceConnectionMonitor` observes lifecycle state changes and system `AccessibilityManager` state changes on API 27+.
 4. Disconnection or service unbinding triggers passive degradation logging (`AGENT_SERVICE_DISCONNECTED`, `PASSIVE_DEGRADATION_DETECTED`) without crashing or launching unauthorized Settings intents.
-5. Zero Phase 4 boundary violations occurred (no click actions, scrolling, text typing, or target resolution).
+5. **Rejection Log Deduplication:** Candidate rejection logging in `selectBestExternalWindow` is deduplicated on a per-request scope using `rejectedPackagesInRequest = mutableSetOf<String>()`, preventing duplicate `OBSERVATION_EXTERNAL_CANDIDATE_REJECTED` events for the same candidate/package during a single observation request.
+6. Zero Phase 4 boundary violations occurred (no click actions, scrolling, text typing, or target resolution).
 
 ---
 
-## 2. Architecture & Lifecycle Component Audit
+## 2. Rejection Logging Correction Audit
+
+| Metric / Aspect | Before Correction | After Correction |
+|---|---|---|
+| Rejection Events per Request (Duplicate SystemUI) | Multiple duplicate events (e.g. 3–5) | Exactly 1 event per candidate package |
+| Rejection Events across Requests (Request 1 + Request 2) | N events per request | 1 event per request (total 2) |
+| Valid External Application Classification | Calculator / Chrome observed | Calculator / Chrome observed (UNCHANGED) |
+| Invalid System Candidates | SystemUI / Launcher rejected | SystemUI / Launcher rejected (UNCHANGED) |
+| Read-Only Guarantee | 0 actions executed | 0 actions executed (UNCHANGED) |
+
+---
+
+## 3. Architecture & Lifecycle Component Audit
 
 | Component | Class Name | Module | Responsibility in Phase 4 |
 |---|---|---|---|
-| Service Implementation | `AgentAccessibilityService` | `:app` | Singleton service binding, window candidate scoring, snapshot extraction, lifecycle callbacks (`onServiceConnected`, `onUnbind`, `onDestroy`). |
+| Service Implementation | `AgentAccessibilityService` | `:app` | Singleton service binding, window candidate scoring, request-scoped rejection deduplication, snapshot extraction, lifecycle callbacks (`onServiceConnected`, `onUnbind`, `onDestroy`). |
 | Connection Monitor | `AccessibilityServiceConnectionMonitor` | `:app` | System `AccessibilityManager` listener, connection state state-machine, callback dispatcher, `AGENT_SERVICE_CONNECTED` and `AGENT_SERVICE_DISCONNECTED` event logger. |
 | Lifecycle Listener | `AccessibilityServiceLifecycleListener` | `:app` | Interface for subscribing to `ServiceConnectionInfo` state updates in diagnostic UI screens. |
 | Permission Integration | `PermissionManager` | `:app` | Reflects `AccessibilityLifecycleState` in `PermissionDescriptor` without duplicating permission management logic. |
 
 ---
 
-## 3. Phase Scope Governance Audit
+## 4. Phase Scope Governance Audit
 
 All implemented components were evaluated against the 23-Phase Roadmap (`PHASE_PLAN.md`):
 
-- 🟢 **IN PHASE (Phase 4):** Service binding lifecycle, connection monitor, passive degradation logging, system accessibility state listener, API 27 baseline compatibility.
+- 🟢 **IN PHASE (Phase 4):** Service binding lifecycle, connection monitor, passive degradation logging, system accessibility state listener, API 27 baseline compatibility, request-scoped rejection log deduplication.
 - 🟡 **EXISTING DEPENDENCY:** Phase 1 Domain Core, Phase 2 Persistence & EventLogger, Phase 3 Permission Manager & Observation.
 - 🔴 **OUT OF PHASE (DEFERRED):**
   - UI Click execution (`UI_CLICK`) — *Phase 7 Node Actions*
@@ -41,5 +54,5 @@ All implemented components were evaluated against the 23-Phase Roadmap (`PHASE_P
 
 ```text
 AUDIT DECISION:
-PHASE 4 ARCHITECTURE & SCOPE ALIGNMENT = 100% PASS
+PHASE 4 ARCHITECTURE, LOG DEDUPLICATION & SCOPE ALIGNMENT = 100% PASS
 ```

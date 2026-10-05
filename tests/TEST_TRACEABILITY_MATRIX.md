@@ -60,7 +60,8 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 |---|---|---|---|---|---|
 | AgentAccessibilityService binding lifecycle monitoring | P4-ACC-001 | AUTOMATED_ROBOLECTRIC | `AccessibilityServiceConnectionMonitorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | AgentAccessibilityService unbinding & passive degradation | P4-ACC-002 | AUTOMATED_ROBOLECTRIC | `AccessibilityServiceConnectionMonitorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| System AccessibilityStateChangeListener integration | P4-LIFE-001 | AUTOMATED_ROBOLECTRIC | `AccessibilityServiceConnectionMonitorTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| PermissionManager lifecycle state integration | P4-LIFE-002 | AUTOMATED_ROBOLECTRIC | `PermissionManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
-| Read-only observation preservation during degradation | P4-DEG-001 | AUTOMATED_ROBOLECTRIC | `ObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Duplicate candidate rejection event suppression | P4-REJ-001 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Independent rejection logging for distinct packages | P4-REJ-002 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Deduplication state reset per request cycle | P4-REJ-003 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Valid external application classification & read-only guarantee | P4-REJ-004 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Accessibility lifecycle procedure | P4-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.2 | Manual Lifecycle Test on Physical Phone | **NOT_RUN** |

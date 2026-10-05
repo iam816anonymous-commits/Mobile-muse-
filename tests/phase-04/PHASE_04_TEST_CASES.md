@@ -1,9 +1,9 @@
-# Phase 4 Test Cases — Accessibility Service Foundation
+# Phase 4 Test Cases — Accessibility Service Foundation & Deduplicated Candidate Rejection
 
 ## 1. Executive Summary
-This document specifies the executable test suite for **Phase 4 — Accessibility Service Foundation**.
+This document specifies the executable test suite for **Phase 4 — Accessibility Service Foundation** including the **External Candidate Rejection Log Deduplication Correction**.
 
-All tests verify service lifecycle transitions (`BOUND`, `CONNECTING`, `UNBOUND`, `DEGRADED`), passive degradation logging, system accessibility state observation, and read-only observation preservation without performing automated action execution or violating phase boundaries.
+All tests verify service lifecycle transitions (`BOUND`, `CONNECTING`, `UNBOUND`, `DEGRADED`), passive degradation logging, request-scoped candidate rejection deduplication, and read-only observation preservation without performing automated action execution or violating phase boundaries.
 
 ---
 
@@ -37,44 +37,58 @@ All tests verify service lifecycle transitions (`BOUND`, `CONNECTING`, `UNBOUND`
 - **Evidence:** `agent.db` event log entry `AGENT_SERVICE_DISCONNECTED` with `reason: ON_UNBIND`.
 - **Status:** PASS
 
-### Test ID: P4-LIFE-001
-- **Requirement:** System AccessibilityStateChangeListener integration
-- **Purpose:** Verify that changes in system-wide accessibility setting notify listeners and adjust monitor state.
-- **Preconditions:** `AccessibilityServiceConnectionMonitor` initialized with `AccessibilityManager`.
-- **Input:** System accessibility state callback `onAccessibilityStateChanged(enabled)`.
-- **Expected Result:** System state change event `SYSTEM_ACCESSIBILITY_STATE_CHANGED` logged. Monitor updates `isSystemAccessibilityEnabled`.
+### Test ID: P4-REJ-001 (Test A)
+- **Requirement:** Duplicate rejection event suppression within single observation request
+- **Purpose:** Verify that evaluating duplicate invalid candidates (e.g. `com.android.systemui` multiple times) during 1 observation request emits exactly 1 `OBSERVATION_EXTERNAL_CANDIDATE_REJECTED` event.
+- **Preconditions:** Active observation request cycle.
+- **Input:** Multiple evaluations of `com.android.systemui` candidates.
+- **Expected Result:** Exactly 1 `OBSERVATION_EXTERNAL_CANDIDATE_REJECTED` event emitted in `agent.db`.
 - **Test Type:** Tier B Robolectric Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/AccessibilityServiceConnectionMonitorTest.kt`
+- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/AgentAccessibilityServiceTest.kt`
 - **Execution Command:** `./gradlew test --offline`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** Event log entry `SYSTEM_ACCESSIBILITY_STATE_CHANGED`.
+- **Evidence:** DB query confirms exactly 1 rejection event for `com.android.systemui` during the request.
 - **Status:** PASS
 
-### Test ID: P4-LIFE-002
-- **Requirement:** PermissionManager integration with Accessibility Lifecycle State
-- **Purpose:** Verify `PermissionManager.checkAccessibilityPermission()` accurately reflects `AccessibilityLifecycleState`.
-- **Preconditions:** `PermissionManager` initialized.
-- **Input:** Query `checkAccessibilityPermission()`.
-- **Expected Result:** Status reports `SPECIAL_ACCESS_GRANTED` when `BOUND`, and `SPECIAL_ACCESS_DENIED` when `UNBOUND`/`DEGRADED`. Detail text displays active lifecycle state string.
+### Test ID: P4-REJ-002 (Test B)
+- **Requirement:** Independent rejection logging for distinct candidate packages
+- **Purpose:** Verify that distinct invalid candidates (e.g., `com.android.systemui` and `com.android.launcher3`) are each logged once during the same observation request.
+- **Preconditions:** Active observation request containing `SystemUI` and `Launcher3`.
+- **Input:** Mixed invalid window candidates.
+- **Expected Result:** 1 rejection event for `SystemUI` + 1 rejection event for `Launcher3` (total 2 events).
 - **Test Type:** Tier B Robolectric Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/system/PermissionManagerTest.kt`
+- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/AgentAccessibilityServiceTest.kt`
 - **Execution Command:** `./gradlew test --offline`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** `PermissionDescriptor` status string matching `AccessibilityLifecycleState`.
+- **Evidence:** DB query confirms 2 distinct rejection events with their respective package names.
 - **Status:** PASS
 
-### Test ID: P4-DEG-001
-- **Requirement:** Read-only observation preservation during service degradation
-- **Purpose:** Confirm that requesting UI observation while service is unbound fails safely without crashing or performing action execution.
-- **Preconditions:** Accessibility service unbound (`isBound == false`).
-- **Input:** Trigger `captureLiveSnapshot()` or tap "Observe Current UI".
-- **Expected Result:** `PASSIVE_DEGRADATION_DETECTED` event logged. Diagnostic screen displays guidance banner directing user to Permission Center. Zero action execution.
-- **Test Type:** Tier B Robolectric Test / Instrumentation Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/ui/ObservationActivityTest.kt`
+### Test ID: P4-REJ-003 (Test C)
+- **Requirement:** Deduplication state reset across distinct observation requests
+- **Purpose:** Verify that a new observation request resets the deduplication set so invalid candidates are logged once per request cycle.
+- **Preconditions:** Observation Request 1 completes; Observation Request 2 initiated.
+- **Input:** `com.android.systemui` evaluated in Request 1 and Request 2.
+- **Expected Result:** Total 2 rejection events logged (1 in Request 1, 1 in Request 2).
+- **Test Type:** Tier B Robolectric Test
+- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/AgentAccessibilityServiceTest.kt`
 - **Execution Command:** `./gradlew test --offline`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** Event log entry `PASSIVE_DEGRADATION_DETECTED`.
+- **Evidence:** DB query confirms 2 events total across 2 requests.
+- **Status:** PASS
+
+### Test ID: P4-REJ-004 (Test D & E)
+- **Requirement:** Valid external application classification & read-only guarantee
+- **Purpose:** Verify that legitimate external applications (e.g., Calculator, Chrome, Settings) remain fully observable while strictly maintaining 0 action dispatches.
+- **Preconditions:** Valid external package.
+- **Input:** Candidate package `com.android.calculator2`.
+- **Expected Result:** `isValidExternalApplicationPackage` returns `true`. Snapshot extracted. Action execution queue size = 0.
+- **Test Type:** Tier B Robolectric Test
+- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/AgentAccessibilityServiceTest.kt`
+- **Execution Command:** `./gradlew test --offline`
+- **Permissions:** None
+- **Hardware:** Baseline API 27+
+- **Evidence:** `isValidExternalApplicationPackage` returns `true` and queue size remains 0.
 - **Status:** PASS

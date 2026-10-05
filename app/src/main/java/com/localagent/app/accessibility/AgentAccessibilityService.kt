@@ -227,6 +227,9 @@ class AgentAccessibilityService : AccessibilityService() {
         val windowCandidates = collectWindowCandidates()
         val recycledNodes = Collections.newSetFromMap(IdentityHashMap<AccessibilityNodeInfo, Boolean>())
 
+        // Request-scoped deduplication set for external candidate rejection events
+        val rejectedPackagesInRequest = mutableSetOf<String>()
+
         // Select best candidate overall for primary snapshot
         val bestOverall = selectBestWindow(windowCandidates)
         val selectedNode: AccessibilityNodeInfo?
@@ -278,7 +281,11 @@ class AgentAccessibilityService : AccessibilityService() {
             lastExternalObservationSnapshot = primarySnapshot
         } else {
             // Primary is LocalAgent or System UI: inspect valid external window candidates
-            val bestExternal = selectBestExternalWindow(windowCandidates, activeSessionId)
+            val bestExternal = selectBestExternalWindow(
+                candidates = windowCandidates,
+                activeSessionId = activeSessionId,
+                rejectedPackagesInRequest = rejectedPackagesInRequest
+            )
             if (bestExternal != null && bestExternal.node != null && !recycledNodes.contains(bestExternal.node)) {
                 try {
                     val extPkg = bestExternal.candidate.packageName
@@ -371,9 +378,14 @@ class AgentAccessibilityService : AccessibilityService() {
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
         val recycledNodes = Collections.newSetFromMap(IdentityHashMap<AccessibilityNodeInfo, Boolean>())
+        val rejectedPackagesInRequest = mutableSetOf<String>()
         try {
             val windowCandidates = collectWindowCandidates()
-            val bestExternal = selectBestExternalWindow(windowCandidates, activeSessionId)
+            val bestExternal = selectBestExternalWindow(
+                candidates = windowCandidates,
+                activeSessionId = activeSessionId,
+                rejectedPackagesInRequest = rejectedPackagesInRequest
+            )
 
             if (bestExternal != null && bestExternal.node != null) {
                 val extPkg = bestExternal.candidate.packageName
@@ -500,7 +512,8 @@ class AgentAccessibilityService : AccessibilityService() {
 
     private fun selectBestExternalWindow(
         candidates: List<InternalCandidate>,
-        activeSessionId: String
+        activeSessionId: String,
+        rejectedPackagesInRequest: MutableSet<String>
     ): InternalCandidate? {
         val validCandidates = mutableListOf<InternalCandidate>()
         val app = application as? LocalAgentApplication
@@ -511,15 +524,17 @@ class AgentAccessibilityService : AccessibilityService() {
                 validCandidates.add(item)
             } else if (pkg.isNotBlank() && pkg != "com.localagent.app") {
                 val reason = getCandidateRejectionReason(pkg)
-                app?.eventLogger?.logEvent(
-                    AgentEvent(
-                        eventId = UUID.randomUUID().toString(),
-                        sessionId = activeSessionId,
-                        subsystem = EventSubsystem.OBSERVATION,
-                        eventType = "OBSERVATION_EXTERNAL_CANDIDATE_REJECTED",
-                        metadataJson = "{\"pkg\":\"$pkg\",\"reason\":\"$reason\"}"
+                if (rejectedPackagesInRequest.add(pkg)) {
+                    app?.eventLogger?.logEvent(
+                        AgentEvent(
+                            eventId = UUID.randomUUID().toString(),
+                            sessionId = activeSessionId,
+                            subsystem = EventSubsystem.OBSERVATION,
+                            eventType = "OBSERVATION_EXTERNAL_CANDIDATE_REJECTED",
+                            metadataJson = "{\"pkg\":\"$pkg\",\"reason\":\"$reason\"}"
+                        )
                     )
-                )
+                }
             }
         }
         return validCandidates.maxByOrNull { it.candidate.score }
