@@ -2,7 +2,9 @@ package com.localagent.app.ui
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -106,13 +108,18 @@ class PermissionActivity : AppCompatActivity() {
                 )
             )
         } catch (e: Exception) {
-            Toast.makeText(this, "Error launching Settings: ${e.message}", Toast.LENGTH_SHORT).show()
+            try {
+                val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                startActivity(fallbackIntent)
+            } catch (fallbackEx: Exception) {
+                Toast.makeText(this, "Error launching Settings: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun refreshPermissionCenterUi() {
-        val app = application as? LocalAgentApplication ?: return
-        val pm = app.permissionManager
+        val app = application as? LocalAgentApplication
+        val pm = app?.permissionManager ?: PermissionManager(this)
 
         val a11y = pm.checkAccessibilityPermission()
         val overlay = pm.checkOverlayPermission()
@@ -134,7 +141,7 @@ class PermissionActivity : AppCompatActivity() {
         binding.tvStorageDetails.text = formatDetails(storage)
 
         // Log permission status check
-        app.eventLogger.logEvent(
+        app?.eventLogger?.logEvent(
             AgentEvent(
                 eventId = UUID.randomUUID().toString(),
                 sessionId = app.eventLogger.getActiveSession().sessionId,

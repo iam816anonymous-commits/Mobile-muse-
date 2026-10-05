@@ -38,6 +38,11 @@
             android:label="Evidence Diagnostics" />
 
         <activity
+            android:name=".ui.PermissionActivity"
+            android:exported="true"
+            android:label="Permission Center" />
+
+        <activity
             android:name=".ui.ObservationActivity"
             android:exported="true"
             android:label="Observation Screen" />
