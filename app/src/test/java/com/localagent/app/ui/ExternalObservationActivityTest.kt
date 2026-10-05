@@ -39,7 +39,7 @@ class ExternalObservationActivityTest {
     }
 
     @Test
-    fun testTestE_ClearExternalObservationRemovesSnapshotDisplayWithoutUnbindingService() {
+    fun testP5_UI_DUP_002_ExternalObservationObserveAndClearFlow() {
         val controller = Robolectric.buildActivity(ExternalObservationActivity::class.java).create().start().resume()
         val activity = controller.get()
 

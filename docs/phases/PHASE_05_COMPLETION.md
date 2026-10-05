@@ -1,7 +1,7 @@
 # PHASE_05_COMPLETION.md — Phase 5 Completion & Revisions
 
 ## 1. Phase Objective
-Phase 5 implements the **Observation & Snapshot Engine** for LocalAgent, establishing single-root snapshot extraction, deterministic node identity assignment, `NodeIdentityConfidence` classification, pure domain `SnapshotDiffEngine` state comparisons, explicit observation STOP/CLEAR controls, and immediate `AccessibilityNodeInfo.recycle()` native node release.
+Phase 5 implements the **Observation & Snapshot Engine** for LocalAgent, establishing single-root snapshot extraction, deterministic node identity assignment, `NodeIdentityConfidence` classification, pure domain `SnapshotDiffEngine` state comparisons, explicit observation STOP/CLEAR controls, immediate `AccessibilityNodeInfo.recycle()` native node release, and UI tree rendering correctness.
 
 ---
 
@@ -21,7 +21,19 @@ Phase 5 implements the **Observation & Snapshot Engine** for LocalAgent, establi
 
 ---
 
-## 4. Tests & Test Results
+## 4. Revisions & Corrections (Phase 5 Correction Pass)
+
+### 4.1 Duplicate Tree Root-Cause Investigation & Resolution
+- **Investigation Result:** When observing LocalAgent itself (`CurrentObservationActivity`), `tvCurrentNodeTree.text` contained the multi-line string of the previous snapshot. When `ObservationSnapshotExtractor` extracted `nodeInfo.text` from `tvCurrentNodeTree`, raw newline characters (`\n`) inside the text attribute broke the tree renderer's line-by-line formatting, causing the text attribute to break out into what visually appeared as a duplicate tree.
+- **Resolution:** Sanitized multi-line text attributes in `renderNode()` (`text.replace("\n", "\\n")`), preserving tree indentation and ensuring a single clean tree layout.
+
+### 4.2 UI Cleanup & Clear Controls
+- Removed direct `btnOpenPermissionCenter` buttons from `CurrentObservationActivity`, `ExternalObservationActivity`, and `EvidenceActivity`. Centralized Permission Center navigation on `MainActivity`.
+- Implemented `btnClearCurrentObservation` and `btnClearExternalObservation` resetting screen presentation to empty states ("No current/external observation captured.") without unbinding `AgentAccessibilityService` or altering `agent.db` records.
+
+---
+
+## 5. Tests & Test Results
 
 | Test ID | Description | Type | Result |
 |---|---|---|---|
@@ -29,21 +41,24 @@ Phase 5 implements the **Observation & Snapshot Engine** for LocalAgent, establi
 | `P5-DIFF-002` | Added & removed node classification | Tier A Unit Test | PASS |
 | `P5-DIFF-003` | Changed attribute detection | Tier A Unit Test | PASS |
 | `P5-DIFF-004` | Null & empty snapshot safety | Tier A Unit Test | PASS |
+| `P5-UI-DUP-001` | Single Observe request renders exactly 1 tree header | Tier B Robolectric Test | PASS |
+| `P5-UI-DUP-002` | Consecutive Observe requests replace previous tree | Tier B Robolectric Test | PASS |
+| `P5-UI-DUP-003` | Clear removes displayed snapshot display | Tier B Robolectric Test | PASS |
+| `P5-UI-DUP-004` | Observe after Clear renders exactly 1 tree | Tier B Robolectric Test | PASS |
 | `P5-UI-NAV-001` | Permission Center buttons absent from observation/evidence screens | Tier B Robolectric Test | PASS |
-| `P5-UI-CLR-001` | Clear button resets displayed snapshot to empty without unbinding service | Tier B Robolectric Test | PASS |
 | `P5-UI-BND-001` | Node tree renders bounds `[left,top,right,bottom] (WxH)` | Tier B Robolectric Test | PASS |
-| `P5-UI-DUP-001` | Node tree rendering uniqueness & external snapshot isolation | Tier B Robolectric Test | PASS |
+| `P5-UI-DUP-005` | Node tree rendering uniqueness & external snapshot isolation | Tier B Robolectric Test | PASS |
 | `P5-READ-001` | Single-root semantics, immediate node recycling & read-only guarantee | Tier B Robolectric Test | PASS |
 
-- **Total Automated Tests:** 58 / 58 PASS
+- **Total Automated Tests:** 60 / 60 PASS
 - **Android Lint Analysis:** CLEAN (0 errors)
 - **Debug APK Build:** SUCCESSFUL (`app/build/outputs/apk/debug/app-debug.apk`)
 - **Physical Device Verification:** `P5-DEV-SNAP-001` marked as `NOT_RUN` (Pending physical hardware execution)
 
 ---
 
-## 5. Phase-Boundary Audit & Final Gate
+## 6. Phase-Boundary Audit & Final Gate
 
 - **Phase Boundary Violations:** NONE (0 dispatches performed)
-- **Deferred Features:** NONE
+- **Deferred Features:** NONE (Phase 6 `TargetResolver` and actionable ancestor traversal remain untouched)
 - **Final Decision:** `PHASE_5 = PASS WITH PHYSICAL VERIFICATION PENDING`

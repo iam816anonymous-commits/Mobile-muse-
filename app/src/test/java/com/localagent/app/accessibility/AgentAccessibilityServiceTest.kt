@@ -4,6 +4,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import androidx.test.core.app.ApplicationProvider
 import com.localagent.app.LocalAgentApplication
 import com.localagent.core.logging.EventFilter
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -22,6 +23,12 @@ class AgentAccessibilityServiceTest {
     fun setUp() {
         app = ApplicationProvider.getApplicationContext()
         app.initializeCoreDomain()
+        AgentAccessibilityService.resetForTest()
+    }
+
+    @After
+    fun tearDown() {
+        AgentAccessibilityService.resetForTest()
     }
 
     @Test

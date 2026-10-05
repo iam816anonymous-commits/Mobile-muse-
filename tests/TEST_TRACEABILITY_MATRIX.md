@@ -80,5 +80,10 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Node identity & NodeIdentityConfidence assignment | P5-SNAP-002 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorPhase5Test.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Immediate AccessibilityNodeInfo recycling | P5-RECYC-001 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorPhase5Test.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Explicit STOP observation controls & state preservation | P5-CTRL-001 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Removal of direct Permission Center buttons | P5-UI-NAV-001 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Explicit Clear button resets screen presentation | P5-UI-CLR-001 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Consecutive Observe requests replace previous tree | P5-UI-DUP-001 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Node bounds rendering `[left,top,right,bottom] (WxH)` | P5-UI-BND-001 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Node rendering uniqueness & external snapshot isolation | P5-UI-DUP-005 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Read-only observation guarantee (0 dispatches) | P5-READ-001 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Phase 5 single-root, stop control & heap footprint procedure | P5-DEV-SNAP-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 4 | Manual Observation & Memory Dump on Physical Phone | **NOT_RUN** |

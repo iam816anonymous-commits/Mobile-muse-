@@ -216,8 +216,10 @@ class ExternalObservationActivity : AppCompatActivity() {
     ) {
         val branch = if (depth == 0) "" else if (isLast) "└── " else "├── "
         val classSimple = node.className.substringAfterLast('.')
-        val textStr = node.text?.let { " text:\"$it\"" } ?: ""
-        val descStr = node.contentDescription?.let { " desc:\"$it\"" } ?: ""
+        val textClean = node.text?.replace("\r", "")?.replace("\n", "\\n")?.take(80)
+        val textStr = textClean?.let { " text:\"$it\"" } ?: ""
+        val descClean = node.contentDescription?.replace("\r", "")?.replace("\n", "\\n")?.take(80)
+        val descStr = descClean?.let { " desc:\"$it\"" } ?: ""
         val resIdStr = node.resourceId?.let { " id:${it.substringAfterLast('/')}" } ?: ""
         val identityStr = if (node.nodeIdentity.isNotBlank()) " [identity:${node.nodeIdentity} conf:${node.identityConfidence}]" else ""
         val boundsStr = " bounds:[${node.bounds.left},${node.bounds.top},${node.bounds.right},${node.bounds.bottom}] (${node.bounds.width}x${node.bounds.height})"

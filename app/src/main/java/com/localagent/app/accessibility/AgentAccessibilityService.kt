@@ -75,11 +75,11 @@ class AgentAccessibilityService : AccessibilityService() {
 
     @Volatile
     var currentObservationSnapshot: ObservationSnapshot? = null
-        private set
+        set
 
     @Volatile
     var lastExternalObservationSnapshot: ObservationSnapshot? = null
-        private set
+        set
 
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
@@ -124,6 +124,10 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     private val extractor = ObservationSnapshotExtractor(maxNodes = 500, maxDepth = 30)
+
+    fun onServiceConnectedForTest() {
+        onServiceConnected()
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -587,5 +591,10 @@ class AgentAccessibilityService : AccessibilityService() {
 
         val isBound: Boolean
             get() = INSTANCE != null
+
+        fun resetForTest(app: LocalAgentApplication? = null) {
+            INSTANCE = null
+            app?.accessibilityConnectionMonitor?.notifyServiceDisconnected("TEST_RESET")
+        }
     }
 }

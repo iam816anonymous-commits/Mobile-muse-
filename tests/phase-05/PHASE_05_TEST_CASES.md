@@ -1,7 +1,7 @@
 # Phase 5 Test Cases — Observation & Snapshot Engine (Phase 5 Correction)
 
 ## 1. Executive Summary
-This document specifies the executable test suite for **Phase 5 — Observation & Snapshot Engine** including the Phase 5 Correction for Observation UI Cleanup, Clear Controls, and Node/Bounds Validation.
+This document specifies the executable test suite for **Phase 5 — Observation & Snapshot Engine** including the Phase 5 Correction for Observation UI Cleanup, Clear Controls, Node/Bounds Validation, and Tree Duplication Fix.
 
 All test cases verify single-root snapshot retrieval, node identity confidence assignment, Rect bounds computation and display (`[left,top,right,bottom]` and `WxH`), pure domain `SnapshotDiffEngine` comparisons, explicit STOP and CLEAR observation controls, immediate `.recycle()` calls, absence of direct Permission Center navigation buttons on observation screens, and read-only execution guarantees without performing automated action dispatches or violating phase boundaries.
 
@@ -93,6 +93,20 @@ All test cases verify single-root snapshot retrieval, node identity confidence a
 - **Evidence:** Tree text equals `"No current observation captured."` or `"No external observation captured."`
 - **Status:** PASS
 
+### Test ID: P5-UI-DUP-001 through P5-UI-DUP-004
+- **Requirement:** Tree rendering replacement & single tree header guarantee
+- **Purpose:** Verify 1 Observe request renders 1 tree, 2 consecutive Observe requests replace the previous tree, Clear removes displayed tree, and Observe after Clear renders 1 tree.
+- **Preconditions:** Active observation screen.
+- **Input:** Observe / Clear button interactions.
+- **Expected Result:** Tree text contains exactly 1 `"ROOT ["` header occurrence; consecutive Observe clicks replace previous tree.
+- **Test Type:** Tier B Robolectric Test
+- **Executable Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest`
+- **Permissions:** None
+- **Hardware:** Baseline API 27+
+- **Evidence:** Root occurrences assertion = 1.
+- **Status:** PASS
+
 ### Test ID: P5-UI-BND-001 (Tests F & G)
 - **Requirement:** Bounds display on node tree rendering
 - **Purpose:** Verify rendered node tree string explicitly contains `bounds:[left,top,right,bottom]` and size `(WxH)`.
@@ -107,7 +121,7 @@ All test cases verify single-root snapshot retrieval, node identity confidence a
 - **Evidence:** `treeStr.contains("bounds:[10,20,110,70] (100x50)")` pass.
 - **Status:** PASS
 
-### Test ID: P5-UI-DUP-001 (Tests H & I)
+### Test ID: P5-UI-DUP-005 (Tests H & I)
 - **Requirement:** Node tree rendering uniqueness & external app snapshot isolation
 - **Purpose:** Verify each domain `ObservationNode` is rendered exactly once without duplicate text lines, and external app snapshots contain 0 LocalAgent nodes.
 - **Preconditions:** Snapshot containing single node "Unique Title Text" or external FrameLayout.
