@@ -1,8 +1,8 @@
-# PHASE_03_TEST_CASES.md — Phase 3.1 & Phase 3.2 Test Cases
+# PHASE_03_TEST_CASES.md — Phase 3 Test Cases (Phases 3.1, 3.2, 3.3)
 
 ## 1. Overview
 
-This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Observation Foundation) and Phase 3.2 (Evidence) of LocalAgent.
+This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Observation Foundation), Phase 3.2 (Evidence), and Phase 3.3 (Permission & Capability Manager) of LocalAgent.
 
 ---
 
@@ -106,6 +106,34 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
 
+### P3.3-PERM-001
+- **Requirement:** Permission Status Checking & Settings Intent Generation
+- **Purpose:** Proves `PermissionManager` checks runtime and special access permissions, generates correct Android Settings Intents (`ACTION_ACCESSIBILITY_SETTINGS`, `ACTION_MANAGE_OVERLAY_PERMISSION`, `ACTION_MANAGE_WRITE_SETTINGS`, `ACTION_USAGE_ACCESS_SETTINGS`), and generates SAF Document Picker intent.
+- **Preconditions:** `PermissionManager` instantiated.
+- **Input:** Execute `getAllPermissions()`, `getSettingsIntentForPermission()`, `getSafDocumentPickerIntent()`.
+- **Expected Result:** Permissions list returned, settings intents generated with matching actions, SAF picker intent configured.
+- **Test Type:** AUTOMATED_ROBOLECTRIC
+- **Executable Test Location:** `app/src/test/java/com/localagent/app/system/PermissionManagerTest.kt` -> `testGetAllPermissionsList()`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.system.PermissionManagerTest"`
+- **Permissions:** NONE
+- **Hardware:** NONE
+- **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
+- **Status:** PASS
+
+### P3.3-UI-001
+- **Requirement:** Dedicated Permission Center UI Screen
+- **Purpose:** Proves `PermissionActivity` renders special access cards, runtime permission status, passive degradation summaries, and settings launch triggers.
+- **Preconditions:** `PermissionActivity` launched in test controller.
+- **Input:** Launch activity via Robolectric.
+- **Expected Result:** UI summary text and 7 permission cards rendered cleanly.
+- **Test Type:** AUTOMATED_ROBOLECTRIC
+- **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/PermissionActivityTest.kt` -> `testPermissionActivityLaunchAndSummary()`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.PermissionActivityTest"`
+- **Permissions:** Simulated UI environment
+- **Hardware:** NONE
+- **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
+- **Status:** PASS
+
 ### P3-DEV-001
 - **Requirement:** Physical Phone Accessibility Enablement & Local UI Observation Procedure
 - **Purpose:** Verifies that enabling `AgentAccessibilityService` in Android Settings transitions status to `READY (BOUND)` and captures live visible UI hierarchy without performing action execution.
@@ -144,6 +172,20 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3.4)
 - **Execution Command:** Manual phone execution
 - **Permissions:** `android.permission.BIND_ACCESSIBILITY_SERVICE`
+- **Hardware:** Physical Android Smartphone
+- **Evidence:** Pending physical phone test execution
+- **Status:** NOT_RUN
+
+### P3.3-DEV-PERM-001
+- **Requirement:** Physical Phone Permission Center & Settings Intent Launch Procedure
+- **Purpose:** Verifies that Permission Center UI correctly inspects physical phone permission states and launches system settings intent flows for overlay, write settings, accessibility, usage access, and SAF document picker.
+- **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent installed.
+- **Input:** Launch `PermissionActivity` and tap setting intent launch buttons.
+- **Expected Result:** Target Android System Settings screens launch cleanly. SAF document picker opens dialog.
+- **Test Type:** PHYSICAL_DEVICE
+- **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3.5)
+- **Execution Command:** Manual phone execution
+- **Permissions:** Special Access & Runtime Permissions
 - **Hardware:** Physical Android Smartphone
 - **Evidence:** Pending physical phone test execution
 - **Status:** NOT_RUN

@@ -28,7 +28,7 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 
 ---
 
-## 3. Phase 3.1 & Phase 3.2 — Accessibility Observation & Evidence Test Procedures
+## 3. Phase 3.1 – 3.3 — Accessibility Observation, Evidence & Permission Test Procedures
 
 ### Test 3.1: Service Unbound State
 1. **Setup:** Install LocalAgent APK on physical phone. Do NOT enable Accessibility Service yet.
@@ -79,6 +79,18 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 7. Verify SHA-256 Provenance Hash is generated and rendered.
 8. Vertically and horizontally scroll through the complete evidence primitives stream.
 9. Confirm zero action execution or interaction was dispatched against observed applications.
+
+### Test 3.5 (P3.3-DEV-PERM-001): Phase 3.3 Permission Center & Settings Intent Launch Procedure
+- **Status:** **NOT_RUN** (Pending physical phone test execution)
+1. Launch LocalAgent on physical phone.
+2. Tap `Permission Center` button on `MainActivity`.
+3. Verify `PermissionActivity` displays permission status summary and 7 permission cards.
+4. Tap `Open Display Over Other Apps Settings`.
+5. Verify Android System Settings opens to LocalAgent's overlay permission toggle screen.
+6. Tap `Open Write System Settings`.
+7. Verify Android System Settings opens to LocalAgent's write settings toggle screen.
+8. Tap `Test Launch SAF File Picker`.
+9. Verify Android Storage Access Framework system document picker dialog opens cleanly.
 
 ---
 

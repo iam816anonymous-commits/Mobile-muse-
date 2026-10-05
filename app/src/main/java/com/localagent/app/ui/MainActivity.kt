@@ -39,6 +39,10 @@ class MainActivity : AppCompatActivity() {
             executeCommandFromInput(input)
         }
 
+        binding.btnOpenPermissionCenterScreen.setOnClickListener {
+            startActivity(Intent(this, PermissionActivity::class.java))
+        }
+
         binding.btnOpenCurrentObservationScreen.setOnClickListener {
             startActivity(Intent(this, CurrentObservationActivity::class.java))
         }

@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3.1, Phase 3.2) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
+This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3.1, Phase 3.2, Phase 3.3) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
 Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
@@ -66,3 +66,13 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Evidence model & SHA-256 provenance hash | P3.2-EVID-001 | AUTOMATED_JVM | `EvidenceDomainModelsTest.kt` | `./gradlew :core:test` | PASS |
 | Dedicated Evidence UI Screen & Primitive Stream | P3.2-UI-001 | AUTOMATED_ROBOLECTRIC | `EvidenceActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Observation Evidence Procedure | P3.2-DEV-EVID-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.4 | Manual Evidence Capture on Physical Phone | **NOT_RUN** |
+
+---
+
+## 7. Phase 3.3 — Permission & Capability Manager Traceability
+
+| Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
+|---|---|---|---|---|---|
+| Permission checking & Settings Intent generation | P3.3-PERM-001 | AUTOMATED_ROBOLECTRIC | `PermissionManagerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Dedicated Permission Center UI Screen | P3.3-UI-001 | AUTOMATED_ROBOLECTRIC | `PermissionActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone Permission Center & Settings Intent procedure | P3.3-DEV-PERM-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.5 | Manual Permission Center on Physical Phone | **NOT_RUN** |

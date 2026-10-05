@@ -17,7 +17,7 @@
         android:id="@+id/tvAgentStatusHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:text="SYSTEM &amp; CAPABILITY STATUS:"
         android:textSize="12sp"
         android:textStyle="bold"
@@ -27,9 +27,9 @@
         android:id="@+id/tvSystemStatusSummary"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:text="Agent Core: ACTIVE (API 27 Baseline)\nAccessibility Service: SERVICE_UNBOUND\nOperational Storage: agent.db (APP_PRIVATE)\nDurable Storage: /sdcard/LocalAgent/memory/"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:fontFamily="monospace"
         android:textColor="#333333" />
 
@@ -37,7 +37,7 @@
         android:id="@+id/tvNavigationHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:text="SUBSYSTEM SCREENS:"
         android:textSize="12sp"
         android:textStyle="bold"
@@ -46,24 +46,24 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnOpenPermissionCenterScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Permission Center"
+            android:textSize="10sp" />
 
         <Button
             android:id="@+id/btnOpenCurrentObservationScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Current UI Observation"
-            android:textSize="10sp" />
-
-        <Button
-            android:id="@+id/btnOpenExternalObservationScreen"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:layout_marginStart="4dp"
-            android:text="External App Observation"
+            android:text="Current UI Observation"
             android:textSize="10sp" />
     </LinearLayout>
 
@@ -74,36 +74,52 @@
         android:orientation="horizontal">
 
         <Button
+            android:id="@+id/btnOpenExternalObservationScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="External App Observation"
+            android:textSize="10sp" />
+
+        <Button
             android:id="@+id/btnOpenEvidenceScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="4dp"
             android:text="Evidence Diagnostics"
             android:textSize="10sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal">
 
         <Button
             android:id="@+id/btnOpenEventLogScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
             android:text="Event Log"
             android:textSize="10sp" />
-    </LinearLayout>
 
-    <Button
-        android:id="@+id/btnOpenStorageDiagnosticsScreen"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="Storage &amp; Memory Diagnostics"
-        android:textSize="10sp" />
+        <Button
+            android:id="@+id/btnOpenStorageDiagnosticsScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Storage &amp; Memory"
+            android:textSize="10sp" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tvCommandHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         android:text="COMMAND CONSOLE INPUT:"
         android:textSize="12sp"
         android:textStyle="bold"
@@ -129,7 +145,7 @@
         android:id="@+id/tvLatestResultHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="6dp"
         android:text="Latest Execution Result:"
         android:textStyle="bold"
         android:textSize="12sp" />
@@ -140,7 +156,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:text="None"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:fontFamily="monospace" />
 
 </LinearLayout>

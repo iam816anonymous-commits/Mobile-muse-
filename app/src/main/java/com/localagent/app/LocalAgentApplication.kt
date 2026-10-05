@@ -5,6 +5,7 @@ import com.localagent.app.logging.UnifiedEventLogger
 import com.localagent.app.storage.AgentDatabase
 import com.localagent.app.storage.DurableMemoryStorageManager
 import com.localagent.app.storage.RoomEventRepository
+import com.localagent.app.system.PermissionManager
 import com.localagent.core.capability.*
 import com.localagent.core.execution.GoalDispatcher
 import com.localagent.core.logging.AgentEvent
@@ -33,6 +34,9 @@ class LocalAgentApplication : Application() {
     lateinit var durableStorageManager: DurableMemoryStorageManager
         private set
 
+    lateinit var permissionManager: PermissionManager
+        private set
+
     override fun onCreate() {
         super.onCreate()
         initializeCoreDomain()
@@ -46,6 +50,7 @@ class LocalAgentApplication : Application() {
         eventLogger = UnifiedEventLogger(eventRepository)
         durableStorageManager = DurableMemoryStorageManager(this)
         durableStorageManager.initializeStorage()
+        permissionManager = PermissionManager(this)
 
         capabilityRegistry = CapabilityRegistry().apply {
             registerCapability(

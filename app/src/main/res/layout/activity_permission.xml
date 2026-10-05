@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="PERMISSION &amp; CAPABILITY CENTER"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#303F9F" />
+
+    <TextView
+        android:id="@+id/tvPermissionSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Special Access: Checking... | Runtime Permissions: Checking..."
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:textColor="#333333"
+        android:background="#E8EAF6"
+        android:padding="4dp" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ACCESSIBILITY CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. Accessibility Service (Special App Access)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvAccessibilityDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: SERVICE_UNBOUND"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnOpenAccessibilitySettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Open Accessibility Settings"
+                android:textSize="10sp" />
+
+            <!-- OVERLAY CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="2. System Overlay Access (Special App Access)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvOverlayDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: SPECIAL_ACCESS_DENIED"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnOpenOverlaySettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Open Display Over Other Apps Settings"
+                android:textSize="10sp" />
+
+            <!-- WRITE SETTINGS CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="3. Modify System Settings (Special App Access)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvWriteSettingsDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: SPECIAL_ACCESS_DENIED"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnOpenWriteSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Open Write System Settings"
+                android:textSize="10sp" />
+
+            <!-- USAGE ACCESS CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="4. Usage Stats Access (Special App Access)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvUsageAccessDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: SPECIAL_ACCESS_DENIED"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnOpenUsageAccessSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Open Usage Access Settings"
+                android:textSize="10sp" />
+
+            <!-- NOTIFICATION LISTENER CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="5. Notification Listener Access (Special App Access)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvNotificationListenerDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: SPECIAL_ACCESS_DENIED"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnOpenNotificationListenerSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Open Notification Access Settings"
+                android:textSize="10sp" />
+
+            <!-- MICROPHONE RUNTIME PERMISSION CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="6. Microphone Audio Recording (Runtime Permission)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvAudioRecordDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: DENIED"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnRequestAudioRecord"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Request Microphone Permission"
+                android:textSize="10sp" />
+
+            <!-- STORAGE & SAF CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="7. Storage &amp; SAF Document Picker (User Consent SAF)"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E" />
+
+            <TextView
+                android:id="@+id/tvStorageDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: SAF User Consent Active"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <Button
+                android:id="@+id/btnLaunchSafPicker"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Test Launch SAF File Picker"
+                android:textSize="10sp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>
