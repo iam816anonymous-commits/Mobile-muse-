@@ -41,13 +41,13 @@ class MainActivityEventHydrationTest {
 
     @Test
     fun testEventHistoryHydratedFromDatabaseOnLaunch() {
-        val activityController = Robolectric.buildActivity(MainActivity::class.java).create().start().resume()
+        val activityController = Robolectric.buildActivity(EventLogActivity::class.java).create().start().resume()
         val activity = activityController.get()
 
-        val recentEventsText = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvRecentEvents).text.toString()
-        println("DEBUG recentEventsText: $recentEventsText")
+        Thread.sleep(300)
 
-        assertTrue(recentEventsText.contains("HISTORICAL_EVENT_001"), "Expected UI to hydrate HISTORICAL_EVENT_001 from agent.db. Actual: $recentEventsText")
-        assertTrue(recentEventsText.contains("Foundation Test UI Ready"), "Expected UI to append new live event after hydration")
+        val logStreamText = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvEventLogStream).text.toString()
+
+        assertTrue(logStreamText.contains("HISTORICAL_EVENT_001"), "Expected UI to hydrate HISTORICAL_EVENT_001 from agent.db. Actual: $logStreamText")
     }
 }

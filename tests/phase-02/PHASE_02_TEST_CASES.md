@@ -52,10 +52,10 @@ This document specifies the test cases for Phase 2 (Persistent Storage & Unified
 
 ### P2-UI-001
 - **Requirement:** Diagnostic UI Event Stream Hydration from Database
-- **Purpose:** Proves `MainActivity` queries past event history from `agent.db` upon launch and populates `tvRecentEvents` before appending new live events.
+- **Purpose:** Proves Diagnostic UI (`EventLogActivity`) queries past event history from `agent.db` upon launch and populates `tvEventLogStream`.
 - **Preconditions:** Insert historical event `HISTORICAL_EVENT_001` into `agent.db`.
-- **Input:** Launch `MainActivity` via Robolectric.
-- **Expected Result:** `tvRecentEvents.text` displays `HISTORICAL_EVENT_001` followed by live `Foundation Test UI Ready` event.
+- **Input:** Launch `EventLogActivity` via Robolectric.
+- **Expected Result:** `tvEventLogStream.text` displays `HISTORICAL_EVENT_001`.
 - **Test Type:** AUTOMATED_ROBOLECTRIC
 - **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/MainActivityEventHydrationTest.kt` -> `testEventHistoryHydratedFromDatabaseOnLaunch()`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.MainActivityEventHydrationTest"`

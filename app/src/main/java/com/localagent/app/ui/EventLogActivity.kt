@@ -26,29 +26,25 @@ class EventLogActivity : AppCompatActivity() {
     private fun refreshEventLog() {
         val app = application as? LocalAgentApplication ?: return
 
-        Thread {
-            try {
-                val totalCount = app.eventRepository.getEventCount()
-                val dbBytes = app.eventRepository.getStorageFootprintBytes()
-                val events = app.eventRepository.queryEvents(EventFilter(limit = 100))
+        try {
+            val totalCount = app.eventRepository.getEventCount()
+            val dbBytes = app.eventRepository.getStorageFootprintBytes()
+            val events = app.eventRepository.queryEvents(EventFilter(limit = 100))
 
-                val sb = StringBuilder()
-                events.reversed().forEach { event ->
-                    val actionStr = if (event.actionType != null) " ${event.actionType}" else ""
-                    val codeStr = if (event.resultCode != null) " [${event.resultCode}]" else ""
-                    sb.append("${event.timestamp % 1000000}: [${event.subsystem}] ${event.eventType}$actionStr$codeStr\n")
-                }
-
-                runOnUiThread {
-                    binding.tvEventLogStats.text = "Total Persisted Events: $totalCount | DB Size: ${dbBytes / 1024} KB"
-                    binding.tvEventLogStream.text = if (sb.isNotEmpty()) sb.toString() else "No events recorded in database."
-                    binding.scrollEventLogContainer.post {
-                        binding.scrollEventLogContainer.fullScroll(android.view.View.FOCUS_DOWN)
-                    }
-                }
-            } catch (e: Exception) {
-                System.err.println("EventLogActivity error: ${e.message}")
+            val sb = StringBuilder()
+            events.reversed().forEach { event ->
+                val actionStr = if (event.actionType != null) " ${event.actionType}" else ""
+                val codeStr = if (event.resultCode != null) " [${event.resultCode}]" else ""
+                sb.append("${event.timestamp % 1000000}: [${event.subsystem}] ${event.eventType}$actionStr$codeStr\n")
             }
-        }.start()
+
+            binding.tvEventLogStats.text = "Total Persisted Events: $totalCount | DB Size: ${dbBytes / 1024} KB"
+            binding.tvEventLogStream.text = if (sb.isNotEmpty()) sb.toString() else "No events recorded in database."
+            binding.scrollEventLogContainer.post {
+                binding.scrollEventLogContainer.fullScroll(android.view.View.FOCUS_DOWN)
+            }
+        } catch (e: Exception) {
+            System.err.println("EventLogActivity error: ${e.message}")
+        }
     }
 }
