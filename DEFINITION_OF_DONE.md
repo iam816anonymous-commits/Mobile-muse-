@@ -4,11 +4,18 @@
 
 In **LocalAgent**, a phase or feature is **NEVER** considered complete merely because code compiles or unit tests pass. Because this system interacts directly with the Android platform, UI hierarchy, permissions, and low-RAM hardware, every phase must meet a rigorous, multi-tiered Definition of Done (DoD).
 
+All phase work must adhere strictly to the **Permanent Phase Scope Governance Rule** defined in [`docs/PHASE_SCOPE_GOVERNANCE_RULE.md`](docs/PHASE_SCOPE_GOVERNANCE_RULE.md).
+
 ---
 
 ## 2. Multi-Tiered Phase Completion Checklist
 
-Before any implementation phase can be marked complete, all of the following criteria must be satisfied across eight explicit validation gates:
+Before any implementation phase can be marked complete, all of the following criteria must be satisfied across nine explicit validation gates:
+
+### Gate 0: PHASE SCOPE GOVERNANCE ALIGNMENT
+- [ ] Phase Alignment Check performed against `PHASE_PLAN.md` and [`docs/PHASE_SCOPE_GOVERNANCE_RULE.md`](docs/PHASE_SCOPE_GOVERNANCE_RULE.md).
+- [ ] All implemented features classified as 🟢 **IN PHASE** or 🟡 **EXISTING DEPENDENCY**.
+- [ ] Zero 🔵 **FUTURE PHASE** or 🔴 **SCOPE VIOLATION** features implemented without explicit project-owner approval.
 
 ### Gate 1: ARCHITECTURE COMPLETE
 - [ ] Architecture design adheres strictly to the universal execution pipeline (`NormalizedCommand` → `GoalDispatcher` → `ActionPolicyEngine` → `CapabilityRegistry` → `TargetResolver` → `ActionExecutor` → `VerificationStrategy` → `EventLogger`).

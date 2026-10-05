@@ -4,6 +4,10 @@
 
 The implementation of **LocalAgent** is organized into **23 distinct, strictly ordered phases** (Phase 0 through Phase 22).
 
+### Mandatory Phase Scope Governance Rule
+All phase implementations are governed by the mandatory project rule defined in [`docs/PHASE_SCOPE_GOVERNANCE_RULE.md`](docs/PHASE_SCOPE_GOVERNANCE_RULE.md).
+Developers and automated agents MUST perform an explicit **Phase Alignment Check** before implementing any feature, test, or architectural change. Functionality from another phase must NEVER be silently pulled forward or merged into the current phase without explicit project-owner approval.
+
 ### Core Contract Rules for Every Phase
 Every phase is governed by an explicit **Phase Contract** defining:
 - **INPUT:** Prerequisites and artifacts passed from prior phases.
