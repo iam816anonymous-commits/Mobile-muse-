@@ -1,5 +1,6 @@
 package com.localagent.app.accessibility
 
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.test.core.app.ApplicationProvider
 import com.localagent.app.LocalAgentApplication
 import org.junit.Assert.*
@@ -54,9 +55,30 @@ class AgentAccessibilityServiceTest {
         assertNull(service.lastExternalObservationSnapshot)
 
         // Simulate observing current UI (LocalAgent app itself)
-        val localSnap = service.captureLiveSnapshot()
+        service.captureLiveSnapshot()
         assertNotNull(service.currentObservationSnapshot)
-        // Since package was blank or com.localagent.app, external snapshot remains null
         assertNull(service.lastExternalObservationSnapshot)
+    }
+
+    @Test
+    fun testWindowCandidateScoreRanking() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+
+        val method = AgentAccessibilityService::class.java.getDeclaredMethod(
+            "calculateWindowScore",
+            Int::class.java,
+            String::class.java,
+            Boolean::class.java,
+            Boolean::class.java
+        )
+        method.isAccessible = true
+
+        val chromeScore = method.invoke(service, AccessibilityWindowInfo.TYPE_APPLICATION, "com.android.chrome", true, true) as Int
+        val systemUiScore = method.invoke(service, AccessibilityWindowInfo.TYPE_SYSTEM, "com.android.systemui", true, true) as Int
+
+        assertTrue(chromeScore > systemUiScore)
+        assertEquals(100, chromeScore)
+        assertEquals(50, systemUiScore)
     }
 }

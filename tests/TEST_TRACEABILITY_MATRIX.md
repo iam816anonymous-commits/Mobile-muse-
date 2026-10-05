@@ -54,3 +54,4 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Dedicated Observation Screen node tree rendering | P3-UI-002 | AUTOMATED_ROBOLECTRIC | `ObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone local accessibility observation procedure | P3-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Enablement in Android Settings | **NOT_RUN** |
 | Physical phone external application observation procedure | P3-DEV-002 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3 | Manual Launch of Chrome/Settings | **NOT_RUN** |
+| Physical phone Chrome external observation procedure | P3.1-DEV-EXT-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.3 | Manual Chrome Launch on Physical Phone | **NOT_RUN** |

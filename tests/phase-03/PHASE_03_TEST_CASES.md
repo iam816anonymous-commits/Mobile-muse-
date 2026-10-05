@@ -78,14 +78,14 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Evidence:** Pending physical phone test execution
 - **Status:** NOT_RUN
 
-### P3-DEV-002
-- **Requirement:** Physical Phone External Application Observation Procedure (Chrome/Settings/Calculator/YouTube)
-- **Purpose:** Verifies that `AgentAccessibilityService` captures live external application windows and preserves `lastExternalObservationSnapshot` when returning to LocalAgent.
+### P3.1-DEV-EXT-001
+- **Requirement:** Physical Phone External Chrome Accessibility Observation Procedure
+- **Purpose:** Verifies that `AgentAccessibilityService` captures live Google Chrome interactive windows and preserves `lastExternalObservationSnapshot` (`com.android.chrome`) when returning to LocalAgent.
 - **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent and Chrome installed.
-- **Input:** Open Chrome manually. Switch back to LocalAgent manually and open Observation Screen.
-- **Expected Result:** Current Snapshot shows `com.localagent.app` AND Last External Snapshot shows `com.android.chrome`. Indented node tree displays Chrome UI nodes. Zero actions executed.
+- **Input:** Open Chrome manually. Leave Chrome in foreground. Return to LocalAgent and open Observation Screen.
+- **Expected Result:** Selected package is `com.android.chrome`. Indented Chrome node tree displayed. Last External Application Snapshot preserves `com.android.chrome`. Zero actions executed automatically.
 - **Test Type:** PHYSICAL_DEVICE
-- **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3)
+- **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3.3)
 - **Execution Command:** Manual phone execution
 - **Permissions:** `android.permission.BIND_ACCESSIBILITY_SERVICE` (User grant in Android Accessibility Settings)
 - **Hardware:** Physical Android Smartphone

@@ -50,6 +50,23 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
    - Event log records `[OBSERVATION] OBSERVATION_STARTED` and `OBSERVATION_COMPLETED`.
    - **Zero Action Execution:** Phone performs NO clicks, scrolls, or back/home dispatches.
 
+### Test 3.3 (P3.1-DEV-EXT-001): External Chrome Accessibility Observation
+- **Status:** **NOT_RUN** (Pending physical phone test execution)
+1. Install current debug APK on physical phone.
+2. Enable `AgentAccessibilityService` in Android Settings -> Accessibility.
+3. Open `ObservationActivity` in LocalAgent.
+4. Verify Accessibility Service status reports `READY (BOUND)`.
+5. Leave LocalAgent and manually open Google Chrome.
+6. Leave Chrome in the foreground (navigating to an ordinary Chrome web page or start page).
+7. Trigger observation as specified by the implemented design (e.g. switch back to LocalAgent or tap observation control).
+8. Verify selected package is `com.android.chrome`.
+9. Verify external snapshot node count > 0 if Chrome exposes accessible nodes.
+10. Verify Chrome node tree is displayed in `ObservationActivity` under Last External Application Snapshot.
+11. Return to LocalAgent.
+12. Verify Last External Application Snapshot still shows `com.android.chrome`.
+13. Verify LocalAgent's own snapshot (`com.localagent.app`) remains separate and does not replace the Chrome snapshot.
+14. Verify no click, scroll, typing, launch, navigation, or gesture was performed automatically (Read-Only guarantee).
+
 ---
 
 ## 4. Phase 11 — Movable Overlay Test Procedure

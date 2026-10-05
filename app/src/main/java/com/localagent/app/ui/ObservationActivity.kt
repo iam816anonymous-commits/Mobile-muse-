@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.accessibility.AgentAccessibilityService
+import com.localagent.app.accessibility.ObservationWindowDiagnostics
 import com.localagent.app.databinding.ActivityObservationBinding
 import com.localagent.core.logging.AgentEvent
 import com.localagent.core.logging.EventSubsystem
@@ -72,6 +73,9 @@ class ObservationActivity : AppCompatActivity() {
 
         binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
 
+        val diag = AgentAccessibilityService.INSTANCE?.latestDiagnostics
+        binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)
+
         val currentSnap = AgentAccessibilityService.INSTANCE?.currentObservationSnapshot
         val externalSnap = AgentAccessibilityService.INSTANCE?.lastExternalObservationSnapshot
 
@@ -90,6 +94,30 @@ class ObservationActivity : AppCompatActivity() {
             binding.tvExternalSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
             binding.tvExternalNodeTree.text = "No external tree captured."
         }
+    }
+
+    private fun formatDiagnosticsContent(diag: ObservationWindowDiagnostics?): String {
+        if (diag == null) {
+            return "Foreground Package: None\nForeground Window ID: -1\nAvailable Windows: None\nSelected Package: None\nLast External Package: None"
+        }
+
+        val sb = StringBuilder()
+        sb.append("Foreground Package: ${diag.foregroundPackage}\n")
+        sb.append("Foreground Window ID: ${diag.foregroundWindowId} | Type: ${diag.foregroundWindowType}\n")
+        sb.append("Active: ${diag.foregroundIsActive} | Focused: ${diag.foregroundIsFocused}\n\n")
+
+        sb.append("Available Windows (${diag.availableWindows.size}):\n")
+        if (diag.availableWindows.isEmpty()) {
+            sb.append("- None listed\n")
+        } else {
+            diag.availableWindows.forEach { win ->
+                sb.append("- id:${win.windowId} ${win.windowTypeName} pkg:${if (win.packageName.isBlank()) "Unknown" else win.packageName} active:${win.isActive} focused:${win.isFocused} score:${win.score}\n")
+            }
+        }
+
+        sb.append("\nSelected Window: id:${diag.selectedWindowId} pkg:${diag.selectedPackage} type:${diag.selectedWindowType}\n")
+        sb.append("Last External App: pkg:${diag.lastExternalPackage} id:${diag.lastExternalWindowId} type:${diag.lastExternalWindowType}")
+        return sb.toString()
     }
 
     private fun renderSnapshotNodeTree(snapshot: ObservationSnapshot): String {

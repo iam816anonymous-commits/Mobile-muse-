@@ -47,6 +47,29 @@
             android:textSize="10sp" />
     </LinearLayout>
 
+    <!-- WINDOW SELECTION DIAGNOSTICS SECTION -->
+    <TextView
+        android:id="@+id/tvDiagnosticsHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="WINDOW SELECTION DIAGNOSTICS:"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#880E4F" />
+
+    <TextView
+        android:id="@+id/tvDiagnosticsContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Foreground Package: None\nAvailable Windows: None\nSelected Window: None\nLast External Package: None"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:textColor="#263238"
+        android:background="#F5F5F5"
+        android:padding="4dp" />
+
     <TextView
         android:id="@+id/tvCurrentSnapshotHeader"
         android:layout_width="match_parent"
