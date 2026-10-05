@@ -74,22 +74,30 @@
         android:orientation="horizontal">
 
         <Button
+            android:id="@+id/btnOpenEvidenceScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Evidence Diagnostics"
+            android:textSize="10sp" />
+
+        <Button
             android:id="@+id/btnOpenEventLogScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="4dp"
             android:text="Event Log"
             android:textSize="10sp" />
-
-        <Button
-            android:id="@+id/btnOpenStorageDiagnosticsScreen"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="Storage &amp; Memory"
-            android:textSize="10sp" />
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btnOpenStorageDiagnosticsScreen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Storage &amp; Memory Diagnostics"
+        android:textSize="10sp" />
 
     <TextView
         android:id="@+id/tvCommandHeader"

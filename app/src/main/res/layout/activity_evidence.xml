@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="OBSERVATION EVIDENCE DIAGNOSTICS"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#311B92" />
+
+    <TextView
+        android:id="@+id/tvAccessibilityStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Status: SERVICE_UNBOUND | Active Pkg: None"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:textColor="#4A148C" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnOpenAccessibilitySettings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Accessibility Settings"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnCaptureEvidence"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Capture Live Evidence"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <!-- CURRENT UI EVIDENCE SECTION -->
+    <TextView
+        android:id="@+id/tvCurrentEvidenceHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="CURRENT UI EVIDENCE:"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#000080" />
+
+    <TextView
+        android:id="@+id/tvCurrentEvidenceMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:background="#E8EAF6"
+        android:padding="4dp" />
+
+    <TextView
+        android:id="@+id/tvCurrentEvidencePrimitivesHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Current Evidence Primitives Stream:"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="1dp"
+        android:fillViewport="true">
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tvCurrentEvidencePrimitives"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No current evidence generated."
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+        </HorizontalScrollView>
+    </ScrollView>
+
+    <!-- EXTERNAL APP EVIDENCE SECTION -->
+    <TextView
+        android:id="@+id/tvExternalEvidenceHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="LAST VALID EXTERNAL APPLICATION EVIDENCE:"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#004D40" />
+
+    <TextView
+        android:id="@+id/tvExternalEvidenceMeta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:background="#E0F2F1"
+        android:padding="4dp" />
+
+    <TextView
+        android:id="@+id/tvExternalEvidencePrimitivesHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="External Evidence Primitives Stream:"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="1dp"
+        android:fillViewport="true">
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tvExternalEvidencePrimitives"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No external evidence generated."
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+        </HorizontalScrollView>
+    </ScrollView>
+
+</LinearLayout>

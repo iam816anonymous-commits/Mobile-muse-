@@ -1,8 +1,8 @@
-# PHASE_03_TEST_CASES.md — Phase 3.1 Accessibility Observation Test Cases
+# PHASE_03_TEST_CASES.md — Phase 3.1 & Phase 3.2 Test Cases
 
 ## 1. Overview
 
-This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Observation Foundation) of LocalAgent.
+This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Observation Foundation) and Phase 3.2 (Evidence) of LocalAgent.
 
 ---
 
@@ -78,6 +78,34 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
 - **Status:** PASS
 
+### P3.2-EVID-001
+- **Requirement:** Observation Evidence Generation & SHA-256 Provenance Hash Calculation
+- **Purpose:** Proves `ObservationEvidence` is generated deterministically from `ObservationSnapshot`, computes SHA-256 provenance hash over primitives, and serializes to valid JSON string.
+- **Preconditions:** Observation snapshot initialized.
+- **Input:** Call `ObservationEvidence.fromSnapshot()`.
+- **Expected Result:** Evidence object created with matching package metadata, snapshot ID, and SHA-256 provenance hash.
+- **Test Type:** AUTOMATED_JVM
+- **Executable Test Location:** `core/src/test/java/com/localagent/core/evidence/EvidenceDomainModelsTest.kt` -> `testObservationEvidenceFromSnapshotAndProvenanceHash()`
+- **Execution Command:** `./gradlew :core:test --tests "com.localagent.core.evidence.EvidenceDomainModelsTest"`
+- **Permissions:** NONE
+- **Hardware:** NONE
+- **Evidence:** JUnit XML report (`core/build/test-results/test/`)
+- **Status:** PASS
+
+### P3.2-UI-001
+- **Requirement:** Dedicated Evidence Screen & Primitive Stream Rendering
+- **Purpose:** Proves `EvidenceActivity` formats Current and External Evidence primitives into scrollable text streams, displaying SHA-256 provenance hashes and snapshot traceability metadata.
+- **Preconditions:** `EvidenceActivity` launched in test controller.
+- **Input:** Call `renderEvidencePrimitives()` and `formatMetaText()`.
+- **Expected Result:** UI renders evidence metadata, SHA-256 provenance hash, and primitive stream in dual scrollable views.
+- **Test Type:** AUTOMATED_ROBOLECTRIC
+- **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/EvidenceActivityTest.kt` -> `testEvidencePrimitivesRendering()`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.EvidenceActivityTest"`
+- **Permissions:** Simulated UI environment
+- **Hardware:** NONE
+- **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
+- **Status:** PASS
+
 ### P3-DEV-001
 - **Requirement:** Physical Phone Accessibility Enablement & Local UI Observation Procedure
 - **Purpose:** Verifies that enabling `AgentAccessibilityService` in Android Settings transitions status to `READY (BOUND)` and captures live visible UI hierarchy without performing action execution.
@@ -102,6 +130,20 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3.3)
 - **Execution Command:** Manual phone execution
 - **Permissions:** `android.permission.BIND_ACCESSIBILITY_SERVICE` (User grant in Android Accessibility Settings)
+- **Hardware:** Physical Android Smartphone
+- **Evidence:** Pending physical phone test execution
+- **Status:** NOT_RUN
+
+### P3.2-DEV-EVID-001
+- **Requirement:** Physical Phone Observation Evidence Generation & Provenance Hash Procedure
+- **Purpose:** Verifies that `AgentAccessibilityService` generates `ObservationEvidence` with SHA-256 provenance hash from live observation snapshots without executing UI actions.
+- **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent installed and Accessibility enabled.
+- **Input:** Open Chrome, return to LocalAgent, open `EvidenceActivity`, and click "Capture Live Evidence".
+- **Expected Result:** Provenance hash, evidence ID, snapshot ID, and evidence primitive stream rendered cleanly. Zero actions executed against observed apps.
+- **Test Type:** PHYSICAL_DEVICE
+- **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3.4)
+- **Execution Command:** Manual phone execution
+- **Permissions:** `android.permission.BIND_ACCESSIBILITY_SERVICE`
 - **Hardware:** Physical Android Smartphone
 - **Evidence:** Pending physical phone test execution
 - **Status:** NOT_RUN

@@ -28,14 +28,14 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 
 ---
 
-## 3. Phase 3.1 — Read-Only Accessibility Observation Test Procedure
+## 3. Phase 3.1 & Phase 3.2 — Accessibility Observation & Evidence Test Procedures
 
 ### Test 3.1: Service Unbound State
 1. **Setup:** Install LocalAgent APK on physical phone. Do NOT enable Accessibility Service yet.
 2. **Launch:** Open LocalAgent.
 3. **Expected UI Display:**
    - ACCESSIBILITY OBSERVATION SERVICE: `Status: SERVICE_UNBOUND | Active Pkg: None`
-4. **Command Trigger:** Type `observe` in command input or click "Observe UI".
+4. **Command Trigger:** Type `observe` in command input or click "Current UI Observation".
 5. **Expected Result:** Output displays `Command: OBSERVE | Status: ACCESSIBILITY_UNAVAILABLE | Reason: Accessibility Service unbound (Open Settings to enable)`. App does NOT crash.
 
 ### Test 3.2: Service Enablement & Live UI Observation
@@ -67,6 +67,18 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 13. Verify Last Valid External Snapshot still shows `com.android.chrome`.
 14. Vertically and horizontally scroll through the complete external node tree.
 15. Confirm no automatic click, scroll, typing, or navigation occurred in Chrome (Read-Only guarantee).
+
+### Test 3.4 (P3.2-DEV-EVID-001): Phase 3.2 Observation Evidence Generation & Provenance Hash Procedure
+- **Status:** **NOT_RUN** (Pending physical phone test execution)
+1. Launch LocalAgent on physical phone.
+2. Verify Accessibility Service = `READY (BOUND)`.
+3. Open Google Chrome manually.
+4. Return to LocalAgent and open `EvidenceActivity`.
+5. Click "Capture Live Evidence".
+6. Verify Evidence ID, Snapshot ID, Package (`com.localagent.app` for Current, `com.android.chrome` for External), Node count, and Depth are displayed.
+7. Verify SHA-256 Provenance Hash is generated and rendered.
+8. Vertically and horizontally scroll through the complete evidence primitives stream.
+9. Confirm zero action execution or interaction was dispatched against observed applications.
 
 ---
 

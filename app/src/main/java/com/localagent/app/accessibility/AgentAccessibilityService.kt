@@ -7,6 +7,8 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import com.localagent.app.LocalAgentApplication
+import com.localagent.core.evidence.EvidenceSource
+import com.localagent.core.evidence.ObservationEvidence
 import com.localagent.core.logging.AgentEvent
 import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
@@ -82,6 +84,44 @@ class AgentAccessibilityService : AccessibilityService() {
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
         private set
+
+    val currentEvidence: ObservationEvidence?
+        get() {
+            val snap = currentObservationSnapshot ?: return null
+            val evidence = ObservationEvidence.fromSnapshot(
+                snapshot = snap,
+                source = EvidenceSource.CURRENT_UI,
+                windowType = latestDiagnostics.selectedWindowType
+            )
+            logEvidenceEvent("EVIDENCE_GENERATED", evidence)
+            return evidence
+        }
+
+    val lastExternalEvidence: ObservationEvidence?
+        get() {
+            val snap = lastExternalObservationSnapshot ?: return null
+            val evidence = ObservationEvidence.fromSnapshot(
+                snapshot = snap,
+                source = EvidenceSource.EXTERNAL_APP,
+                windowType = lastExternalWindowType
+            )
+            logEvidenceEvent("EVIDENCE_GENERATED", evidence)
+            return evidence
+        }
+
+    private fun logEvidenceEvent(eventType: String, evidence: ObservationEvidence) {
+        val app = application as? LocalAgentApplication ?: return
+        val activeSessionId = app.eventLogger.getActiveSession().sessionId
+        app.eventLogger.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.OBSERVATION,
+                eventType = eventType,
+                metadataJson = "{\"evidenceId\":\"${evidence.evidenceId}\",\"snapshotId\":\"${evidence.snapshotId}\",\"pkg\":\"${evidence.packageName}\",\"source\":\"${evidence.sourceChannel.name}\",\"provenanceHash\":\"${evidence.provenance.provenanceHash}\"}"
+            )
+        )
+    }
 
     private val extractor = ObservationSnapshotExtractor(maxNodes = 500, maxDepth = 30)
 

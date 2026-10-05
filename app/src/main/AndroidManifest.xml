@@ -33,6 +33,11 @@
             android:label="External Application Observation" />
 
         <activity
+            android:name=".ui.EvidenceActivity"
+            android:exported="true"
+            android:label="Evidence Diagnostics" />
+
+        <activity
             android:name=".ui.ObservationActivity"
             android:exported="true"
             android:label="Observation Screen" />

@@ -47,6 +47,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, ExternalObservationActivity::class.java))
         }
 
+        binding.btnOpenEvidenceScreen.setOnClickListener {
+            startActivity(Intent(this, EvidenceActivity::class.java))
+        }
+
         binding.btnOpenEventLogScreen.setOnClickListener {
             startActivity(Intent(this, EventLogActivity::class.java))
         }
