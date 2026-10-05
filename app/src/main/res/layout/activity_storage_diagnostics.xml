@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Storage &amp; Memory Diagnostics"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvOperationalStorageHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="OPERATIONAL STORAGE (App-Private DB):"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#004D40" />
+
+    <TextView
+        android:id="@+id/tvOperationalStorageDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Database: agent.db\nLocation: /data/data/com.localagent.app/files/agent/agent.db\nTotal Events: 0\nDatabase Footprint: 0 KB\nRetention Cap: 50,000 events / 30 MB"
+        android:textSize="12sp"
+        android:fontFamily="monospace"
+        android:textColor="#333333" />
+
+    <TextView
+        android:id="@+id/tvDurableMemoryHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="DURABLE AGENT MEMORY (User-Owned Storage):"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#1B5E20" />
+
+    <TextView
+        android:id="@+id/tvDurableMemoryDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Location: INTERNAL_SHARED_STORAGE (/sdcard/LocalAgent/memory/)\nStatus: INITIALIZING...\nDurable Records: 0\nUninstall Survival: YES (User-Owned)\nLast Test Write: NONE"
+        android:textSize="12sp"
+        android:fontFamily="monospace"
+        android:textColor="#333333" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnEnableStorage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Enable SAF / Storage"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnTestWriteMemory"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Test Write Record"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</LinearLayout>

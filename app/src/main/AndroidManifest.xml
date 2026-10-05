@@ -27,6 +27,16 @@
             android:exported="true"
             android:label="Observation Screen" />
 
+        <activity
+            android:name=".ui.EventLogActivity"
+            android:exported="true"
+            android:label="Pipeline Event Log" />
+
+        <activity
+            android:name=".ui.StorageDiagnosticsActivity"
+            android:exported="true"
+            android:label="Storage Diagnostics" />
+
         <service
             android:name=".accessibility.AgentAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
