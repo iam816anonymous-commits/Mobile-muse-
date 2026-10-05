@@ -93,6 +93,7 @@ class PermissionActivity : AppCompatActivity() {
 
     private fun launchSettingsFlow(permissionId: String, pm: PermissionManager) {
         val app = application as? LocalAgentApplication
+        val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
         try {
             val intent = pm.getSettingsIntentForPermission(permissionId)
             startActivity(intent)
@@ -100,7 +101,7 @@ class PermissionActivity : AppCompatActivity() {
             app?.eventLogger?.logEvent(
                 AgentEvent(
                     eventId = UUID.randomUUID().toString(),
-                    sessionId = app.eventLogger.getActiveSession().sessionId,
+                    sessionId = activeSessionId,
                     subsystem = EventSubsystem.PERMISSION,
                     eventType = "PERMISSION_INTENT_LAUNCHED",
                     sourceChannel = "PERMISSION_CENTER",
@@ -141,10 +142,11 @@ class PermissionActivity : AppCompatActivity() {
         binding.tvStorageDetails.text = formatDetails(storage)
 
         // Log permission status check
+        val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
         app?.eventLogger?.logEvent(
             AgentEvent(
                 eventId = UUID.randomUUID().toString(),
-                sessionId = app.eventLogger.getActiveSession().sessionId,
+                sessionId = activeSessionId,
                 subsystem = EventSubsystem.PERMISSION,
                 eventType = "PERMISSION_CHECKED",
                 sourceChannel = "PERMISSION_CENTER",
