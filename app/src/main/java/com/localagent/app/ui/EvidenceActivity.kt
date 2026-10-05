@@ -2,7 +2,6 @@ package com.localagent.app.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.accessibility.AgentAccessibilityService
@@ -10,12 +9,14 @@ import com.localagent.app.databinding.ActivityEvidenceBinding
 import com.localagent.core.evidence.EvidenceNodePrimitive
 import com.localagent.core.evidence.ObservationEvidence
 import com.localagent.core.logging.AgentEvent
+import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
 import java.util.UUID
 
 class EvidenceActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityEvidenceBinding
+    private var lastKnownA11yBound = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,22 +29,39 @@ class EvidenceActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateEvidenceUi()
+        checkPassiveDegradationAndRefresh()
     }
 
     private fun setupListeners() {
-        binding.btnOpenAccessibilitySettings.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                startActivity(intent)
-            } catch (e: Exception) {
-                System.err.println("EvidenceActivity: Error opening Settings: ${e.message}")
-            }
+        binding.btnOpenPermissionCenter.setOnClickListener {
+            startActivity(Intent(this, PermissionActivity::class.java))
         }
 
         binding.btnCaptureEvidence.setOnClickListener {
             triggerLiveEvidenceCapture()
         }
+    }
+
+    private fun checkPassiveDegradationAndRefresh() {
+        val currentA11yBound = AgentAccessibilityService.isBound
+        if (lastKnownA11yBound && !currentA11yBound) {
+            val app = application as? LocalAgentApplication
+            val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
+
+            app?.eventLogger?.logEvent(
+                AgentEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    sessionId = activeSessionId,
+                    subsystem = EventSubsystem.ACCESSIBILITY,
+                    eventType = "PASSIVE_DEGRADATION_DETECTED",
+                    sourceChannel = "EVIDENCE_SCREEN",
+                    severity = EventSeverity.WARNING,
+                    metadataJson = "{\"reason\":\"Accessibility Service unbound while screen active\"}"
+                )
+            )
+        }
+        lastKnownA11yBound = currentA11yBound
+        updateEvidenceUi()
     }
 
     private fun triggerLiveEvidenceCapture() {
@@ -62,6 +80,18 @@ class EvidenceActivity : AppCompatActivity() {
 
         if (AgentAccessibilityService.isBound) {
             AgentAccessibilityService.INSTANCE?.captureLiveSnapshot()
+        } else {
+            app?.eventLogger?.logEvent(
+                AgentEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    sessionId = activeSessionId,
+                    subsystem = EventSubsystem.ACCESSIBILITY,
+                    eventType = "PASSIVE_DEGRADATION_DETECTED",
+                    sourceChannel = "EVIDENCE_SCREEN",
+                    severity = EventSeverity.WARNING,
+                    metadataJson = "{\"reason\":\"Evidence requested while Accessibility Service unbound\"}"
+                )
+            )
         }
         updateEvidenceUi()
     }
@@ -70,7 +100,12 @@ class EvidenceActivity : AppCompatActivity() {
         val a11yBound = AgentAccessibilityService.isBound
         val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
 
-        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
+        val statusText = if (a11yBound) {
+            "Status: READY (BOUND) | Active Pkg: $activePkg"
+        } else {
+            "Status: SERVICE_UNBOUND (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+        }
+        binding.tvAccessibilityStatus.text = statusText
 
         val currentEv = AgentAccessibilityService.INSTANCE?.currentEvidence
         val externalEv = AgentAccessibilityService.INSTANCE?.lastExternalEvidence
@@ -80,7 +115,7 @@ class EvidenceActivity : AppCompatActivity() {
             binding.tvCurrentEvidencePrimitives.text = renderEvidencePrimitives(currentEv)
         } else {
             binding.tvCurrentEvidenceMeta.text = "Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
-            binding.tvCurrentEvidencePrimitives.text = "No current evidence generated."
+            binding.tvCurrentEvidencePrimitives.text = if (a11yBound) "No current evidence generated." else "Accessibility Service unbound. Open Permission Center to enable service."
         }
 
         if (externalEv != null) {
@@ -88,7 +123,7 @@ class EvidenceActivity : AppCompatActivity() {
             binding.tvExternalEvidencePrimitives.text = renderEvidencePrimitives(externalEv)
         } else {
             binding.tvExternalEvidenceMeta.text = "Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
-            binding.tvExternalEvidencePrimitives.text = "No external evidence generated."
+            binding.tvExternalEvidencePrimitives.text = if (a11yBound) "No external evidence generated." else "Accessibility Service unbound. Open Permission Center to enable service."
         }
     }
 

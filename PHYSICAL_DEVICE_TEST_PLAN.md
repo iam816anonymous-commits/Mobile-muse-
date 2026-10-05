@@ -39,7 +39,7 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 5. **Expected Result:** Output displays `Command: OBSERVE | Status: ACCESSIBILITY_UNAVAILABLE | Reason: Accessibility Service unbound (Open Settings to enable)`. App does NOT crash.
 
 ### Test 3.2: Service Enablement & Live UI Observation
-1. **Enablement:** Click "Open Accessibility Settings" button on LocalAgent UI.
+1. **Enablement:** Tap "Permission Center" on `MainActivity`, then click "Open Accessibility Settings".
 2. **Android Settings:** In Android Accessibility Settings, find "LocalAgent Read-Only UI Observation Service" and enable toggle.
 3. **Return:** Return to LocalAgent.
 4. **Expected UI Display:** `Status: READY (BOUND)`.
@@ -80,17 +80,19 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 8. Vertically and horizontally scroll through the complete evidence primitives stream.
 9. Confirm zero action execution or interaction was dispatched against observed applications.
 
-### Test 3.5 (P3.3-DEV-PERM-001): Phase 3.3 Permission Center & Settings Intent Launch Procedure
+### Test 3.5 (P3.3-DEV-PERM-001): Phase 3.3 Permission Center & Categorized Inventory Procedure
 - **Status:** **NOT_RUN** (Pending physical phone test execution)
 1. Launch LocalAgent on physical phone.
 2. Tap `Permission Center` button on `MainActivity`.
-3. Verify `PermissionActivity` displays permission status summary and 7 permission cards.
-4. Tap `Open Display Over Other Apps Settings`.
-5. Verify Android System Settings opens to LocalAgent's overlay permission toggle screen.
-6. Tap `Open Write System Settings`.
-7. Verify Android System Settings opens to LocalAgent's write settings toggle screen.
-8. Tap `Test Launch SAF File Picker`.
-9. Verify Android Storage Access Framework system document picker dialog opens cleanly.
+3. Verify `PermissionActivity` displays 3 distinct sections: `SECTION 1: REQUIRED NOW`, `SECTION 2: AVAILABLE / OPTIONAL NOW`, and `SECTION 3: FUTURE PHASE PERMISSIONS`.
+4. Verify `SECTION 1` displays Accessibility Service with status `ACTION REQUIRED — SERVICE_UNBOUND` and active "Open Accessibility Settings" button.
+5. Verify `SECTION 2` displays Storage & SAF Document Access with active "Test Launch SAF File Picker" button.
+6. Verify `SECTION 3` displays 7 future-phase permissions (`Overlay`, `Write Settings`, `Usage Access`, `Notification Listener`, `Microphone`, `Post Notifications`, `Camera`) marked as `NOT CURRENTLY REQUIRED — INVENTORY ONLY` with NO active request buttons.
+7. Tap `Open Accessibility Settings` in `SECTION 1`. Verify Android System Accessibility Settings screen opens.
+8. Enable LocalAgent Accessibility Service and return to LocalAgent. Verify Accessibility status updates to `AVAILABLE / GRANTED`.
+9. Disable LocalAgent Accessibility Service in Android Settings and return to LocalAgent.
+10. Open `CurrentObservationActivity`, `ExternalObservationActivity`, or `EvidenceActivity`. Verify status banner displays `Status: SERVICE_UNBOUND (Passive Degradation) — Tap Permission Center to Enable`.
+11. Confirm no duplicate `Open Accessibility Settings` buttons exist on observation or evidence screens.
 
 ---
 

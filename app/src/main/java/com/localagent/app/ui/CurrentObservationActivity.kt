@@ -2,12 +2,12 @@ package com.localagent.app.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.accessibility.AgentAccessibilityService
 import com.localagent.app.databinding.ActivityCurrentObservationBinding
 import com.localagent.core.logging.AgentEvent
+import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
 import com.localagent.core.observation.ObservationNode
 import com.localagent.core.observation.ObservationSnapshot
@@ -16,6 +16,7 @@ import java.util.UUID
 class CurrentObservationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCurrentObservationBinding
+    private var lastKnownA11yBound = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,22 +29,39 @@ class CurrentObservationActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateObservationUi()
+        checkPassiveDegradationAndRefresh()
     }
 
     private fun setupListeners() {
-        binding.btnOpenAccessibilitySettings.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                startActivity(intent)
-            } catch (e: Exception) {
-                System.err.println("CurrentObservationActivity: Error opening Settings: ${e.message}")
-            }
+        binding.btnOpenPermissionCenter.setOnClickListener {
+            startActivity(Intent(this, PermissionActivity::class.java))
         }
 
         binding.btnObserveCurrentUi.setOnClickListener {
             triggerLiveObservation()
         }
+    }
+
+    private fun checkPassiveDegradationAndRefresh() {
+        val currentA11yBound = AgentAccessibilityService.isBound
+        if (lastKnownA11yBound && !currentA11yBound) {
+            val app = application as? LocalAgentApplication
+            val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
+
+            app?.eventLogger?.logEvent(
+                AgentEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    sessionId = activeSessionId,
+                    subsystem = EventSubsystem.ACCESSIBILITY,
+                    eventType = "PASSIVE_DEGRADATION_DETECTED",
+                    sourceChannel = "CURRENT_OBSERVATION_SCREEN",
+                    severity = EventSeverity.WARNING,
+                    metadataJson = "{\"reason\":\"Accessibility Service unbound while screen active\"}"
+                )
+            )
+        }
+        lastKnownA11yBound = currentA11yBound
+        updateObservationUi()
     }
 
     private fun triggerLiveObservation() {
@@ -62,6 +80,18 @@ class CurrentObservationActivity : AppCompatActivity() {
 
         if (AgentAccessibilityService.isBound) {
             AgentAccessibilityService.INSTANCE?.captureLiveSnapshot()
+        } else {
+            app?.eventLogger?.logEvent(
+                AgentEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    sessionId = activeSessionId,
+                    subsystem = EventSubsystem.ACCESSIBILITY,
+                    eventType = "PASSIVE_DEGRADATION_DETECTED",
+                    sourceChannel = "CURRENT_OBSERVATION_SCREEN",
+                    severity = EventSeverity.WARNING,
+                    metadataJson = "{\"reason\":\"Observation requested while Accessibility Service unbound\"}"
+                )
+            )
         }
         updateObservationUi()
     }
@@ -70,7 +100,12 @@ class CurrentObservationActivity : AppCompatActivity() {
         val a11yBound = AgentAccessibilityService.isBound
         val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
 
-        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
+        val statusText = if (a11yBound) {
+            "Status: READY (BOUND) | Active Pkg: $activePkg"
+        } else {
+            "Status: SERVICE_UNBOUND (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+        }
+        binding.tvAccessibilityStatus.text = statusText
 
         val currentSnap = AgentAccessibilityService.INSTANCE?.currentObservationSnapshot
 
@@ -79,7 +114,7 @@ class CurrentObservationActivity : AppCompatActivity() {
             binding.tvCurrentNodeTree.text = renderSnapshotNodeTree(currentSnap)
         } else {
             binding.tvSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
-            binding.tvCurrentNodeTree.text = "No current tree captured."
+            binding.tvCurrentNodeTree.text = if (a11yBound) "No current tree captured." else "Accessibility Service unbound. Open Permission Center to enable service."
         }
     }
 

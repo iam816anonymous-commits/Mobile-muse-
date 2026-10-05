@@ -2,13 +2,13 @@ package com.localagent.app.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.accessibility.AgentAccessibilityService
 import com.localagent.app.accessibility.ObservationWindowDiagnostics
 import com.localagent.app.databinding.ActivityExternalObservationBinding
 import com.localagent.core.logging.AgentEvent
+import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
 import com.localagent.core.observation.ObservationNode
 import com.localagent.core.observation.ObservationSnapshot
@@ -17,6 +17,7 @@ import java.util.UUID
 class ExternalObservationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityExternalObservationBinding
+    private var lastKnownA11yBound = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,22 +30,39 @@ class ExternalObservationActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateObservationUi()
+        checkPassiveDegradationAndRefresh()
     }
 
     private fun setupListeners() {
-        binding.btnOpenAccessibilitySettings.setOnClickListener {
-            try {
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                startActivity(intent)
-            } catch (e: Exception) {
-                System.err.println("ExternalObservationActivity: Error opening Settings: ${e.message}")
-            }
+        binding.btnOpenPermissionCenter.setOnClickListener {
+            startActivity(Intent(this, PermissionActivity::class.java))
         }
 
         binding.btnCaptureExternalUi.setOnClickListener {
             triggerExternalObservation()
         }
+    }
+
+    private fun checkPassiveDegradationAndRefresh() {
+        val currentA11yBound = AgentAccessibilityService.isBound
+        if (lastKnownA11yBound && !currentA11yBound) {
+            val app = application as? LocalAgentApplication
+            val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
+
+            app?.eventLogger?.logEvent(
+                AgentEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    sessionId = activeSessionId,
+                    subsystem = EventSubsystem.ACCESSIBILITY,
+                    eventType = "PASSIVE_DEGRADATION_DETECTED",
+                    sourceChannel = "EXTERNAL_OBSERVATION_SCREEN",
+                    severity = EventSeverity.WARNING,
+                    metadataJson = "{\"reason\":\"Accessibility Service unbound while screen active\"}"
+                )
+            )
+        }
+        lastKnownA11yBound = currentA11yBound
+        updateObservationUi()
     }
 
     private fun triggerExternalObservation() {
@@ -63,6 +81,18 @@ class ExternalObservationActivity : AppCompatActivity() {
 
         if (AgentAccessibilityService.isBound) {
             AgentAccessibilityService.INSTANCE?.captureLiveSnapshot()
+        } else {
+            app?.eventLogger?.logEvent(
+                AgentEvent(
+                    eventId = UUID.randomUUID().toString(),
+                    sessionId = activeSessionId,
+                    subsystem = EventSubsystem.ACCESSIBILITY,
+                    eventType = "PASSIVE_DEGRADATION_DETECTED",
+                    sourceChannel = "EXTERNAL_OBSERVATION_SCREEN",
+                    severity = EventSeverity.WARNING,
+                    metadataJson = "{\"reason\":\"External observation requested while Accessibility Service unbound\"}"
+                )
+            )
         }
         updateObservationUi()
     }
@@ -71,7 +101,12 @@ class ExternalObservationActivity : AppCompatActivity() {
         val a11yBound = AgentAccessibilityService.isBound
         val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
 
-        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
+        val statusText = if (a11yBound) {
+            "Status: READY (BOUND) | Active Pkg: $activePkg"
+        } else {
+            "Status: SERVICE_UNBOUND (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+        }
+        binding.tvAccessibilityStatus.text = statusText
 
         val diag = AgentAccessibilityService.INSTANCE?.latestDiagnostics
         binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)
@@ -83,7 +118,7 @@ class ExternalObservationActivity : AppCompatActivity() {
             binding.tvExternalNodeTree.text = renderSnapshotNodeTree(externalSnap)
         } else {
             binding.tvExternalSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
-            binding.tvExternalNodeTree.text = "No valid external tree captured."
+            binding.tvExternalNodeTree.text = if (a11yBound) "No valid external tree captured." else "Accessibility Service unbound. Open Permission Center to enable service."
         }
     }
 

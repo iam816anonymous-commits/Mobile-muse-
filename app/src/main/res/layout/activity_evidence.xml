@@ -9,10 +9,10 @@
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="OBSERVATION EVIDENCE DIAGNOSTICS"
+        android:text="EVIDENCE REPRESENTATION"
         android:textSize="16sp"
         android:textStyle="bold"
-        android:textColor="#311B92" />
+        android:textColor="#000080" />
 
     <TextView
         android:id="@+id/tvAccessibilityStatus"
@@ -31,11 +31,11 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnOpenAccessibilitySettings"
+            android:id="@+id/btnOpenPermissionCenter"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Accessibility Settings"
+            android:text="Permission Center"
             android:textSize="10sp" />
 
         <Button
@@ -48,42 +48,31 @@
             android:textSize="10sp" />
     </LinearLayout>
 
-    <!-- CURRENT UI EVIDENCE SECTION -->
     <TextView
         android:id="@+id/tvCurrentEvidenceHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="CURRENT UI EVIDENCE:"
+        android:text="CURRENT OBSERVATION EVIDENCE:"
         android:textSize="11sp"
-        android:textStyle="bold"
-        android:textColor="#000080" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvCurrentEvidenceMeta"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:text="Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
         android:textSize="10sp"
         android:fontFamily="monospace"
         android:background="#E8EAF6"
         android:padding="4dp" />
 
-    <TextView
-        android:id="@+id/tvCurrentEvidencePrimitivesHeader"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="Current Evidence Primitives Stream:"
-        android:textSize="10sp"
-        android:textStyle="bold" />
-
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:fillViewport="true">
 
         <HorizontalScrollView
@@ -100,42 +89,31 @@
         </HorizontalScrollView>
     </ScrollView>
 
-    <!-- EXTERNAL APP EVIDENCE SECTION -->
     <TextView
         android:id="@+id/tvExternalEvidenceHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="LAST VALID EXTERNAL APPLICATION EVIDENCE:"
+        android:text="LAST VALID EXTERNAL APP EVIDENCE:"
         android:textSize="11sp"
-        android:textStyle="bold"
-        android:textColor="#004D40" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvExternalEvidenceMeta"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:text="Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
         android:textSize="10sp"
         android:fontFamily="monospace"
-        android:background="#E0F2F1"
+        android:background="#FFF3E0"
         android:padding="4dp" />
-
-    <TextView
-        android:id="@+id/tvExternalEvidencePrimitivesHeader"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="External Evidence Primitives Stream:"
-        android:textSize="10sp"
-        android:textStyle="bold" />
 
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:fillViewport="true">
 
         <HorizontalScrollView

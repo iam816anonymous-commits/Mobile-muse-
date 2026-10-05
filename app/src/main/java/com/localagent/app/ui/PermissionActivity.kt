@@ -1,15 +1,12 @@
 package com.localagent.app.ui
 
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.databinding.ActivityPermissionBinding
+import com.localagent.app.system.PermissionCategory
 import com.localagent.app.system.PermissionDescriptor
 import com.localagent.app.system.PermissionManager
 import com.localagent.core.logging.AgentEvent
@@ -40,35 +37,6 @@ class PermissionActivity : AppCompatActivity() {
 
         binding.btnOpenAccessibilitySettings.setOnClickListener {
             launchSettingsFlow(PermissionManager.PERABILITY_ACCESSIBILITY, pm)
-        }
-
-        binding.btnOpenOverlaySettings.setOnClickListener {
-            launchSettingsFlow(PermissionManager.PERMISSION_OVERLAY, pm)
-        }
-
-        binding.btnOpenWriteSettings.setOnClickListener {
-            launchSettingsFlow(PermissionManager.PERMISSION_WRITE_SETTINGS, pm)
-        }
-
-        binding.btnOpenUsageAccessSettings.setOnClickListener {
-            launchSettingsFlow(PermissionManager.PERMISSION_USAGE_ACCESS, pm)
-        }
-
-        binding.btnOpenNotificationListenerSettings.setOnClickListener {
-            launchSettingsFlow(PermissionManager.PERMISSION_NOTIFICATION_LISTENER, pm)
-        }
-
-        binding.btnRequestAudioRecord.setOnClickListener {
-            val audioDesc = pm.checkAudioRecordPermission()
-            if (!audioDesc.isGranted && audioDesc.manifestPermission != null) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(audioDesc.manifestPermission),
-                    REQUEST_CODE_AUDIO_PERM
-                )
-            } else {
-                Toast.makeText(this, "Microphone permission already granted.", Toast.LENGTH_SHORT).show()
-            }
         }
 
         binding.btnLaunchSafPicker.setOnClickListener {
@@ -109,12 +77,7 @@ class PermissionActivity : AppCompatActivity() {
                 )
             )
         } catch (e: Exception) {
-            try {
-                val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
-                startActivity(fallbackIntent)
-            } catch (fallbackEx: Exception) {
-                Toast.makeText(this, "Error launching Settings: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(this, "Error launching Settings: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -123,25 +86,29 @@ class PermissionActivity : AppCompatActivity() {
         val pm = app?.permissionManager ?: PermissionManager(this)
 
         val a11y = pm.checkAccessibilityPermission()
+        val storage = pm.checkStoragePermission()
         val overlay = pm.checkOverlayPermission()
         val writeSettings = pm.checkWriteSettingsPermission()
         val usageAccess = pm.checkUsageAccessPermission()
         val notifListener = pm.checkNotificationListenerPermission()
         val audio = pm.checkAudioRecordPermission()
-        val storage = pm.checkStoragePermission()
+        val postNotif = pm.checkNotificationPostPermission()
+        val camera = pm.checkCameraPermission()
 
-        val totalSpecial = listOf(a11y, overlay, writeSettings, usageAccess, notifListener).count { it.isGranted }
-        binding.tvPermissionSummary.text = "Special Access: $totalSpecial/5 GRANTED | Mic: ${if (audio.isGranted) "GRANTED" else "DENIED"} | SAF: ACTIVE"
+        val requiredCount = if (a11y.isGranted) "1/1 READY" else "0/1 ACTION REQUIRED"
+        val futureCount = "7 ITEMS INVENTORY ONLY"
+        binding.tvPermissionSummary.text = "REQUIRED NOW: $requiredCount | OPTIONAL NOW: SAF ACTIVE | FUTURE PHASE: $futureCount"
 
         binding.tvAccessibilityDetails.text = formatDetails(a11y)
+        binding.tvStorageDetails.text = formatDetails(storage)
         binding.tvOverlayDetails.text = formatDetails(overlay)
         binding.tvWriteSettingsDetails.text = formatDetails(writeSettings)
         binding.tvUsageAccessDetails.text = formatDetails(usageAccess)
         binding.tvNotificationListenerDetails.text = formatDetails(notifListener)
         binding.tvAudioRecordDetails.text = formatDetails(audio)
-        binding.tvStorageDetails.text = formatDetails(storage)
+        binding.tvPostNotificationsDetails.text = formatDetails(postNotif)
+        binding.tvCameraDetails.text = formatDetails(camera)
 
-        // Log permission status check
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
         app?.eventLogger?.logEvent(
             AgentEvent(
@@ -150,33 +117,24 @@ class PermissionActivity : AppCompatActivity() {
                 subsystem = EventSubsystem.PERMISSION,
                 eventType = "PERMISSION_CHECKED",
                 sourceChannel = "PERMISSION_CENTER",
-                metadataJson = "{\"specialGranted\":$totalSpecial,\"a11yBound\":${a11y.isGranted},\"overlay\":${overlay.isGranted},\"mic\":${audio.isGranted}}"
+                metadataJson = "{\"a11yBound\":${a11y.isGranted},\"storageGranted\":${storage.isGranted},\"futurePermissionsCount\":7}"
             )
         )
     }
 
     private fun formatDetails(desc: PermissionDescriptor): String {
-        val statusStr = if (desc.isGranted) "STATUS: GRANTED (${desc.status})" else "STATUS: DENIED (${desc.status})"
-        val capsStr = "Dependent Capabilities: ${desc.dependentCapabilities.joinToString(", ")}"
-        val passiveStr = "Passive Degradation: ${desc.passiveDegradationSummary}"
-        return "$statusStr\n$capsStr\n$passiveStr"
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_AUDIO_PERM) {
-            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-            Toast.makeText(this, "Microphone permission ${if (granted) "GRANTED" else "DENIED"}", Toast.LENGTH_SHORT).show()
-            refreshPermissionCenterUi()
+        val statusLabel = when (desc.category) {
+            PermissionCategory.REQUIRED_NOW -> if (desc.isGranted) "AVAILABLE / GRANTED (${desc.status})" else "ACTION REQUIRED — SERVICE_UNBOUND (${desc.status})"
+            PermissionCategory.AVAILABLE_OPTIONAL_NOW -> if (desc.isGranted) "GRANTED (${desc.status})" else "OPTIONAL — NOT GRANTED (${desc.status})"
+            PermissionCategory.FUTURE_PHASE -> "NOT CURRENTLY REQUIRED — INVENTORY ONLY (${desc.status})"
         }
+
+        val capsStr = "Target Phase: ${desc.targetPhase} | Capabilities: ${desc.dependentCapabilities.joinToString(", ")}"
+        val passiveStr = "Operational Impact: ${desc.passiveDegradationSummary}"
+        return "STATUS: $statusLabel\n$capsStr\n$passiveStr"
     }
 
     companion object {
-        const val REQUEST_CODE_AUDIO_PERM = 1001
         const val REQUEST_CODE_SAF_PICKER = 1002
     }
 }

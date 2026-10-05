@@ -19,7 +19,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:text="Special Access: Checking... | Runtime Permissions: Checking..."
+        android:text="Checking Centralized Permission Inventory..."
         android:textSize="11sp"
         android:fontFamily="monospace"
         android:textColor="#333333"
@@ -38,14 +38,27 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- SECTION 1: REQUIRED NOW -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="SECTION 1: REQUIRED NOW (PHASE 3 CURRENT)"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#1A237E"
+                android:background="#C5CAE9"
+                android:padding="3dp" />
+
             <!-- ACCESSIBILITY CARD -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:text="1. Accessibility Service (Special App Access)"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#1A237E" />
+                android:textColor="#283593" />
 
             <TextView
                 android:id="@+id/tvAccessibilityDetails"
@@ -64,150 +77,28 @@
                 android:text="Open Accessibility Settings"
                 android:textSize="10sp" />
 
-            <!-- OVERLAY CARD -->
+
+            <!-- SECTION 2: AVAILABLE / OPTIONAL NOW -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="2. System Overlay Access (Special App Access)"
-                android:textSize="12sp"
+                android:layout_marginTop="12dp"
+                android:text="SECTION 2: AVAILABLE / OPTIONAL NOW (PHASE 2 STORAGE)"
+                android:textSize="13sp"
                 android:textStyle="bold"
-                android:textColor="#1A237E" />
-
-            <TextView
-                android:id="@+id/tvOverlayDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="Status: SPECIAL_ACCESS_DENIED"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
-
-            <Button
-                android:id="@+id/btnOpenOverlaySettings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Open Display Over Other Apps Settings"
-                android:textSize="10sp" />
-
-            <!-- WRITE SETTINGS CARD -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="3. Modify System Settings (Special App Access)"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="#1A237E" />
-
-            <TextView
-                android:id="@+id/tvWriteSettingsDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="Status: SPECIAL_ACCESS_DENIED"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
-
-            <Button
-                android:id="@+id/btnOpenWriteSettings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Open Write System Settings"
-                android:textSize="10sp" />
-
-            <!-- USAGE ACCESS CARD -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="4. Usage Stats Access (Special App Access)"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="#1A237E" />
-
-            <TextView
-                android:id="@+id/tvUsageAccessDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="Status: SPECIAL_ACCESS_DENIED"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
-
-            <Button
-                android:id="@+id/btnOpenUsageAccessSettings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Open Usage Access Settings"
-                android:textSize="10sp" />
-
-            <!-- NOTIFICATION LISTENER CARD -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="5. Notification Listener Access (Special App Access)"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="#1A237E" />
-
-            <TextView
-                android:id="@+id/tvNotificationListenerDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="Status: SPECIAL_ACCESS_DENIED"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
-
-            <Button
-                android:id="@+id/btnOpenNotificationListenerSettings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Open Notification Access Settings"
-                android:textSize="10sp" />
-
-            <!-- MICROPHONE RUNTIME PERMISSION CARD -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="6. Microphone Audio Recording (Runtime Permission)"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="#1A237E" />
-
-            <TextView
-                android:id="@+id/tvAudioRecordDetails"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="1dp"
-                android:text="Status: DENIED"
-                android:textSize="10sp"
-                android:fontFamily="monospace" />
-
-            <Button
-                android:id="@+id/btnRequestAudioRecord"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Request Microphone Permission"
-                android:textSize="10sp" />
+                android:textColor="#004D40"
+                android:background="#B2DFDB"
+                android:padding="3dp" />
 
             <!-- STORAGE & SAF CARD -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="7. Storage &amp; SAF Document Picker (User Consent SAF)"
+                android:layout_marginTop="4dp"
+                android:text="2. Storage &amp; SAF Document Access (Phase 2 Durable Storage)"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#1A237E" />
+                android:textColor="#00695C" />
 
             <TextView
                 android:id="@+id/tvStorageDetails"
@@ -225,6 +116,152 @@
                 android:layout_marginTop="2dp"
                 android:text="Test Launch SAF File Picker"
                 android:textSize="10sp" />
+
+
+            <!-- SECTION 3: FUTURE PHASE PERMISSIONS -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="SECTION 3: FUTURE PHASE PERMISSIONS (INVENTORY ONLY)"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#37474F"
+                android:background="#CFD8DC"
+                android:padding="3dp" />
+
+            <!-- OVERLAY CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="3. System Overlay Access — Phase 11 Overlay"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvOverlayDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 11)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <!-- WRITE SETTINGS CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="4. Modify System Settings — Phase 12 Hardware"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvWriteSettingsDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 12)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <!-- USAGE ACCESS CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="5. Usage Stats Access — Phase 8 App Control"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvUsageAccessDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 8)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <!-- NOTIFICATION LISTENER CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="6. Notification Listener Access — Phase 14 Workflows"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvNotificationListenerDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 14)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <!-- MICROPHONE RUNTIME PERMISSION CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="7. Microphone Record Audio — Phase 13 Voice STT/TTS"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvAudioRecordDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 13)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <!-- POST NOTIFICATIONS CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="8. Post Notifications — Phase 12 Status"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvPostNotificationsDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 12)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+
+            <!-- CAMERA PERMISSION CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="9. Camera / Torch Control — Phase 12 Hardware"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#455A64" />
+
+            <TextView
+                android:id="@+id/tvCameraDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="Status: NOT CURRENTLY REQUIRED (Phase 12)"
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
 
         </LinearLayout>
     </ScrollView>

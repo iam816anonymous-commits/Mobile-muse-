@@ -9,10 +9,10 @@
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="EXTERNAL APPLICATION OBSERVATION"
+        android:text="EXTERNAL APP OBSERVATION"
         android:textSize="16sp"
         android:textStyle="bold"
-        android:textColor="#004D40" />
+        android:textColor="#000080" />
 
     <TextView
         android:id="@+id/tvAccessibilityStatus"
@@ -31,11 +31,11 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnOpenAccessibilitySettings"
+            android:id="@+id/btnOpenPermissionCenter"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Accessibility Settings"
+            android:text="Permission Center"
             android:textSize="10sp" />
 
         <Button
@@ -53,21 +53,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="WINDOW &amp; TARGET DIAGNOSTICS:"
+        android:text="WINDOW SELECTION DIAGNOSTICS:"
         android:textSize="11sp"
-        android:textStyle="bold"
-        android:textColor="#880E4F" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tvDiagnosticsContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
+        android:layout_marginTop="2dp"
         android:text="Foreground Package: None\nValidated Target: None\nLast Valid External Package: None"
         android:textSize="10sp"
         android:fontFamily="monospace"
-        android:textColor="#263238"
-        android:background="#F5F5F5"
+        android:background="#FFF3E0"
         android:padding="4dp" />
 
     <TextView
@@ -78,7 +76,7 @@
         android:text="Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
         android:textSize="10sp"
         android:fontFamily="monospace"
-        android:background="#E0F2F1"
+        android:background="#E8EAF6"
         android:padding="4dp" />
 
     <TextView
@@ -86,11 +84,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="EXTERNAL NODE TREE (Scrollable Hierarchy):"
+        android:text="LAST VALID EXTERNAL APP NODE TREE:"
         android:textSize="11sp"
         android:textStyle="bold" />
 
-    <!-- Dual-axis scrollable container for complete external node tree inspection -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -106,7 +103,7 @@
                 android:id="@+id/tvExternalNodeTree"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="No external tree captured."
+                android:text="No valid external tree captured."
                 android:textSize="10sp"
                 android:fontFamily="monospace" />
         </HorizontalScrollView>

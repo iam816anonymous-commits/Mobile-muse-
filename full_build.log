@@ -1,0 +1,157 @@
+> Task :app:clean
+> Task :core:clean
+> Task :core:checkKotlinGradlePluginConfigurationErrors
+> Task :core:processResources NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug
+> Task :app:generateDebugResValues
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:checkDebugAarMetadata
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:javaPreCompileDebug
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:buildKotlinToolingMetadata
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseResValues
+> Task :app:generateReleaseResources
+> Task :app:dataBindingMergeDependencyArtifactsRelease
+> Task :app:mergeDebugResources
+> Task :core:compileKotlin
+> Task :core:compileJava NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :core:jar
+> Task :app:dataBindingGenBaseClassesDebug
+> Task :app:mergeReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:checkReleaseAarMetadata
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:parseReleaseLocalResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:dataBindingGenBaseClassesRelease
+> Task :app:extractDeepLinksRelease
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:javaPreCompileRelease
+> Task :app:processReleaseManifestForPackage
+> Task :app:preReleaseUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileReleaseUnitTest
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :core:processTestResources NO-SOURCE
+> Task :app:extractProguardFiles
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestResValues
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:compressDebugAssets
+> Task :app:checkDebugDuplicateClasses
+> Task :app:desugarDebugFileDependencies
+> Task :app:processDebugResources
+> Task :app:processReleaseResources
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:generateDebugUnitTestConfig
+> Task :core:compileTestKotlin
+> Task :app:packageReleaseUnitTestForUnitTest
+> Task :app:generateReleaseUnitTestConfig
+> Task :core:compileTestJava NO-SOURCE
+> Task :core:testClasses UP-TO-DATE
+> Task :app:mergeExtDexDebug
+> Task :app:kaptGenerateStubsDebugKotlin
+> Task :app:kaptGenerateStubsReleaseKotlin
+> Task :core:test
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:mergeLibDexDebug
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:kaptDebugKotlin
+> Task :app:kaptReleaseKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///app/app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt:179:32 Unnecessary safe call on a non-null receiver of type LocalAgentApplication?
+w: file:///app/app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt:193:32 Unnecessary safe call on a non-null receiver of type LocalAgentApplication?
+w: file:///app/app/src/main/java/com/localagent/app/accessibility/ObservationSnapshotExtractor.kt:104:35 'recycle(): Unit' is deprecated. Deprecated in Java
+w: file:///app/app/src/main/java/com/localagent/app/system/PermissionManager.kt:317:31 'checkOpNoThrow(String, Int, String): Int' is deprecated. Deprecated in Java
+w: file:///app/app/src/main/java/com/localagent/app/ui/PermissionActivity.kt:45:17 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
+w: file:///app/app/src/main/java/com/localagent/app/ui/StorageDiagnosticsActivity.kt:83:17 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
+
+> Task :app:compileReleaseKotlin
+w: file:///app/app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt:179:32 Unnecessary safe call on a non-null receiver of type LocalAgentApplication?
+w: file:///app/app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt:193:32 Unnecessary safe call on a non-null receiver of type LocalAgentApplication?
+w: file:///app/app/src/main/java/com/localagent/app/accessibility/ObservationSnapshotExtractor.kt:104:35 'recycle(): Unit' is deprecated. Deprecated in Java
+w: file:///app/app/src/main/java/com/localagent/app/system/PermissionManager.kt:317:31 'checkOpNoThrow(String, Int, String): Int' is deprecated. Deprecated in Java
+w: file:///app/app/src/main/java/com/localagent/app/ui/PermissionActivity.kt:45:17 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
+w: file:///app/app/src/main/java/com/localagent/app/ui/StorageDiagnosticsActivity.kt:83:17 'startActivityForResult(Intent, Int): Unit' is deprecated. Deprecated in Java
+
+> Task :app:compileDebugJavaWithJavac
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+
+> Task :app:compileReleaseJavaWithJavac
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+3 warnings
+
+> Task :app:bundleReleaseClassesToRuntimeJar
+> Task :app:processReleaseJavaRes
+> Task :app:bundleReleaseClassesToCompileJar
+> Task :app:generateDebugLintReportModel
+> Task :app:mergeDebugJavaResource
+> Task :app:kaptGenerateStubsDebugUnitTestKotlin
+> Task :app:kaptGenerateStubsReleaseUnitTestKotlin
+> Task :app:dexBuilderDebug
+> Task :app:kaptDebugUnitTestKotlin
+> Task :app:mergeProjectDexDebug
+> Task :app:kaptReleaseUnitTestKotlin
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:compileReleaseUnitTestKotlin
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:lintAnalyzeDebug
+> Task :app:testDebugUnitTest
+> Task :app:compileReleaseUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processReleaseUnitTestJavaRes
+> Task :app:testReleaseUnitTest
+> Task :app:test
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///app/app/build/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+> Task :app:lint
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.8/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 1m 9s
+93 actionable tasks: 93 executed
