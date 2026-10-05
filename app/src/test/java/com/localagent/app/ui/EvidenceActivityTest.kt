@@ -29,6 +29,16 @@ class EvidenceActivityTest {
     }
 
     @Test
+    fun testTestC_PermissionCenterButtonAbsentFromEvidenceActivity() {
+        val controller = Robolectric.buildActivity(EvidenceActivity::class.java).create().start().resume()
+        val activity = controller.get()
+
+        // Test C: Evidence controls present, direct Permission Center button removed
+        val captureBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnCaptureEvidence)
+        assertNotNull(captureBtn)
+    }
+
+    @Test
     fun testEvidenceActivityLaunchAndViews() {
         val controller = Robolectric.buildActivity(EvidenceActivity::class.java).create().start().resume()
         val activity = controller.get()

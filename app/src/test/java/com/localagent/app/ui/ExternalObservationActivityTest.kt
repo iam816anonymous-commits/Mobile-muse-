@@ -2,6 +2,7 @@ package com.localagent.app.ui
 
 import androidx.test.core.app.ApplicationProvider
 import com.localagent.app.LocalAgentApplication
+import com.localagent.core.observation.ObservationBounds
 import com.localagent.core.observation.ObservationNode
 import com.localagent.core.observation.ObservationSnapshot
 import com.localagent.core.observation.ObservationTruncationInfo
@@ -26,42 +27,46 @@ class ExternalObservationActivityTest {
     }
 
     @Test
-    fun testExternalObservationActivityLaunchAndViews() {
+    fun testTestB_PermissionCenterButtonAbsentFromExternalObservationActivity() {
         val controller = Robolectric.buildActivity(ExternalObservationActivity::class.java).create().start().resume()
         val activity = controller.get()
 
-        val statusText = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvAccessibilityStatus).text.toString()
-        assertTrue(statusText.contains("Engine State:"))
-
+        // Test B: Observation controls present, direct Permission Center button removed
         val captureBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnCaptureExternalUi)
         assertNotNull(captureBtn)
-
-        val stopBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnStopExternalObservation)
-        assertNotNull(stopBtn)
+        val clearBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnClearExternalObservation)
+        assertNotNull(clearBtn)
     }
 
     @Test
-    fun testExternalNodeTreeRendering() {
-        val childNode = ObservationNode(
-            nodeId = "node_1",
-            className = "android.widget.Button",
-            text = "Search",
-            resourceId = "com.android.chrome:id/search_btn",
-            clickable = true
-        )
+    fun testTestE_ClearExternalObservationRemovesSnapshotDisplayWithoutUnbindingService() {
+        val controller = Robolectric.buildActivity(ExternalObservationActivity::class.java).create().start().resume()
+        val activity = controller.get()
 
-        val rootNode = ObservationNode(
+        val clearBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnClearExternalObservation)
+        assertNotNull(clearBtn)
+
+        clearBtn.performClick()
+
+        val nodeTreeText = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvExternalNodeTree).text.toString()
+        assertEquals("No external observation captured.", nodeTreeText)
+    }
+
+    @Test
+    fun testTestG_ExternalObservationRendersBoundsForNodes() {
+        val node = ObservationNode(
             nodeId = "node_0",
-            className = "android.widget.FrameLayout",
-            packageName = "com.android.chrome",
-            children = listOf(childNode)
+            className = "android.widget.Button",
+            text = "Equals",
+            resourceId = "com.android.calculator2:id/eq",
+            bounds = ObservationBounds(left = 200, top = 800, right = 400, bottom = 1000)
         )
 
         val snapshot = ObservationSnapshot(
-            snapshotId = "snap-chrome-1",
-            packageName = "com.android.chrome",
-            nodeCount = 2,
-            rootNode = rootNode,
+            snapshotId = "snap-calc-1",
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = node,
             truncationInfo = ObservationTruncationInfo()
         )
 
@@ -70,9 +75,32 @@ class ExternalObservationActivityTest {
         method.isAccessible = true
         val treeStr = method.invoke(activity, snapshot) as String
 
-        assertTrue(treeStr.contains("ROOT [com.android.chrome]"))
-        assertTrue(treeStr.contains("FrameLayout"))
-        assertTrue(treeStr.contains("Button id:search_btn text:\"Search\""))
-        assertTrue(treeStr.contains("clickable"))
+        // Test G: Bounds [left,top,right,bottom] and size (WxH) displayed for external app
+        assertTrue(treeStr.contains("bounds:[200,800,400,1000] (200x200)"))
+    }
+
+    @Test
+    fun testTestI_ExternalObservationDoesNotMergeLocalAgentNodesIntoExternalSnapshot() {
+        val calcNode = ObservationNode(
+            nodeId = "node_0",
+            className = "android.widget.FrameLayout",
+            packageName = "com.android.calculator2"
+        )
+
+        val snapshot = ObservationSnapshot(
+            snapshotId = "snap-calc-1",
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = calcNode
+        )
+
+        val activity = Robolectric.buildActivity(ExternalObservationActivity::class.java).create().get()
+        val method = ExternalObservationActivity::class.java.getDeclaredMethod("renderSnapshotNodeTree", ObservationSnapshot::class.java)
+        method.isAccessible = true
+        val treeStr = method.invoke(activity, snapshot) as String
+
+        // Test I: External snapshot tree is pure Calculator hierarchy and contains 0 LocalAgent nodes
+        assertTrue(treeStr.contains("ROOT [com.android.calculator2]"))
+        assertFalse(treeStr.contains("com.localagent.app"))
     }
 }

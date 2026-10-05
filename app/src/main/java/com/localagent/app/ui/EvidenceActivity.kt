@@ -1,6 +1,5 @@
 package com.localagent.app.ui
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
@@ -33,10 +32,6 @@ class EvidenceActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        binding.btnOpenPermissionCenter.setOnClickListener {
-            startActivity(Intent(this, PermissionActivity::class.java))
-        }
-
         binding.btnCaptureEvidence.setOnClickListener {
             triggerLiveEvidenceCapture()
         }
@@ -103,7 +98,7 @@ class EvidenceActivity : AppCompatActivity() {
         val statusText = if (a11yBound) {
             "Status: READY (BOUND) | Active Pkg: $activePkg"
         } else {
-            "Status: SERVICE_UNBOUND (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+            "Status: SERVICE_UNBOUND (Passive Degradation) — Open Permission Center from Home to Enable | Active Pkg: $activePkg"
         }
         binding.tvAccessibilityStatus.text = statusText
 
@@ -115,7 +110,7 @@ class EvidenceActivity : AppCompatActivity() {
             binding.tvCurrentEvidencePrimitives.text = renderEvidencePrimitives(currentEv)
         } else {
             binding.tvCurrentEvidenceMeta.text = "Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
-            binding.tvCurrentEvidencePrimitives.text = if (a11yBound) "No current evidence generated." else "Accessibility Service unbound. Open Permission Center to enable service."
+            binding.tvCurrentEvidencePrimitives.text = if (a11yBound) "No current evidence generated." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
 
         if (externalEv != null) {
@@ -123,7 +118,7 @@ class EvidenceActivity : AppCompatActivity() {
             binding.tvExternalEvidencePrimitives.text = renderEvidencePrimitives(externalEv)
         } else {
             binding.tvExternalEvidenceMeta.text = "Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
-            binding.tvExternalEvidencePrimitives.text = if (a11yBound) "No external evidence generated." else "Accessibility Service unbound. Open Permission Center to enable service."
+            binding.tvExternalEvidencePrimitives.text = if (a11yBound) "No external evidence generated." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
     }
 
@@ -142,7 +137,7 @@ class EvidenceActivity : AppCompatActivity() {
             val textStr = p.text?.let { " text:\"$it\"" } ?: ""
             val descStr = p.contentDescription?.let { " desc:\"$it\"" } ?: ""
             val flags = buildFlagsString(p)
-            val boundsStr = " [${p.bounds.left},${p.bounds.top},${p.bounds.right},${p.bounds.bottom}]"
+            val boundsStr = " [${p.bounds.left},${p.bounds.top},${p.bounds.right},${p.bounds.bottom}] (${p.bounds.width}x${p.bounds.height})"
 
             sb.append(indent).append("- ").append(p.nodeId).append(" ").append(p.className.substringAfterLast('.')).append(resIdStr).append(textStr).append(descStr).append(boundsStr).append(flags).append("\n")
         }

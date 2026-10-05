@@ -1,6 +1,5 @@
 package com.localagent.app.ui
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +20,7 @@ class ExternalObservationActivity : AppCompatActivity() {
     private lateinit var binding: ActivityExternalObservationBinding
     private var lastKnownA11yBound = false
     private var externalObservationState: ObservationEngineState = ObservationEngineState.IDLE
+    private var isDisplayCleared: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,11 +37,8 @@ class ExternalObservationActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        binding.btnOpenPermissionCenter.setOnClickListener {
-            startActivity(Intent(this, PermissionActivity::class.java))
-        }
-
         binding.btnCaptureExternalUi.setOnClickListener {
+            isDisplayCleared = false
             externalObservationState = ObservationEngineState.OBSERVING
             triggerExternalObservation()
         }
@@ -49,6 +46,16 @@ class ExternalObservationActivity : AppCompatActivity() {
         binding.btnStopExternalObservation.setOnClickListener {
             stopExternalObservation()
         }
+
+        binding.btnClearExternalObservation.setOnClickListener {
+            clearExternalObservation()
+        }
+    }
+
+    private fun clearExternalObservation() {
+        isDisplayCleared = true
+        Toast.makeText(this, "External observation display cleared.", Toast.LENGTH_SHORT).show()
+        updateObservationUi()
     }
 
     private fun stopExternalObservation() {
@@ -139,12 +146,18 @@ class ExternalObservationActivity : AppCompatActivity() {
         val statusText = if (a11yBound) {
             "Mode: EXTERNAL_APP | Engine State: $externalObservationState | Active Pkg: $activePkg"
         } else {
-            "Engine State: UNAVAILABLE (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+            "Engine State: UNAVAILABLE (Passive Degradation) — Open Permission Center from Home to Enable | Active Pkg: $activePkg"
         }
         binding.tvAccessibilityStatus.text = statusText
 
         val diag = AgentAccessibilityService.INSTANCE?.latestDiagnostics
         binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)
+
+        if (isDisplayCleared) {
+            binding.tvExternalSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
+            binding.tvExternalNodeTree.text = "No external observation captured."
+            return
+        }
 
         val externalSnap = AgentAccessibilityService.INSTANCE?.lastExternalObservationSnapshot
 
@@ -153,7 +166,7 @@ class ExternalObservationActivity : AppCompatActivity() {
             binding.tvExternalNodeTree.text = renderSnapshotNodeTree(externalSnap)
         } else {
             binding.tvExternalSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
-            binding.tvExternalNodeTree.text = if (a11yBound) "No valid external tree captured." else "Accessibility Service unbound. Open Permission Center to enable service."
+            binding.tvExternalNodeTree.text = if (a11yBound) "No external observation captured." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
     }
 

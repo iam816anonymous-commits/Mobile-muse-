@@ -31,19 +31,10 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnOpenPermissionCenter"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Permission Center"
-            android:textSize="10sp" />
-
-        <Button
             android:id="@+id/btnObserveCurrentUi"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
             android:text="Start Current Observation"
             android:textSize="10sp" />
 
@@ -54,6 +45,15 @@
             android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:text="Stop Observation"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnClearCurrentObservation"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Clear"
             android:textSize="10sp" />
     </LinearLayout>
 
@@ -93,7 +93,7 @@
                 android:id="@+id/tvCurrentNodeTree"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="No current tree captured."
+                android:text="No current observation captured."
                 android:textSize="10sp"
                 android:fontFamily="monospace" />
         </HorizontalScrollView>

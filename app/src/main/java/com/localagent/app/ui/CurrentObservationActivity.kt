@@ -1,6 +1,5 @@
 package com.localagent.app.ui
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +19,7 @@ class CurrentObservationActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCurrentObservationBinding
     private var lastKnownA11yBound = false
     private var currentObservationState: ObservationEngineState = ObservationEngineState.IDLE
+    private var isDisplayCleared: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,11 +36,8 @@ class CurrentObservationActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        binding.btnOpenPermissionCenter.setOnClickListener {
-            startActivity(Intent(this, PermissionActivity::class.java))
-        }
-
         binding.btnObserveCurrentUi.setOnClickListener {
+            isDisplayCleared = false
             currentObservationState = ObservationEngineState.OBSERVING
             triggerLiveObservation()
         }
@@ -48,6 +45,16 @@ class CurrentObservationActivity : AppCompatActivity() {
         binding.btnStopCurrentObservation.setOnClickListener {
             stopCurrentObservation()
         }
+
+        binding.btnClearCurrentObservation.setOnClickListener {
+            clearCurrentObservation()
+        }
+    }
+
+    private fun clearCurrentObservation() {
+        isDisplayCleared = true
+        Toast.makeText(this, "Current observation display cleared.", Toast.LENGTH_SHORT).show()
+        updateObservationUi()
     }
 
     private fun stopCurrentObservation() {
@@ -138,9 +145,15 @@ class CurrentObservationActivity : AppCompatActivity() {
         val statusText = if (a11yBound) {
             "Mode: CURRENT_UI | Engine State: $currentObservationState | Active Pkg: $activePkg"
         } else {
-            "Engine State: UNAVAILABLE (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+            "Engine State: UNAVAILABLE (Passive Degradation) — Open Permission Center from Home to Enable | Active Pkg: $activePkg"
         }
         binding.tvAccessibilityStatus.text = statusText
+
+        if (isDisplayCleared) {
+            binding.tvSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
+            binding.tvCurrentNodeTree.text = "No current observation captured."
+            return
+        }
 
         val currentSnap = AgentAccessibilityService.INSTANCE?.currentObservationSnapshot
 
@@ -149,7 +162,7 @@ class CurrentObservationActivity : AppCompatActivity() {
             binding.tvCurrentNodeTree.text = renderSnapshotNodeTree(currentSnap)
         } else {
             binding.tvSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
-            binding.tvCurrentNodeTree.text = if (a11yBound) "No current tree captured." else "Accessibility Service unbound. Open Permission Center to enable service."
+            binding.tvCurrentNodeTree.text = if (a11yBound) "No current observation captured." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
     }
 

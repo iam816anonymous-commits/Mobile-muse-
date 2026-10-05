@@ -56,36 +56,6 @@ class PermissionActivityTest {
     }
 
     @Test
-    fun testObservationScreensNavigateToPermissionCenter() {
-        val currController = Robolectric.buildActivity(CurrentObservationActivity::class.java).create().start().resume()
-        val currActivity = currController.get()
-        val btnCurrPerm = currActivity.findViewById<android.widget.Button>(R.id.btnOpenPermissionCenter)
-        assertNotNull(btnCurrPerm)
-        btnCurrPerm.performClick()
-        val nextFromCurr = shadowOf(currActivity).nextStartedActivity
-        assertNotNull(nextFromCurr)
-        assertEquals(PermissionActivity::class.java.name, nextFromCurr.component?.className)
-
-        val extController = Robolectric.buildActivity(ExternalObservationActivity::class.java).create().start().resume()
-        val extActivity = extController.get()
-        val btnExtPerm = extActivity.findViewById<android.widget.Button>(R.id.btnOpenPermissionCenter)
-        assertNotNull(btnExtPerm)
-        btnExtPerm.performClick()
-        val nextFromExt = shadowOf(extActivity).nextStartedActivity
-        assertNotNull(nextFromExt)
-        assertEquals(PermissionActivity::class.java.name, nextFromExt.component?.className)
-
-        val evController = Robolectric.buildActivity(EvidenceActivity::class.java).create().start().resume()
-        val evActivity = evController.get()
-        val btnEvPerm = evActivity.findViewById<android.widget.Button>(R.id.btnOpenPermissionCenter)
-        assertNotNull(btnEvPerm)
-        btnEvPerm.performClick()
-        val nextFromEv = shadowOf(evActivity).nextStartedActivity
-        assertNotNull(nextFromEv)
-        assertEquals(PermissionActivity::class.java.name, nextFromEv.component?.className)
-    }
-
-    @Test
     fun testPermissionActivityCategorizedViews() {
         val controller = Robolectric.buildActivity(PermissionActivity::class.java).create().start().resume()
         val activity = controller.get()

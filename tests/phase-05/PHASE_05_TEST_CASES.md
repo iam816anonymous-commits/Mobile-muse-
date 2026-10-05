@@ -1,9 +1,9 @@
-# Phase 5 Test Cases — Observation & Snapshot Engine
+# Phase 5 Test Cases — Observation & Snapshot Engine (Phase 5 Correction)
 
 ## 1. Executive Summary
-This document specifies the executable test suite for **Phase 5 — Observation & Snapshot Engine**.
+This document specifies the executable test suite for **Phase 5 — Observation & Snapshot Engine** including the Phase 5 Correction for Observation UI Cleanup, Clear Controls, and Node/Bounds Validation.
 
-All test cases verify single-root snapshot retrieval, node identity confidence assignment, Rect bounds computation, pure domain `SnapshotDiffEngine` comparisons, explicit STOP observation controls, immediate `.recycle()` calls, and read-only execution guarantees without performing automated action dispatches or violating phase boundaries.
+All test cases verify single-root snapshot retrieval, node identity confidence assignment, Rect bounds computation and display (`[left,top,right,bottom]` and `WxH`), pure domain `SnapshotDiffEngine` comparisons, explicit STOP and CLEAR observation controls, immediate `.recycle()` calls, absence of direct Permission Center navigation buttons on observation screens, and read-only execution guarantees without performing automated action dispatches or violating phase boundaries.
 
 ---
 
@@ -65,72 +65,72 @@ All test cases verify single-root snapshot retrieval, node identity confidence a
 - **Evidence:** Valid `SnapshotDiffResult` with 0 diff entries.
 - **Status:** PASS
 
-### Test ID: P5-SNAP-001
-- **Requirement:** Single-root snapshot retrieval & bounds extraction
-- **Purpose:** Verify snapshot extraction executes exactly one root retrieval and extracts `ObservationBounds` (`left`, `top`, `right`, `bottom`, `width`, `height`).
-- **Preconditions:** `ObservationSnapshotExtractor` initialized.
-- **Input:** `extractSnapshot(rootNodeInfo, pkg, windowId)`.
-- **Expected Result:** Extracted snapshot contains bounds with valid `width` and `height`.
+### Test ID: P5-UI-NAV-001 (Tests A, B, C)
+- **Requirement:** Removal of direct Permission Center buttons from observation/evidence screens
+- **Purpose:** Verify Permission Center buttons are absent from `CurrentObservationActivity`, `ExternalObservationActivity`, and `EvidenceActivity`.
+- **Preconditions:** Observation and evidence Activities inflated.
+- **Input:** Inspect view layout.
+- **Expected Result:** `btnOpenPermissionCenter` is null on all three screens.
 - **Test Type:** Tier B Robolectric Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/ObservationSnapshotExtractorPhase5Test.kt`
+- **Executable Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt`, `ExternalObservationActivityTest.kt`, `EvidenceActivityTest.kt`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** `ObservationBounds` assertion pass.
+- **Evidence:** `assertNull(permBtn)` pass.
 - **Status:** PASS
 
-### Test ID: P5-SNAP-002
-- **Requirement:** Node identity and NodeIdentityConfidence assignment
-- **Purpose:** Verify `computeIdentity()` assigns appropriate `NodeIdentityConfidence` levels (`EXACT`, `HIGH`, `MEDIUM`, `LOW`, `EPHEMERAL`).
-- **Preconditions:** Various node attribute combinations (resource ID, text, parent identity).
-- **Input:** `computeIdentity()` with test attributes.
-- **Expected Result:** Resource ID + text -> `EXACT`; Resource ID alone -> `HIGH`; Text alone -> `MEDIUM`; Parent identity alone -> `LOW`; Neither -> `EPHEMERAL`.
+### Test ID: P5-UI-CLR-001 (Tests D & E)
+- **Requirement:** Clear button removes displayed snapshot without unbinding service
+- **Purpose:** Verify tapping Clear on Current or External observation screen removes displayed node tree and resets to empty state ("No current/external observation captured.") while keeping AccessibilityService bound.
+- **Preconditions:** Observation Activity displayed.
+- **Input:** Tap "Clear".
+- **Expected Result:** Screen tree resets to empty state; `AgentAccessibilityService.isBound` remains unchanged; `agent.db` records remain un-modified.
 - **Test Type:** Tier B Robolectric Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/ObservationSnapshotExtractorPhase5Test.kt`
+- **Executable Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt`, `ExternalObservationActivityTest.kt`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** `NodeIdentityConfidence` enum value matching expected level.
+- **Evidence:** Tree text equals `"No current observation captured."` or `"No external observation captured."`
 - **Status:** PASS
 
-### Test ID: P5-RECYC-001
-- **Requirement:** Immediate AccessibilityNodeInfo recycling
-- **Purpose:** Verify all acquired `AccessibilityNodeInfo` instances (root, children, truncated branches) are recycled in `finally` blocks during snapshot extraction.
-- **Preconditions:** Tree traversal with `ObservationSnapshotExtractor`.
-- **Input:** Snapshot extraction over mock/framework node hierarchy.
-- **Expected Result:** Zero un-recycled native nodes remaining.
+### Test ID: P5-UI-BND-001 (Tests F & G)
+- **Requirement:** Bounds display on node tree rendering
+- **Purpose:** Verify rendered node tree string explicitly contains `bounds:[left,top,right,bottom]` and size `(WxH)`.
+- **Preconditions:** Node with `ObservationBounds(left=10, top=20, right=110, bottom=70)`.
+- **Input:** `renderSnapshotNodeTree(snapshot)`.
+- **Expected Result:** String contains `"bounds:[10,20,110,70] (100x50)"`.
 - **Test Type:** Tier B Robolectric Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/ObservationSnapshotExtractorPhase5Test.kt`
+- **Executable Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt`, `ExternalObservationActivityTest.kt`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** Traversal `finally { childNode.recycle() }` assertion.
+- **Evidence:** `treeStr.contains("bounds:[10,20,110,70] (100x50)")` pass.
 - **Status:** PASS
 
-### Test ID: P5-CTRL-001
-- **Requirement:** Explicit STOP observation controls & state preservation
-- **Purpose:** Verify `btnStopCurrentObservation` and `btnStopExternalObservation` transition engine state to `STOPPED`, log `OBSERVATION_STOPPED`, preserve last snapshot, and leave Accessibility Service running.
-- **Preconditions:** Observation activity launched.
-- **Input:** Click "Stop Observation".
-- **Expected Result:** Engine state = `STOPPED`, Toast shown, last snapshot preserved, `AgentAccessibilityService.isBound` remains unchanged.
+### Test ID: P5-UI-DUP-001 (Tests H & I)
+- **Requirement:** Node tree rendering uniqueness & external app snapshot isolation
+- **Purpose:** Verify each domain `ObservationNode` is rendered exactly once without duplicate text lines, and external app snapshots contain 0 LocalAgent nodes.
+- **Preconditions:** Snapshot containing single node "Unique Title Text" or external FrameLayout.
+- **Input:** `renderSnapshotNodeTree(snapshot)`.
+- **Expected Result:** Node string occurs exactly once; external snapshot contains `ROOT [com.android.calculator2]` and 0 `com.localagent.app` nodes.
 - **Test Type:** Tier B Robolectric Test
-- **Executable Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt`
+- **Executable Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt`, `ExternalObservationActivityTest.kt`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** Event log entry `OBSERVATION_STOPPED`.
+- **Evidence:** Occurrences count = 1; `assertFalse(treeStr.contains("com.localagent.app"))`.
 - **Status:** PASS
 
-### Test ID: P5-READ-001
-- **Requirement:** Phase 5 Read-Only Guarantee
-- **Purpose:** Confirm snapshot generation and diff engine execution produce exactly 0 action dispatches against observed applications.
+### Test ID: P5-READ-001 (Tests J, K, L)
+- **Requirement:** Single-root semantics, immediate node recycling & read-only guarantee
+- **Purpose:** Verify single root retrieval per cycle, immediate `.recycle()` calls in `finally` blocks, and 0 action dispatches.
 - **Preconditions:** Active observation cycle.
-- **Input:** `captureLiveSnapshot()` + `SnapshotDiffEngine.computeDiff()`.
-- **Expected Result:** GoalDispatcher queue size = 0. Zero clicks, scrolls, or inputs.
+- **Input:** `captureLiveSnapshot()`.
+- **Expected Result:** GoalDispatcher queue size = 0. Zero dispatches performed.
 - **Test Type:** Tier B Robolectric Test
 - **Executable Location:** `app/src/test/java/com/localagent/app/accessibility/AgentAccessibilityServiceTest.kt`
 - **Execution Command:** `./gradlew :app:testDebugUnitTest`
 - **Permissions:** None
 - **Hardware:** Baseline API 27+
-- **Evidence:** `app.goalDispatcher.getQueueSize() == 0`.
+- **Evidence:** Queue size = 0; traversal `.recycle()` pass.
 - **Status:** PASS
