@@ -96,7 +96,27 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 
 ---
 
-## 4. Phase 11 — Movable Overlay Test Procedure
+## 4. Phase 5 — Observation & Snapshot Engine Physical Procedure
+
+### Test 5.1 (P5-DEV-SNAP-001): Single-Root, Node Identity, Stop Control & Heap Footprint Procedure
+- **Status:** **NOT_RUN** (Pending physical phone test execution)
+1. Launch LocalAgent on physical phone (Android 8.1 API 27 baseline).
+2. Ensure Accessibility Service is enabled in Android Settings.
+3. Open `CurrentObservationActivity`.
+4. Tap `Start Current Observation`. Verify node tree renders with `nodeIdentity`, `identityConfidence` (`EXACT`, `HIGH`, `MEDIUM`), and `bounds` (`[left,top,right,bottom] (WxH)`).
+5. Tap `Stop Observation`. Verify Toast displays "Current observation stopped. Service remains active." Verify Accessibility Service remains bound (`AgentAccessibilityService.isBound == true`).
+6. Open `ExternalObservationActivity`.
+7. Launch Google Calculator or Chrome manually in foreground, then return to LocalAgent.
+8. Tap `Start External Observation`. Verify external node tree displays Calculator or Chrome hierarchy.
+9. Tap `Stop Observation`. Verify Toast displays "External app observation stopped. Service remains active."
+10. Attach Android Studio Profiler or run `adb shell dumpsys meminfo com.localagent.app`.
+11. Perform 10 consecutive observation cycles.
+12. Confirm process heap footprint remains strictly < 35 MB on API 27.
+13. Confirm zero action dispatches (clicks, scrolls, typing, or navigation) occurred.
+
+---
+
+## 5. Phase 11 — Movable Overlay Test Procedure
 
 ### Test 11.1: Overlay Display & Cross-Channel Parity
 1. **Grant Permission:** Grant "Draw over other apps" (System Alert Window).
@@ -106,7 +126,7 @@ A capability is NOT verified merely because unit tests pass. Each procedure defi
 
 ---
 
-## 5. Phase 12 — Hardware Controls Test Procedure
+## 6. Phase 12 — Hardware Controls Test Procedure
 
 ### Test 12.1: Volume & Backlight Adjustment
 1. **Volume Command:** Type `volume 5` or adjust slider.

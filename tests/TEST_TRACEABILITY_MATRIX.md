@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
+This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
 Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
@@ -65,3 +65,20 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Deduplication state reset per request cycle | P4-REJ-003 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Valid external application classification & read-only guarantee | P4-REJ-004 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Accessibility lifecycle procedure | P4-DEV-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 3.2 | Manual Lifecycle Test on Physical Phone | **NOT_RUN** |
+
+---
+
+## 7. Phase 5 — Observation & Snapshot Engine Traceability
+
+| Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
+|---|---|---|---|---|---|
+| SnapshotDiffEngine identical snapshot comparison | P5-DIFF-001 | AUTOMATED_JVM | `SnapshotDiffEngineTest.kt` | `./gradlew :core:test` | PASS |
+| SnapshotDiffEngine added & removed node diffs | P5-DIFF-002 | AUTOMATED_JVM | `SnapshotDiffEngineTest.kt` | `./gradlew :core:test` | PASS |
+| SnapshotDiffEngine changed attribute detection | P5-DIFF-003 | AUTOMATED_JVM | `SnapshotDiffEngineTest.kt` | `./gradlew :core:test` | PASS |
+| SnapshotDiffEngine null & empty snapshot safety | P5-DIFF-004 | AUTOMATED_JVM | `SnapshotDiffEngineTest.kt` | `./gradlew :core:test` | PASS |
+| Single-root retrieval & bounds extraction | P5-SNAP-001 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorPhase5Test.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Node identity & NodeIdentityConfidence assignment | P5-SNAP-002 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorPhase5Test.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Immediate AccessibilityNodeInfo recycling | P5-RECYC-001 | AUTOMATED_ROBOLECTRIC | `ObservationSnapshotExtractorPhase5Test.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Explicit STOP observation controls & state preservation | P5-CTRL-001 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Read-only observation guarantee (0 dispatches) | P5-READ-001 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone Phase 5 single-root, stop control & heap footprint procedure | P5-DEV-SNAP-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 4 | Manual Observation & Memory Dump on Physical Phone | **NOT_RUN** |

@@ -33,7 +33,13 @@ class ObservationSnapshotExtractor(
         var isTruncatedByNodes = false
         var isTruncatedByDepth = false
 
-        fun traverse(nodeInfo: AccessibilityNodeInfo, depth: Int, parentId: String?): ObservationNode? {
+        fun traverse(
+            nodeInfo: AccessibilityNodeInfo,
+            depth: Int,
+            parentId: String?,
+            parentIdentity: String?,
+            childIndex: Int
+        ): ObservationNode? {
             if (depth > maxDepthTracker.get()) {
                 maxDepthTracker.set(depth)
             }
@@ -68,6 +74,17 @@ class ObservationSnapshotExtractor(
             val classNameStr = nodeInfo.className?.toString() ?: ""
             val pkgNameStr = nodeInfo.packageName?.toString() ?: packageName
 
+            // Identity & Confidence
+            val (nodeIdentity, identityConfidence) = ObservationNode.computeIdentity(
+                packageName = pkgNameStr,
+                className = classNameStr,
+                resourceId = resId,
+                text = nodeText,
+                contentDescription = contentDesc,
+                childIndex = childIndex,
+                parentIdentity = parentIdentity
+            )
+
             val isClickable = nodeInfo.isClickable
             val isLongClickable = nodeInfo.isLongClickable
             val isScrollable = nodeInfo.isScrollable
@@ -96,7 +113,13 @@ class ObservationSnapshotExtractor(
                 val childNode = nodeInfo.getChild(i)
                 if (childNode != null) {
                     try {
-                        val childDomainNode = traverse(childNode, depth + 1, nodeId)
+                        val childDomainNode = traverse(
+                            nodeInfo = childNode,
+                            depth = depth + 1,
+                            parentId = nodeId,
+                            parentIdentity = nodeIdentity,
+                            childIndex = i
+                        )
                         if (childDomainNode != null) {
                             childrenList.add(childDomainNode)
                         }
@@ -126,12 +149,14 @@ class ObservationSnapshotExtractor(
                 checked = isChecked,
                 editable = isEditable,
                 parentInstanceId = parentId,
+                nodeIdentity = nodeIdentity,
+                identityConfidence = identityConfidence,
                 children = childrenList
             )
         }
 
         val domainRoot = try {
-            traverse(rootNodeInfo, depth = 0, parentId = null)
+            traverse(rootNodeInfo, depth = 0, parentId = null, parentIdentity = null, childIndex = 0)
         } catch (e: Exception) {
             System.err.println("ObservationSnapshotExtractor traversal exception: ${e.message}")
             null

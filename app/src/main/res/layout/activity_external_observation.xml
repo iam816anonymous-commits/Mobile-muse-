@@ -44,7 +44,16 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="4dp"
-            android:text="Capture External UI"
+            android:text="Start External Observation"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnStopExternalObservation"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Stop Observation"
             android:textSize="10sp" />
     </LinearLayout>
 

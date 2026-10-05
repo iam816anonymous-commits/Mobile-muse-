@@ -4,18 +4,31 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
+enum class NodeIdentityConfidence {
+    EXACT,      // Resource ID present + non-blank text or content description
+    HIGH,       // Resource ID present without text OR unique class + non-blank text in parent scope
+    MEDIUM,     // Class name + non-blank text/description without Resource ID
+    LOW,        // Structural index / Class name only without text or Resource ID
+    EPHEMERAL   // Dynamic / synthetic un-indexed node
+}
+
 data class ObservationBounds(
     val left: Int = 0,
     val top: Int = 0,
     val right: Int = 0,
     val bottom: Int = 0
 ) {
+    val width: Int get() = (right - left).coerceAtLeast(0)
+    val height: Int get() = (bottom - top).coerceAtLeast(0)
+
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
             put("left", left)
             put("top", top)
             put("right", right)
             put("bottom", bottom)
+            put("width", width)
+            put("height", height)
         }
     }
 
@@ -51,6 +64,8 @@ data class ObservationNode(
     val checked: Boolean = false,
     val editable: Boolean = false,
     val parentInstanceId: String? = null,
+    val nodeIdentity: String = "",
+    val identityConfidence: NodeIdentityConfidence = NodeIdentityConfidence.LOW,
     val children: List<ObservationNode> = emptyList()
 ) {
     fun toJsonObject(): JSONObject {
@@ -74,6 +89,8 @@ data class ObservationNode(
             put("checked", checked)
             put("editable", editable)
             parentInstanceId?.let { put("parentInstanceId", it) }
+            put("nodeIdentity", nodeIdentity)
+            put("identityConfidence", identityConfidence.name)
 
             val childrenArray = JSONArray()
             children.forEach { childrenArray.put(it.toJsonObject()) }
@@ -82,6 +99,47 @@ data class ObservationNode(
     }
 
     companion object {
+        fun computeIdentity(
+            packageName: String,
+            className: String,
+            resourceId: String?,
+            text: String?,
+            contentDescription: String?,
+            childIndex: Int,
+            parentIdentity: String?
+        ): Pair<String, NodeIdentityConfidence> {
+            val resIdStr = resourceId?.trim()?.ifBlank { null }
+            val textStr = text?.trim()?.ifBlank { null }
+            val descStr = contentDescription?.trim()?.ifBlank { null }
+            val labelText = textStr ?: descStr
+            val classSimple = className.substringAfterLast('.')
+
+            return when {
+                resIdStr != null && labelText != null -> {
+                    val id = "id:${resIdStr.substringAfterLast('/')}_text:${labelText.take(30)}"
+                    Pair(id, NodeIdentityConfidence.EXACT)
+                }
+                resIdStr != null -> {
+                    val id = "id:${resIdStr.substringAfterLast('/')}_idx:$childIndex"
+                    Pair(id, NodeIdentityConfidence.HIGH)
+                }
+                labelText != null -> {
+                    val label = labelText.take(30)
+                    val parentContext = if (parentIdentity != null) parentIdentity.take(20) else "root"
+                    val id = "cls:${classSimple}_lbl:${label}_parent:$parentContext"
+                    Pair(id, NodeIdentityConfidence.MEDIUM)
+                }
+                parentIdentity != null -> {
+                    val id = "cls:${classSimple}_idx:${childIndex}_parent:${parentIdentity.take(20)}"
+                    Pair(id, NodeIdentityConfidence.LOW)
+                }
+                else -> {
+                    val id = "ephemeral_cls:${classSimple}_idx:$childIndex"
+                    Pair(id, NodeIdentityConfidence.EPHEMERAL)
+                }
+            }
+        }
+
         fun fromJsonObject(json: JSONObject): ObservationNode {
             val childrenList = mutableListOf<ObservationNode>()
             val childrenArray = json.optJSONArray("children")
@@ -92,6 +150,13 @@ data class ObservationNode(
                         childrenList.add(fromJsonObject(childObj))
                     }
                 }
+            }
+
+            val confidenceStr = json.optString("identityConfidence", NodeIdentityConfidence.LOW.name)
+            val confidence = try {
+                NodeIdentityConfidence.valueOf(confidenceStr)
+            } catch (_: Exception) {
+                NodeIdentityConfidence.LOW
             }
 
             return ObservationNode(
@@ -114,6 +179,8 @@ data class ObservationNode(
                 checked = json.optBoolean("checked", false),
                 editable = json.optBoolean("editable", false),
                 parentInstanceId = if (json.has("parentInstanceId")) json.optString("parentInstanceId") else null,
+                nodeIdentity = json.optString("nodeIdentity", ""),
+                identityConfidence = confidence,
                 children = childrenList
             )
         }

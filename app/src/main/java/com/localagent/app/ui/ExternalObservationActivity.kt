@@ -2,9 +2,11 @@ package com.localagent.app.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.accessibility.AgentAccessibilityService
+import com.localagent.app.accessibility.ObservationEngineState
 import com.localagent.app.accessibility.ObservationWindowDiagnostics
 import com.localagent.app.databinding.ActivityExternalObservationBinding
 import com.localagent.core.logging.AgentEvent
@@ -18,6 +20,7 @@ class ExternalObservationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityExternalObservationBinding
     private var lastKnownA11yBound = false
+    private var externalObservationState: ObservationEngineState = ObservationEngineState.IDLE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,8 +42,34 @@ class ExternalObservationActivity : AppCompatActivity() {
         }
 
         binding.btnCaptureExternalUi.setOnClickListener {
+            externalObservationState = ObservationEngineState.OBSERVING
             triggerExternalObservation()
         }
+
+        binding.btnStopExternalObservation.setOnClickListener {
+            stopExternalObservation()
+        }
+    }
+
+    private fun stopExternalObservation() {
+        externalObservationState = ObservationEngineState.STOPPED
+        val app = application as? LocalAgentApplication
+        val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
+
+        app?.eventLogger?.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.OBSERVATION,
+                eventType = "OBSERVATION_STOPPED",
+                sourceChannel = "EXTERNAL_OBSERVATION_SCREEN",
+                severity = EventSeverity.INFO,
+                metadataJson = "{\"mode\":\"EXTERNAL_APP\",\"reason\":\"USER_STOP_REQUESTED\"}"
+            )
+        )
+
+        Toast.makeText(this, "External app observation stopped. Service remains active.", Toast.LENGTH_SHORT).show()
+        updateObservationUi()
     }
 
     private fun checkPassiveDegradationAndRefresh() {
@@ -66,6 +95,12 @@ class ExternalObservationActivity : AppCompatActivity() {
     }
 
     private fun triggerExternalObservation() {
+        if (externalObservationState == ObservationEngineState.STOPPED) {
+            Toast.makeText(this, "Observation is STOPPED. Tap Start External Observation to resume.", Toast.LENGTH_SHORT).show()
+            updateObservationUi()
+            return
+        }
+
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
 
@@ -102,9 +137,9 @@ class ExternalObservationActivity : AppCompatActivity() {
         val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
 
         val statusText = if (a11yBound) {
-            "Status: READY (BOUND) | Active Pkg: $activePkg"
+            "Mode: EXTERNAL_APP | Engine State: $externalObservationState | Active Pkg: $activePkg"
         } else {
-            "Status: SERVICE_UNBOUND (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
+            "Engine State: UNAVAILABLE (Passive Degradation) — Tap Permission Center to Enable | Active Pkg: $activePkg"
         }
         binding.tvAccessibilityStatus.text = statusText
 
@@ -171,9 +206,11 @@ class ExternalObservationActivity : AppCompatActivity() {
         val textStr = node.text?.let { " text:\"$it\"" } ?: ""
         val descStr = node.contentDescription?.let { " desc:\"$it\"" } ?: ""
         val resIdStr = node.resourceId?.let { " id:${it.substringAfterLast('/')}" } ?: ""
+        val identityStr = if (node.nodeIdentity.isNotBlank()) " [identity:${node.nodeIdentity} conf:${node.identityConfidence}]" else ""
+        val boundsStr = " bounds:[${node.bounds.left},${node.bounds.top},${node.bounds.right},${node.bounds.bottom}] (${node.bounds.width}x${node.bounds.height})"
         val flagsStr = buildFlagsString(node)
 
-        sb.append(indent).append(branch).append(classSimple).append(resIdStr).append(textStr).append(descStr).append(flagsStr).append("\n")
+        sb.append(indent).append(branch).append(classSimple).append(resIdStr).append(textStr).append(descStr).append(identityStr).append(boundsStr).append(flagsStr).append("\n")
 
         val childIndent = indent + if (depth == 0) "" else if (isLast) "    " else "│   "
         val children = node.children

@@ -31,10 +31,13 @@ class CurrentObservationActivityTest {
         val activity = controller.get()
 
         val statusText = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvAccessibilityStatus).text.toString()
-        assertTrue(statusText.contains("Status:"))
+        assertTrue(statusText.contains("Engine State:"))
 
         val observeBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnObserveCurrentUi)
         assertNotNull(observeBtn)
+
+        val stopBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnStopCurrentObservation)
+        assertNotNull(stopBtn)
     }
 
     @Test

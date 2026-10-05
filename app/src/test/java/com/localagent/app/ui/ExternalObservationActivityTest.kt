@@ -31,10 +31,13 @@ class ExternalObservationActivityTest {
         val activity = controller.get()
 
         val statusText = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvAccessibilityStatus).text.toString()
-        assertTrue(statusText.contains("Status:"))
+        assertTrue(statusText.contains("Engine State:"))
 
         val captureBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnCaptureExternalUi)
         assertNotNull(captureBtn)
+
+        val stopBtn = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnStopExternalObservation)
+        assertNotNull(stopBtn)
     }
 
     @Test
