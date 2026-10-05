@@ -9,7 +9,7 @@
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="LocalAgent Home &amp; Status"
+        android:text="LocalAgent Home &amp; System Status"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -37,41 +37,65 @@
         android:id="@+id/tvNavigationHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:text="SUBSYSTEM SCREENS:"
         android:textSize="12sp"
         android:textStyle="bold"
         android:textColor="#004D40" />
 
-    <Button
-        android:id="@+id/btnOpenObservationScreen"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Observation Node Tree Screen"
-        android:textSize="12sp" />
+        android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/btnOpenEventLogScreen"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Persisted Event Log History"
-        android:textSize="12sp" />
+        <Button
+            android:id="@+id/btnOpenCurrentObservationScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Current UI Observation"
+            android:textSize="10sp" />
 
-    <Button
-        android:id="@+id/btnOpenStorageDiagnosticsScreen"
+        <Button
+            android:id="@+id/btnOpenExternalObservationScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="External App Observation"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Storage &amp; Memory Diagnostics"
-        android:textSize="12sp" />
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnOpenEventLogScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Event Log"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnOpenStorageDiagnosticsScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Storage &amp; Memory"
+            android:textSize="10sp" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tvCommandHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:text="COMMAND CONSOLE INPUT:"
         android:textSize="12sp"
         android:textStyle="bold"
@@ -81,7 +105,7 @@
         android:id="@+id/etCommandInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:hint="Enter command (e.g., status, observe, click 7)"
         android:inputType="text" />
 
@@ -89,7 +113,7 @@
         android:id="@+id/btnExecute"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         android:text="Execute Command"
         android:textSize="12sp" />
 
@@ -97,7 +121,7 @@
         android:id="@+id/tvLatestResultHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:text="Latest Execution Result:"
         android:textStyle="bold"
         android:textSize="12sp" />

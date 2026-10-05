@@ -1,0 +1,163 @@
+package com.localagent.app.ui
+
+import android.content.Intent
+import android.os.Bundle
+import android.provider.Settings
+import androidx.appcompat.app.AppCompatActivity
+import com.localagent.app.LocalAgentApplication
+import com.localagent.app.accessibility.AgentAccessibilityService
+import com.localagent.app.accessibility.ObservationWindowDiagnostics
+import com.localagent.app.databinding.ActivityExternalObservationBinding
+import com.localagent.core.logging.AgentEvent
+import com.localagent.core.logging.EventSubsystem
+import com.localagent.core.observation.ObservationNode
+import com.localagent.core.observation.ObservationSnapshot
+import java.util.UUID
+
+class ExternalObservationActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityExternalObservationBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityExternalObservationBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        setupListeners()
+        updateObservationUi()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateObservationUi()
+    }
+
+    private fun setupListeners() {
+        binding.btnOpenAccessibilitySettings.setOnClickListener {
+            try {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+            } catch (e: Exception) {
+                System.err.println("ExternalObservationActivity: Error opening Settings: ${e.message}")
+            }
+        }
+
+        binding.btnCaptureExternalUi.setOnClickListener {
+            triggerExternalObservation()
+        }
+    }
+
+    private fun triggerExternalObservation() {
+        val app = application as? LocalAgentApplication
+        val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
+
+        app?.eventLogger?.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.OBSERVATION,
+                eventType = "OBSERVATION_REQUESTED",
+                sourceChannel = "EXTERNAL_OBSERVATION_SCREEN"
+            )
+        )
+
+        if (AgentAccessibilityService.isBound) {
+            AgentAccessibilityService.INSTANCE?.captureLiveSnapshot()
+        }
+        updateObservationUi()
+    }
+
+    private fun updateObservationUi() {
+        val a11yBound = AgentAccessibilityService.isBound
+        val activePkg = AgentAccessibilityService.INSTANCE?.activePackageName ?: "None"
+
+        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Active Pkg: $activePkg"
+
+        val diag = AgentAccessibilityService.INSTANCE?.latestDiagnostics
+        binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)
+
+        val externalSnap = AgentAccessibilityService.INSTANCE?.lastExternalObservationSnapshot
+
+        if (externalSnap != null) {
+            binding.tvExternalSnapshotMeta.text = "Package: ${externalSnap.packageName} | Nodes: ${externalSnap.nodeCount} | Depth: ${externalSnap.truncationInfo.maxDepthReached} | Truncated: ${externalSnap.truncationInfo.isTruncated}"
+            binding.tvExternalNodeTree.text = renderSnapshotNodeTree(externalSnap)
+        } else {
+            binding.tvExternalSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
+            binding.tvExternalNodeTree.text = "No valid external tree captured."
+        }
+    }
+
+    private fun formatDiagnosticsContent(diag: ObservationWindowDiagnostics?): String {
+        if (diag == null) {
+            return "Foreground Package: None\nValidated Target: None\nLast Valid External Package: None"
+        }
+
+        val service = AgentAccessibilityService.INSTANCE
+        val isValidTarget = service?.isValidExternalApplicationPackage(diag.selectedPackage) ?: false
+        val targetStatus = if (isValidTarget) "VALID_EXTERNAL_APP (${diag.selectedPackage})" else "REJECTED (${diag.selectedPackage})"
+
+        val sb = StringBuilder()
+        sb.append("Foreground Package: ${diag.foregroundPackage}\n")
+        sb.append("Foreground Window ID: ${diag.foregroundWindowId} | Type: ${diag.foregroundWindowType}\n")
+        sb.append("Validated Target: $targetStatus\n\n")
+
+        sb.append("Available Windows (${diag.availableWindows.size}):\n")
+        if (diag.availableWindows.isEmpty()) {
+            sb.append("- None listed\n")
+        } else {
+            diag.availableWindows.forEach { win ->
+                val isValid = service?.isValidExternalApplicationPackage(win.packageName) ?: false
+                val tag = if (isValid) "[VALID_APP]" else "[SYSTEM/LOCAL]"
+                sb.append("- id:${win.windowId} $tag ${win.windowTypeName} pkg:${if (win.packageName.isBlank()) "Unknown" else win.packageName} score:${win.score}\n")
+            }
+        }
+
+        sb.append("\nLast Valid External App: pkg:${diag.lastExternalPackage} id:${diag.lastExternalWindowId} type:${diag.lastExternalWindowType}")
+        return sb.toString()
+    }
+
+    private fun renderSnapshotNodeTree(snapshot: ObservationSnapshot): String {
+        val root = snapshot.rootNode ?: return "Empty root node"
+        val sb = StringBuilder()
+        sb.append("ROOT [${snapshot.packageName}]\n")
+        renderNode(root, depth = 0, sb = sb, isLast = true, indent = "")
+        return sb.toString()
+    }
+
+    private fun renderNode(
+        node: ObservationNode,
+        depth: Int,
+        sb: StringBuilder,
+        isLast: Boolean,
+        indent: String
+    ) {
+        val branch = if (depth == 0) "" else if (isLast) "└── " else "├── "
+        val classSimple = node.className.substringAfterLast('.')
+        val textStr = node.text?.let { " text:\"$it\"" } ?: ""
+        val descStr = node.contentDescription?.let { " desc:\"$it\"" } ?: ""
+        val resIdStr = node.resourceId?.let { " id:${it.substringAfterLast('/')}" } ?: ""
+        val flagsStr = buildFlagsString(node)
+
+        sb.append(indent).append(branch).append(classSimple).append(resIdStr).append(textStr).append(descStr).append(flagsStr).append("\n")
+
+        val childIndent = indent + if (depth == 0) "" else if (isLast) "    " else "│   "
+        val children = node.children
+        children.forEachIndexed { index, child ->
+            renderNode(child, depth + 1, sb, isLast = (index == children.size - 1), indent = childIndent)
+        }
+    }
+
+    private fun buildFlagsString(node: ObservationNode): String {
+        val flags = mutableListOf<String>()
+        if (node.clickable) flags.add("clickable")
+        if (node.longClickable) flags.add("longClickable")
+        if (node.scrollable) flags.add("scrollable")
+        if (node.editable) flags.add("editable")
+        if (node.focused) flags.add("focused")
+        if (node.selected) flags.add("selected")
+        if (node.checked) flags.add("checked")
+        if (node.enabled) flags.add("enabled")
+        if (node.visibleToUser) flags.add("visible")
+        return if (flags.isNotEmpty()) " [${flags.joinToString(",")}]" else ""
+    }
+}

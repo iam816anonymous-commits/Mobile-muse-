@@ -61,6 +61,23 @@ class AgentAccessibilityServiceTest {
     }
 
     @Test
+    fun testValidExternalApplicationPackageClassification() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+
+        assertTrue(service.isValidExternalApplicationPackage("com.android.chrome"))
+        assertTrue(service.isValidExternalApplicationPackage("com.google.android.apps.chrome"))
+        assertTrue(service.isValidExternalApplicationPackage("com.android.calculator2"))
+        assertTrue(service.isValidExternalApplicationPackage("com.android.settings"))
+
+        assertFalse(service.isValidExternalApplicationPackage("com.localagent.app"))
+        assertFalse(service.isValidExternalApplicationPackage("com.android.systemui"))
+        assertFalse(service.isValidExternalApplicationPackage("com.google.android.apps.nexuslauncher"))
+        assertFalse(service.isValidExternalApplicationPackage("com.android.launcher3"))
+        assertFalse(service.isValidExternalApplicationPackage(""))
+    }
+
+    @Test
     fun testWindowCandidateScoreRanking() {
         val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
         val service = serviceController.get()

@@ -108,9 +108,7 @@ class AgentAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: ""
         if (pkg.isNotBlank()) {
             activePackageName = pkg
-            if (pkg != "com.localagent.app" && pkg != "com.android.systemui") {
-                lastExternalPackageName = pkg
-            } else if (pkg == "com.android.systemui" && lastExternalPackageName == "None") {
+            if (isValidExternalApplicationPackage(pkg)) {
                 lastExternalPackageName = pkg
             }
         }
@@ -119,7 +117,7 @@ class AgentAccessibilityService : AccessibilityService() {
             event.className?.toString()?.let { cls ->
                 if (cls.isNotBlank() && cls.contains(".")) {
                     activeActivityName = cls
-                    if (pkg.isNotBlank() && pkg != "com.localagent.app" && pkg != "com.android.systemui") {
+                    if (isValidExternalApplicationPackage(pkg)) {
                         lastExternalActivityName = cls
                     }
                 }
@@ -179,7 +177,7 @@ class AgentAccessibilityService : AccessibilityService() {
         val recycledNodes = Collections.newSetFromMap(IdentityHashMap<AccessibilityNodeInfo, Boolean>())
 
         // Select best candidate overall for primary snapshot
-        val bestOverall = selectBestWindow(windowCandidates, filterLocalAgent = false)
+        val bestOverall = selectBestWindow(windowCandidates)
         val selectedNode: AccessibilityNodeInfo?
         val selectedPkg: String
         val selectedWindowId: Int
@@ -220,16 +218,16 @@ class AgentAccessibilityService : AccessibilityService() {
 
         currentObservationSnapshot = primarySnapshot
 
-        // If primary snapshot is external (not LocalAgent), preserve it as last external snapshot
-        if (selectedPkg.isNotBlank() && selectedPkg != "com.localagent.app") {
+        // If primary snapshot is a valid external app, preserve it as last external snapshot
+        if (isValidExternalApplicationPackage(selectedPkg)) {
             lastExternalPackageName = selectedPkg
             lastExternalWindowId = selectedWindowId
             lastExternalWindowType = selectedWindowType
             lastExternalObservationTimestamp = System.currentTimeMillis()
             lastExternalObservationSnapshot = primarySnapshot
         } else {
-            // Primary is LocalAgent: inspect external window candidates
-            val bestExternal = selectBestWindow(windowCandidates, filterLocalAgent = true)
+            // Primary is LocalAgent or System UI: inspect valid external window candidates
+            val bestExternal = selectBestExternalWindow(windowCandidates, activeSessionId)
             if (bestExternal != null && bestExternal.node != null && !recycledNodes.contains(bestExternal.node)) {
                 try {
                     val extPkg = bestExternal.candidate.packageName
@@ -251,7 +249,7 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Clean up remaining unselected window root nodes safely without double-recycling
+        // Clean up remaining unselected window root nodes safely
         windowCandidates.forEach { candidate ->
             candidate.node?.let { node ->
                 if (!recycledNodes.contains(node)) {
@@ -319,15 +317,16 @@ class AgentAccessibilityService : AccessibilityService() {
     @Suppress("DEPRECATION")
     private fun evaluateExternalApplicationWindows() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return
+        val app = application as? LocalAgentApplication
+        val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
         val recycledNodes = Collections.newSetFromMap(IdentityHashMap<AccessibilityNodeInfo, Boolean>())
         try {
             val windowCandidates = collectWindowCandidates()
-            val bestExternal = selectBestWindow(windowCandidates, filterLocalAgent = true)
+            val bestExternal = selectBestExternalWindow(windowCandidates, activeSessionId)
 
-            // Only update lastExternalObservationSnapshot if a high-ranking TYPE_APPLICATION window (e.g. Chrome) is found
-            if (bestExternal != null && bestExternal.node != null && bestExternal.candidate.score >= 50) {
+            if (bestExternal != null && bestExternal.node != null) {
                 val extPkg = bestExternal.candidate.packageName
-                if (extPkg.isNotBlank() && extPkg != "com.localagent.app") {
+                if (isValidExternalApplicationPackage(extPkg) && bestExternal.candidate.score >= 50) {
                     try {
                         val extSnap = extractor.extractSnapshot(
                             rootNodeInfo = bestExternal.node,
@@ -357,6 +356,24 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         } catch (e: Exception) {
             System.err.println("AgentAccessibilityService: Error evaluating external windows: ${e.message}")
+        }
+    }
+
+    fun isValidExternalApplicationPackage(pkg: String): Boolean {
+        if (pkg.isBlank()) return false
+        if (pkg == "com.localagent.app") return false
+        if (pkg == "com.android.systemui") return false
+        if (pkg.endsWith(".launcher") || pkg.endsWith(".launcher3") || pkg == "com.google.android.apps.nexuslauncher" || pkg == "com.android.launcher3") return false
+        return true
+    }
+
+    private fun getCandidateRejectionReason(pkg: String): String {
+        return when {
+            pkg.isBlank() -> "BLANK_PACKAGE"
+            pkg == "com.localagent.app" -> "LOCAL_AGENT_NOT_EXTERNAL_APPLICATION"
+            pkg == "com.android.systemui" -> "SYSTEM_UI_NOT_VALID_EXTERNAL_APPLICATION"
+            pkg.contains("launcher") -> "LAUNCHER_NOT_VALID_EXTERNAL_APPLICATION"
+            else -> "INVALID_EXTERNAL_APPLICATION"
         }
     }
 
@@ -426,16 +443,35 @@ class AgentAccessibilityService : AccessibilityService() {
         return list.sortedByDescending { it.candidate.score }
     }
 
-    private fun selectBestWindow(
+    private fun selectBestWindow(candidates: List<InternalCandidate>): InternalCandidate? {
+        return candidates.maxByOrNull { it.candidate.score }
+    }
+
+    private fun selectBestExternalWindow(
         candidates: List<InternalCandidate>,
-        filterLocalAgent: Boolean
+        activeSessionId: String
     ): InternalCandidate? {
-        val filtered = if (filterLocalAgent) {
-            candidates.filter { it.candidate.packageName.isNotBlank() && it.candidate.packageName != "com.localagent.app" }
-        } else {
-            candidates
+        val validCandidates = mutableListOf<InternalCandidate>()
+        val app = application as? LocalAgentApplication
+
+        for (item in candidates) {
+            val pkg = item.candidate.packageName
+            if (isValidExternalApplicationPackage(pkg)) {
+                validCandidates.add(item)
+            } else if (pkg.isNotBlank() && pkg != "com.localagent.app") {
+                val reason = getCandidateRejectionReason(pkg)
+                app?.eventLogger?.logEvent(
+                    AgentEvent(
+                        eventId = UUID.randomUUID().toString(),
+                        sessionId = activeSessionId,
+                        subsystem = EventSubsystem.OBSERVATION,
+                        eventType = "OBSERVATION_EXTERNAL_CANDIDATE_REJECTED",
+                        metadataJson = "{\"pkg\":\"$pkg\",\"reason\":\"$reason\"}"
+                    )
+                )
+            }
         }
-        return filtered.maxByOrNull { it.candidate.score }
+        return validCandidates.maxByOrNull { it.candidate.score }
     }
 
     private fun calculateWindowScore(
@@ -449,8 +485,8 @@ class AgentAccessibilityService : AccessibilityService() {
         // Prioritize TYPE_APPLICATION (1)
         if (type == AccessibilityWindowInfo.TYPE_APPLICATION) {
             score += 50
-            if (packageName != "com.android.systemui" && packageName.isNotBlank()) {
-                score += 10 // Preferred non-SystemUI application
+            if (isValidExternalApplicationPackage(packageName)) {
+                score += 10 // Preferred valid non-system application
             }
         } else {
             score += 10

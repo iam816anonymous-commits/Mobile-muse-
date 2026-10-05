@@ -51,14 +51,28 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Status:** PASS
 
 ### P3-UI-002
-- **Requirement:** Dedicated Observation Screen Node Tree Rendering
-- **Purpose:** Proves `ObservationActivity` formats snapshot nodes into an indented visual tree and displays current and external snapshots separately.
-- **Preconditions:** `ObservationActivity` launched in test controller.
+- **Requirement:** Current UI Observation Screen & Node Tree Rendering
+- **Purpose:** Proves `CurrentObservationActivity` formats snapshot nodes into an indented visual tree and renders current UI snapshot metadata cleanly.
+- **Preconditions:** `CurrentObservationActivity` launched in test controller.
 - **Input:** Call `renderSnapshotNodeTree()` on `ObservationSnapshot`.
 - **Expected Result:** Tree string formats depth indentation (`ROOT`, `├──`, `└──`) and node attributes.
 - **Test Type:** AUTOMATED_ROBOLECTRIC
-- **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/ObservationActivityTest.kt` -> `testNodeTreeRenderingFormatting()`
-- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.ObservationActivityTest"`
+- **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/CurrentObservationActivityTest.kt` -> `testCurrentNodeTreeRendering()`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.CurrentObservationActivityTest"`
+- **Permissions:** Simulated UI environment
+- **Hardware:** NONE
+- **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
+- **Status:** PASS
+
+### P3-UI-003
+- **Requirement:** External Application Observation Screen & Valid Target Diagnostics
+- **Purpose:** Proves `ExternalObservationActivity` formats valid external application snapshot nodes, displays target validation diagnostics, and isolates external observation from current UI.
+- **Preconditions:** `ExternalObservationActivity` launched in test controller.
+- **Input:** Call `renderSnapshotNodeTree()` on external `ObservationSnapshot`.
+- **Expected Result:** Tree string formats depth indentation and displays valid target package diagnostics.
+- **Test Type:** AUTOMATED_ROBOLECTRIC
+- **Executable Test Location:** `app/src/test/java/com/localagent/app/ui/ExternalObservationActivityTest.kt` -> `testExternalNodeTreeRendering()`
+- **Execution Command:** `./gradlew :app:testDebugUnitTest --tests "com.localagent.app.ui.ExternalObservationActivityTest"`
 - **Permissions:** Simulated UI environment
 - **Hardware:** NONE
 - **Evidence:** JUnit XML report (`app/build/test-results/testDebugUnitTest/`)
@@ -68,7 +82,7 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Requirement:** Physical Phone Accessibility Enablement & Local UI Observation Procedure
 - **Purpose:** Verifies that enabling `AgentAccessibilityService` in Android Settings transitions status to `READY (BOUND)` and captures live visible UI hierarchy without performing action execution.
 - **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent installed.
-- **Input:** Open Settings -> Accessibility -> Enable LocalAgent. Return to app and click "Observe UI".
+- **Input:** Open Settings -> Accessibility -> Enable LocalAgent. Return to app and click "Current UI Observation".
 - **Expected Result:** UI status displays `READY (BOUND)`. Active package, activity, node count, and tree hierarchy displayed. Zero actions executed.
 - **Test Type:** PHYSICAL_DEVICE
 - **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3)
@@ -79,11 +93,11 @@ This document specifies the test cases for Phase 3.1 (Read-Only Accessibility Ob
 - **Status:** NOT_RUN
 
 ### P3.1-DEV-EXT-001
-- **Requirement:** Physical Phone External Chrome Accessibility Observation Procedure
-- **Purpose:** Verifies that `AgentAccessibilityService` captures live Google Chrome interactive windows and preserves `lastExternalObservationSnapshot` (`com.android.chrome`) when returning to LocalAgent.
+- **Requirement:** Physical Phone External Chrome + Recents Preservation Procedure
+- **Purpose:** Verifies that `AgentAccessibilityService` captures live Google Chrome interactive windows, rejects `com.android.systemui` Recents windows as valid external candidates, and preserves `lastExternalObservationSnapshot` (`com.android.chrome`) when returning to LocalAgent or opening Recents.
 - **Preconditions:** Physical phone running Android 8.1 API 27 or newer with LocalAgent and Chrome installed.
-- **Input:** Open Chrome manually. Leave Chrome in foreground. Return to LocalAgent and open Observation Screen.
-- **Expected Result:** Selected package is `com.android.chrome`. Indented Chrome node tree displayed. Last External Application Snapshot preserves `com.android.chrome`. Zero actions executed automatically.
+- **Input:** Open Chrome manually. Open Recents manually. Return to LocalAgent and open `ExternalObservationActivity`.
+- **Expected Result:** Validated target is `com.android.chrome`. Indented Chrome node tree displayed in dual scrollable layout. Recents (`com.android.systemui`) does NOT overwrite Chrome snapshot. Zero actions executed automatically.
 - **Test Type:** PHYSICAL_DEVICE
 - **Executable Test Location:** Manual Procedure (`PHYSICAL_DEVICE_TEST_PLAN.md` Section 3.3)
 - **Execution Command:** Manual phone execution

@@ -39,8 +39,12 @@ class MainActivity : AppCompatActivity() {
             executeCommandFromInput(input)
         }
 
-        binding.btnOpenObservationScreen.setOnClickListener {
-            startActivity(Intent(this, ObservationActivity::class.java))
+        binding.btnOpenCurrentObservationScreen.setOnClickListener {
+            startActivity(Intent(this, CurrentObservationActivity::class.java))
+        }
+
+        binding.btnOpenExternalObservationScreen.setOnClickListener {
+            startActivity(Intent(this, ExternalObservationActivity::class.java))
         }
 
         binding.btnOpenEventLogScreen.setOnClickListener {
