@@ -3,6 +3,7 @@ package com.localagent.app.accessibility
 import android.accessibilityservice.AccessibilityService
 import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
+import com.localagent.app.LocalAgentApplication
 import com.localagent.core.action.ActionRequest
 import com.localagent.core.action.ActionType
 import com.localagent.core.action.VerificationStatus
@@ -14,44 +15,28 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowAccessibilityService
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+@Config(sdk = [28], application = LocalAgentApplication::class)
 class ActionExecutionTest {
 
-    private class TestableAgentAccessibilityService : AgentAccessibilityService() {
-        var mockSnapshot: ObservationSnapshot? = null
-        var mockRootNode: AccessibilityNodeInfo? = null
-        var globalActionCallCount = 0
-        var lastGlobalActionExecuted = -1
-
-        override fun captureLiveSnapshot(): ObservationSnapshot {
-            return mockSnapshot ?: super.captureLiveSnapshot()
-        }
-
-        override fun getRootInActiveWindow(): AccessibilityNodeInfo? {
-            return mockRootNode ?: super.getRootInActiveWindow()
-        }
-
-        override fun performGlobalAction(action: Int): Boolean {
-            globalActionCallCount++
-            lastGlobalActionExecuted = action
-            return super.performGlobalAction(action)
-        }
-    }
-
-    private lateinit var service: TestableAgentAccessibilityService
+    private lateinit var service: AgentAccessibilityService
+    private lateinit var shadowService: ShadowAccessibilityService
     private lateinit var globalExecutor: GlobalActionExecutor
     private lateinit var uiExecutor: UiActionExecutor
 
     @Before
     fun setUp() {
-        service = TestableAgentAccessibilityService()
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        service = serviceController.get()
         service.onServiceConnectedForTest()
         service.externalObservationState = ObservationEngineState.OBSERVING
+        shadowService = shadowOf(service as AccessibilityService)
         globalExecutor = GlobalActionExecutor(accessibilityService = service)
         uiExecutor = UiActionExecutor(accessibilityService = service)
     }
@@ -66,8 +51,8 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.GLOBAL_BACK, result.request.actionType)
-        assertEquals(1, service.globalActionCallCount)
-        assertEquals(AccessibilityService.GLOBAL_ACTION_BACK, service.lastGlobalActionExecuted)
+        assertEquals(1, shadowService.globalActionsPerformed.size)
+        assertEquals(AccessibilityService.GLOBAL_ACTION_BACK, shadowService.globalActionsPerformed[0])
     }
 
     @Test
@@ -78,8 +63,8 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.GLOBAL_HOME, result.request.actionType)
-        assertEquals(1, service.globalActionCallCount)
-        assertEquals(AccessibilityService.GLOBAL_ACTION_HOME, service.lastGlobalActionExecuted)
+        assertEquals(1, shadowService.globalActionsPerformed.size)
+        assertEquals(AccessibilityService.GLOBAL_ACTION_HOME, shadowService.globalActionsPerformed[0])
     }
 
     @Test
@@ -90,8 +75,8 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.GLOBAL_RECENTS, result.request.actionType)
-        assertEquals(1, service.globalActionCallCount)
-        assertEquals(AccessibilityService.GLOBAL_ACTION_RECENTS, service.lastGlobalActionExecuted)
+        assertEquals(1, shadowService.globalActionsPerformed.size)
+        assertEquals(AccessibilityService.GLOBAL_ACTION_RECENTS, shadowService.globalActionsPerformed[0])
     }
 
     @Test
@@ -113,12 +98,12 @@ class ActionExecutionTest {
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
-        service.mockSnapshot = ObservationSnapshot(
+        service.currentObservationSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        service.mockRootNode = liveBtn
+        shadowService.rootInActiveWindow = liveBtn
 
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
@@ -130,7 +115,7 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_CLICK, result.request.actionType)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
         assertEquals(1, shadowOf(liveBtn).performedActions.size)
         assertEquals(AccessibilityNodeInfo.ACTION_CLICK, shadowOf(liveBtn).performedActions[0])
 
@@ -156,12 +141,12 @@ class ActionExecutionTest {
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
-        service.mockSnapshot = ObservationSnapshot(
+        service.currentObservationSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        service.mockRootNode = liveCard
+        shadowService.rootInActiveWindow = liveCard
 
         val request = ActionRequest(
             actionType = ActionType.UI_LONG_CLICK,
@@ -173,7 +158,7 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_LONG_CLICK, result.request.actionType)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
         assertEquals(1, shadowOf(liveCard).performedActions.size)
         assertEquals(AccessibilityNodeInfo.ACTION_LONG_CLICK, shadowOf(liveCard).performedActions[0])
 
@@ -198,12 +183,12 @@ class ActionExecutionTest {
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
-        service.mockSnapshot = ObservationSnapshot(
+        service.currentObservationSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        service.mockRootNode = liveEdit
+        shadowService.rootInActiveWindow = liveEdit
 
         val request = ActionRequest(
             actionType = ActionType.UI_TEXT_INPUT,
@@ -216,7 +201,7 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals("Hello Agent", result.request.textInputPayload)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
         assertEquals(1, shadowOf(liveEdit).performedActions.size)
         assertEquals(AccessibilityNodeInfo.ACTION_SET_TEXT, shadowOf(liveEdit).performedActions[0])
 
@@ -240,12 +225,12 @@ class ActionExecutionTest {
             identityConfidence = NodeIdentityConfidence.HIGH
         )
 
-        service.mockSnapshot = ObservationSnapshot(
+        service.currentObservationSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        service.mockRootNode = liveRecycler
+        shadowService.rootInActiveWindow = liveRecycler
 
         val request = ActionRequest(
             actionType = ActionType.UI_SCROLL_FORWARD,
@@ -257,7 +242,7 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_SCROLL_FORWARD, result.request.actionType)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
         assertEquals(1, shadowOf(liveRecycler).performedActions.size)
         assertEquals(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, shadowOf(liveRecycler).performedActions[0])
 
@@ -281,12 +266,12 @@ class ActionExecutionTest {
             identityConfidence = NodeIdentityConfidence.HIGH
         )
 
-        service.mockSnapshot = ObservationSnapshot(
+        service.currentObservationSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        service.mockRootNode = liveRecycler
+        shadowService.rootInActiveWindow = liveRecycler
 
         val request = ActionRequest(
             actionType = ActionType.UI_SCROLL_BACKWARD,
@@ -298,7 +283,7 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_SCROLL_BACKWARD, result.request.actionType)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
         assertEquals(1, shadowOf(liveRecycler).performedActions.size)
         assertEquals(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, shadowOf(liveRecycler).performedActions[0])
 
@@ -320,7 +305,7 @@ class ActionExecutionTest {
         assertFalse(result.dispatchSuccess)
         assertEquals(VerificationStatus.TARGET_NOT_FOUND, result.verificationResult.status)
         assertEquals(ResultCode.TARGET_NOT_FOUND, result.verificationResult.resultCode)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
     }
 
     @Test
@@ -335,12 +320,12 @@ class ActionExecutionTest {
         assertFalse(result.dispatchSuccess)
         assertEquals(VerificationStatus.TARGET_NOT_FOUND, result.verificationResult.status)
         assertEquals(ResultCode.TARGET_NOT_FOUND, result.verificationResult.resultCode)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
     }
 
     @Test
     fun `P7-SAFE-003 - Target not actionable yields zero framework action dispatch`() {
-        // Explicitly non-actionable target node in pre-snapshot
+        // Explicitly construct non-actionable target node in pre-snapshot
         val nonActionableSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
@@ -356,7 +341,7 @@ class ActionExecutionTest {
             )
         )
 
-        service.mockSnapshot = nonActionableSnapshot
+        service.currentObservationSnapshot = nonActionableSnapshot
 
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
@@ -368,7 +353,7 @@ class ActionExecutionTest {
         assertFalse(result.dispatchSuccess)
         assertEquals(VerificationStatus.TARGET_NOT_ACTIONABLE, result.verificationResult.status)
         assertEquals(ResultCode.TARGET_NOT_ACTIONABLE, result.verificationResult.resultCode)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
     }
 
     @Test
@@ -384,7 +369,7 @@ class ActionExecutionTest {
         assertFalse(result.dispatchSuccess)
         assertEquals(VerificationStatus.TARGET_NOT_FOUND, result.verificationResult.status)
         assertEquals(ResultCode.TARGET_NOT_FOUND, result.verificationResult.resultCode)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
     }
 
     @Test
@@ -397,13 +382,13 @@ class ActionExecutionTest {
         assertFalse(uiResult.dispatchSuccess)
         assertEquals(VerificationStatus.ACTION_NOT_SUPPORTED, uiResult.verificationResult.status)
         assertEquals(ResultCode.CAPABILITY_UNAVAILABLE, uiResult.verificationResult.resultCode)
-        assertEquals(0, service.globalActionCallCount)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
 
         // 2. GlobalActionExecutor must be the ONLY executor that dispatches global actions
         val globalResult = globalExecutor.execute(request)
 
         assertTrue(globalResult.dispatchSuccess)
-        assertEquals(1, service.globalActionCallCount)
-        assertEquals(AccessibilityService.GLOBAL_ACTION_BACK, service.lastGlobalActionExecuted)
+        assertEquals(1, shadowService.globalActionsPerformed.size)
+        assertEquals(AccessibilityService.GLOBAL_ACTION_BACK, shadowService.globalActionsPerformed[0])
     }
 }
