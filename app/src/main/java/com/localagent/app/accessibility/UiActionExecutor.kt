@@ -41,6 +41,22 @@ class UiActionExecutor(
             return buildResultAndLog(request, null, false, null, null, verResult, startTime)
         }
 
+        // Validate action type FIRST
+        val targetActionType = when (request.actionType) {
+            ActionType.UI_CLICK -> TargetActionType.CLICK
+            ActionType.UI_LONG_CLICK -> TargetActionType.LONG_CLICK
+            ActionType.UI_TEXT_INPUT -> TargetActionType.EDITABLE
+            ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> TargetActionType.SCROLL
+            else -> {
+                val verResult = VerificationResult(
+                    status = VerificationStatus.ACTION_NOT_SUPPORTED,
+                    resultCode = ResultCode.CAPABILITY_UNAVAILABLE,
+                    reason = "Action ${request.actionType} is not a UI action"
+                )
+                return buildResultAndLog(request, null, false, null, null, verResult, startTime)
+            }
+        }
+
         // Capture pre-action observation snapshot
         val preSnapshot = service.captureLiveSnapshot()
 
@@ -54,21 +70,6 @@ class UiActionExecutor(
                 reason = "Action request lacks targetNodeId and targetNodeIdentity"
             )
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
-        }
-
-        val targetActionType = when (request.actionType) {
-            ActionType.UI_CLICK -> TargetActionType.CLICK
-            ActionType.UI_LONG_CLICK -> TargetActionType.LONG_CLICK
-            ActionType.UI_TEXT_INPUT -> TargetActionType.EDITABLE
-            ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> TargetActionType.SCROLL
-            else -> {
-                val verResult = VerificationResult(
-                    status = VerificationStatus.ACTION_NOT_SUPPORTED,
-                    resultCode = ResultCode.CAPABILITY_UNAVAILABLE,
-                    reason = "Action ${request.actionType} is not a UI action"
-                )
-                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
-            }
         }
 
         // 1. Resolve Target

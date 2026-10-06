@@ -11,7 +11,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
@@ -184,24 +183,35 @@ class ActionExecutionTest {
     @Test
     fun `P7-SAFE-003 - Target not actionable yields zero framework action dispatch`() {
         // Target is non-clickable TextView without clickable ancestor
-        val preSnap = com.localagent.core.observation.ObservationSnapshot(
+        val nonActionableSnapshot = com.localagent.core.observation.ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = com.localagent.core.observation.ObservationNode(
                 nodeId = "static_label",
                 className = "android.widget.TextView",
                 text = "Static Label",
-                clickable = false
+                clickable = false,
+                nodeIdentity = "cls:TextView_lbl:Static Label_parent:root"
             )
         )
-        service.lastExternalObservationSnapshot = preSnap
+
+        // Custom test service returning nonActionableSnapshot for captureLiveSnapshot
+        val mockService = object : AgentAccessibilityService() {
+            override fun captureLiveSnapshot(): com.localagent.core.observation.ObservationSnapshot {
+                return nonActionableSnapshot
+            }
+        }
+        mockService.onServiceConnectedForTest()
+        mockService.externalObservationState = ObservationEngineState.OBSERVING
+
+        val executor = UiActionExecutor(accessibilityService = mockService)
 
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = "static_label"
         )
 
-        val result = uiExecutor.execute(request)
+        val result = executor.execute(request)
 
         assertFalse(result.dispatchSuccess)
         assertEquals(VerificationStatus.TARGET_NOT_ACTIONABLE, result.verificationResult.status)
@@ -230,5 +240,6 @@ class ActionExecutionTest {
 
         assertFalse(result.dispatchSuccess)
         assertEquals(VerificationStatus.ACTION_NOT_SUPPORTED, result.verificationResult.status)
+        assertEquals(ResultCode.CAPABILITY_UNAVAILABLE, result.verificationResult.resultCode)
     }
 }

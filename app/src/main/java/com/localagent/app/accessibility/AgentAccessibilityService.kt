@@ -232,7 +232,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     @Suppress("DEPRECATION")
-    fun captureLiveSnapshot(): ObservationSnapshot {
+    open fun captureLiveSnapshot(): ObservationSnapshot {
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
 

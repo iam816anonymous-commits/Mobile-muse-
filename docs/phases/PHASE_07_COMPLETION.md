@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-Phase 7 implements **Global & UI Action Execution** according to the frozen 23-phase architecture. Phase 7 is the first phase where framework action dispatch is permitted, executing core UI and global navigation actions (`GLOBAL_BACK`, `GLOBAL_HOME`, `GLOBAL_RECENTS`, `UI_CLICK`, `UI_LONG_CLICK`, `UI_TEXT_INPUT`, `UI_SCROLL_FORWARD`, `UI_SCROLL_BACKWARD`) against Phase 6-resolved targets after live re-acquisition. Every action execution captures pre/post observation snapshots, generates `SnapshotDiff`s, applies target-aware or navigation-aware verification strategies, and records structured `ActionEvidence` to `agent.db`.
+Phase 7 implements **Global & UI Action Execution** according to the frozen 23-phase architecture. Phase 7 is the first phase where framework action dispatch is permitted, executing core UI and global navigation actions (`GLOBAL_BACK`, `GLOBAL_HOME`, `GLOBAL_RECENTS`, `UI_CLICK`, `UI_LONG_CLICK`, `UI_TEXT_INPUT`, `UI_SCROLL_FORWARD`, `UI_SCROLL_BACKWARD`) against Phase 6-resolved targets after live re-acquisition. Every action execution captures pre/post observation snapshots, generates `SnapshotDiffResult`s using `SnapshotDiffEngine`, applies target-aware or navigation-aware verification strategies, and records structured `ActionEvidence` to `agent.db`.
 
 ---
 
@@ -29,7 +29,7 @@ Phase 7 implements **Global & UI Action Execution** according to the frozen 23-p
    - Built `GlobalActionExecutor`: Dispatches `GLOBAL_ACTION_BACK`, `GLOBAL_ACTION_HOME`, and `GLOBAL_ACTION_RECENTS` through `AccessibilityService.performGlobalAction()`, captures pre/post snapshots, executes navigation verification, and logs `ActionEvidence` to `agent.db`.
 
 4. **UI Action Executor (`:app`):**
-   - Built `UiActionExecutor`: Resolves target nodes via Phase 6 `TargetResolver`, re-acquires live `AccessibilityNodeInfo` via `LiveTargetResolver`, verifies target capability, executes `ACTION_CLICK`, `ACTION_LONG_CLICK`, `ACTION_SET_TEXT`, `ACTION_SCROLL_FORWARD`, or `ACTION_SCROLL_BACKWARD`, captures pre/post snapshots, executes target-aware verification, and logs evidence.
+   - Built `UiActionExecutor`: Validates action types prior to snapshot capture, resolves target nodes via Phase 6 `TargetResolver`, re-acquires live `AccessibilityNodeInfo` via `LiveTargetResolver`, verifies target capability, executes `ACTION_CLICK`, `ACTION_LONG_CLICK`, `ACTION_SET_TEXT`, `ACTION_SCROLL_FORWARD`, or `ACTION_SCROLL_BACKWARD`, captures pre/post snapshots, executes target-aware verification, and logs evidence.
    - Enforces zero action dispatch on stale, missing, or non-actionable targets (`P7-SAFE-001` .. `P7-SAFE-005`).
 
 ---
