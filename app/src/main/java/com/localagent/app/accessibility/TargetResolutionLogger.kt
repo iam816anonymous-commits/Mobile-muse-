@@ -7,6 +7,7 @@ import com.localagent.core.logging.EventSubsystem
 import com.localagent.core.result.ResultCode
 import com.localagent.core.resolver.TargetResolutionResult
 import com.localagent.core.resolver.TargetResolutionStatus
+import java.util.UUID
 
 class TargetResolutionLogger(
     private val eventLogger: EventLogger
@@ -40,6 +41,7 @@ class TargetResolutionLogger(
         val activeSession = eventLogger.getActiveSession()
 
         val event = AgentEvent(
+            eventId = UUID.randomUUID().toString(),
             sessionId = activeSession.sessionId,
             subsystem = EventSubsystem.ACCESSIBILITY,
             eventType = eventType,

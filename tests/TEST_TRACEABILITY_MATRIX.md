@@ -110,4 +110,5 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Re-acquired target capability verified on live node | P6-LIVE-004 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Acquired AccessibilityNodeInfo objects correctly recycled | P6-LIVE-005 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Zero action dispatch occurs during resolution and re-acquisition | P6-LIVE-006 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Diagnostic logger passes eventId & deduplicates | P6-LOG-001 | AUTOMATED_ROBOLECTRIC | `TargetResolutionLoggerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Calculator child TextView -> MaterialButton parent resolution procedure | P6-DEV-TARGET-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 5 | Manual Target Resolution on Physical Phone | **NOT_RUN** |

@@ -17,7 +17,7 @@
 
 ---
 
-## Tier B: App Live Target Re-acquisition Tests (`LiveTargetResolverTest.kt`)
+## Tier B: App Live Target Re-acquisition Tests (`LiveTargetResolverTest.kt` & `TargetResolutionLoggerTest.kt`)
 
 | Test ID | Test Description | Target Action | Live State | Expected Result | Pass/Fail |
 |---|---|---|---|---|---|
@@ -27,3 +27,4 @@
 | `P6-LIVE-004` | Re-acquired target capability is verified on live node | `CLICK` | Live view matches identity but `isClickable = false` | `reacquired = false`, `liveNode = null`, `failureReason` notes non-actionable | PASS |
 | `P6-LIVE-005` | Acquired `AccessibilityNodeInfo` objects are correctly recycled | `CLICK` | Unmatched live hierarchy traversal | `reacquired = false`, `liveNode = null`, all traversed nodes recycled | PASS |
 | `P6-LIVE-006` | Zero action dispatch occurs during resolution and re-acquisition | `CLICK` | Active clickable live node | `reacquired = true`, `liveNode != null`, zero `performAction()` calls | PASS |
+| `P6-LOG-001` | Diagnostic logger passes valid `eventId` & deduplicates duplicate calls | `CLICK` | Diagnostic target resolution result | `eventId` non-blank, single event logged per deduplication key | PASS |
