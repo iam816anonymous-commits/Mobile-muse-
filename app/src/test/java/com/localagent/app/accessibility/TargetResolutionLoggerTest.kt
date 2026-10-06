@@ -15,7 +15,7 @@ class TargetResolutionLoggerTest {
 
     private class FakeEventLogger : EventLogger {
         val loggedEvents = mutableListOf<AgentEvent>()
-        val activeSession = AgentSession(
+        private val session = AgentSession(
             sessionId = "test-session-123",
             startTime = System.currentTimeMillis()
         )
@@ -24,9 +24,9 @@ class TargetResolutionLoggerTest {
             loggedEvents.add(event)
         }
 
-        override fun getActiveSession(): AgentSession = activeSession
+        override fun getActiveSession(): AgentSession = session
 
-        override fun startNewSession(reason: String): AgentSession = activeSession
+        override fun startNewSession(reason: String): AgentSession = session
     }
 
     @Test
