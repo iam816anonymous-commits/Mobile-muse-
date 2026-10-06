@@ -43,7 +43,8 @@ class ActionExecutionTest {
     private fun createUiExecutor(): UiActionExecutor {
         return UiActionExecutor(
             accessibilityService = service,
-            liveRootNodeProvider = { liveNodeSupplier?.invoke() }
+            liveRootNodeProvider = { liveNodeSupplier?.invoke() },
+            snapshotProvider = { service.currentObservationSnapshot ?: ObservationSnapshot() }
         )
     }
 

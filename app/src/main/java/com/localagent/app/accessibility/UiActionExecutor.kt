@@ -27,7 +27,8 @@ class UiActionExecutor(
     private val liveTargetResolver: LiveTargetResolver = LiveTargetResolver(),
     private val verificationStrategy: TargetAwareVerificationStrategy = TargetAwareVerificationStrategy(),
     private val resolutionLogger: TargetResolutionLogger? = null,
-    private val liveRootNodeProvider: () -> AccessibilityNodeInfo? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.rootInActiveWindow }
+    private val liveRootNodeProvider: () -> AccessibilityNodeInfo? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.rootInActiveWindow },
+    private val snapshotProvider: () -> ObservationSnapshot = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() ?: ObservationSnapshot() }
 ) {
     fun execute(request: ActionRequest): ActionExecutionResult {
         val startTime = System.currentTimeMillis()
@@ -59,7 +60,7 @@ class UiActionExecutor(
         }
 
         // Capture pre-action observation snapshot
-        val preSnapshot = service.captureLiveSnapshot()
+        val preSnapshot = snapshotProvider()
 
         val targetNodeId = request.targetNodeId
         val targetNodeIdentity = request.targetNodeIdentity
@@ -139,7 +140,7 @@ class UiActionExecutor(
         }
 
         // 4. Capture Post-Action Snapshot
-        val postSnapshot = service.captureLiveSnapshot()
+        val postSnapshot = snapshotProvider()
 
         // 5. Verify Target-Aware Result
         val verification = if (!dispatchSuccess) {

@@ -25,7 +25,7 @@
 | `P7-ACTION-002` | `GLOBAL_HOME` contract execution | `GLOBAL_HOME` | AccessibilityService bound | `dispatchSuccess = true`, `actionType = GLOBAL_HOME` | PASS |
 | `P7-ACTION-003` | `GLOBAL_RECENTS` contract execution | `GLOBAL_RECENTS` | AccessibilityService bound | `dispatchSuccess = true`, `actionType = GLOBAL_RECENTS` | PASS |
 | `P7-ACTION-004` | `UI_CLICK` contract execution | `UI_CLICK` | Resolved live button target | `actionType = UI_CLICK`, `targetNodeId = submit` | PASS |
-| `P7-ACTION-005` | `UI_LONG_CLICK` contract execution | `UI_LONG_CLICK` | Missing target node | `status = TARGET_NOT_FOUND` | PASS |
+| `P7-ACTION-005` | `UI_LONG_CLICK` contract execution | `UI_LONG_CLICK` | Resolved live card target | `actionType = UI_LONG_CLICK`, `targetNodeId = card` | PASS |
 | `P7-ACTION-006` | `UI_TEXT_INPUT` contract execution | `UI_TEXT_INPUT` | Editable input field | `textInputPayload = "Hello Agent"` | PASS |
 | `P7-ACTION-007` | `UI_SCROLL_FORWARD` contract execution | `UI_SCROLL_FORWARD` | Scrollable target | `actionType = UI_SCROLL_FORWARD` | PASS |
 | `P7-ACTION-008` | `UI_SCROLL_BACKWARD` contract execution | `UI_SCROLL_BACKWARD` | Scrollable target | `actionType = UI_SCROLL_BACKWARD` | PASS |
