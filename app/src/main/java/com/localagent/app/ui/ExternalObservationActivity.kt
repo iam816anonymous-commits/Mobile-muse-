@@ -19,8 +19,10 @@ class ExternalObservationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityExternalObservationBinding
     private var lastKnownA11yBound = false
-    private var externalObservationState: ObservationEngineState = ObservationEngineState.IDLE
     private var isDisplayCleared: Boolean = false
+
+    private val externalObservationState: ObservationEngineState
+        get() = AgentAccessibilityService.INSTANCE?.externalObservationState ?: ObservationEngineState.IDLE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +41,7 @@ class ExternalObservationActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnCaptureExternalUi.setOnClickListener {
             isDisplayCleared = false
-            externalObservationState = ObservationEngineState.OBSERVING
+            AgentAccessibilityService.INSTANCE?.externalObservationState = ObservationEngineState.OBSERVING
             triggerExternalObservation()
         }
 
@@ -59,7 +61,7 @@ class ExternalObservationActivity : AppCompatActivity() {
     }
 
     private fun stopExternalObservation() {
-        externalObservationState = ObservationEngineState.STOPPED
+        AgentAccessibilityService.INSTANCE?.externalObservationState = ObservationEngineState.STOPPED
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
 

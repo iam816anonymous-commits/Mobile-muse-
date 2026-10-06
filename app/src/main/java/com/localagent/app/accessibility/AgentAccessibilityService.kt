@@ -85,6 +85,9 @@ class AgentAccessibilityService : AccessibilityService() {
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
         private set
 
+    @Volatile
+    var externalObservationState: ObservationEngineState = ObservationEngineState.IDLE
+
     val currentEvidence: ObservationEvidence?
         get() {
             val snap = currentObservationSnapshot ?: return null
@@ -170,9 +173,23 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         }
 
-        // Opportunistically evaluate windows on window state changes to catch external apps
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+        // Authoritative external observation session check
+        if (externalObservationState != ObservationEngineState.OBSERVING) {
+            return
+        }
+
+        // Evaluate external application windows on window state, window list, or window content changes
+        val isRelevantEvent = when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_CLICKED,
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> true
+            else -> false
+        }
+
+        if (isRelevantEvent && isValidExternalApplicationPackage(pkg)) {
             evaluateExternalApplicationWindows()
         }
     }
@@ -276,14 +293,16 @@ class AgentAccessibilityService : AccessibilityService() {
 
         currentObservationSnapshot = primarySnapshot
 
-        // If primary snapshot is a valid external app, preserve it as last external snapshot
+        // If primary snapshot is a valid external app, preserve it as last external snapshot if observing
         if (isValidExternalApplicationPackage(selectedPkg)) {
             lastExternalPackageName = selectedPkg
             lastExternalWindowId = selectedWindowId
             lastExternalWindowType = selectedWindowType
             lastExternalObservationTimestamp = System.currentTimeMillis()
-            lastExternalObservationSnapshot = primarySnapshot
-        } else {
+            if (externalObservationState == ObservationEngineState.OBSERVING) {
+                lastExternalObservationSnapshot = primarySnapshot
+            }
+        } else if (externalObservationState == ObservationEngineState.OBSERVING) {
             // Primary is LocalAgent or System UI: inspect valid external window candidates
             val bestExternal = selectBestExternalWindow(
                 candidates = windowCandidates,
@@ -377,7 +396,8 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     @Suppress("DEPRECATION")
-    private fun evaluateExternalApplicationWindows() {
+    fun evaluateExternalApplicationWindows() {
+        if (externalObservationState != ObservationEngineState.OBSERVING) return
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""

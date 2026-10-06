@@ -17,7 +17,7 @@
 
 ---
 
-## Tier B: App Live Target Re-acquisition Tests (`LiveTargetResolverTest.kt` & `TargetResolutionLoggerTest.kt`)
+## Tier B: App Live Target Re-acquisition & Lifecycle Tests (`LiveTargetResolverTest.kt`, `TargetResolutionLoggerTest.kt`, `ExternalObservationLifecycleTest.kt`)
 
 | Test ID | Test Description | Target Action | Live State | Expected Result | Pass/Fail |
 |---|---|---|---|---|---|
@@ -28,3 +28,9 @@
 | `P6-LIVE-005` | Re-acquisition correctly handles actionable ancestor relationships | `CLICK` | Non-matching root view | `reacquired = false`, `liveNode = null` | PASS |
 | `P6-LIVE-006` | Resolution and re-acquisition are READ-ONLY | `CLICK` | Active clickable live node | `reacquired = true`, `liveNode != null`, `shadowNode.performedActions.size == 0` | PASS |
 | `P6-LOG-001` | Diagnostic logger passes valid eventId & deduplicates | `CLICK` | Diagnostic target resolution result | `eventId` non-blank, single event logged per deduplication key | PASS |
+| `P6-OBS-LIFE-001` | Start external observation and process event creates snapshot | `OBSERVE` | Active external app (`com.android.calculator2`) | `lastExternalPackageName = com.android.calculator2` | PASS |
+| `P6-OBS-LIFE-002` | Stop observation rejects subsequent events | `OBSERVE` | Session `STOPPED`, event emitted | Last snapshot preserved, zero new snapshot published | PASS |
+| `P6-OBS-LIFE-003` | Stop observation ignores multiple subsequent events | `OBSERVE` | Session `STOPPED`, 5 events emitted | `lastExternalObservationSnapshot = null`, 0 events processed | PASS |
+| `P6-OBS-LIFE-004` | Start after Stop resumes normal event processing | `OBSERVE` | Session `STOPPED` -> `OBSERVING` | New events processed normally | PASS |
+| `P6-OBS-LIFE-005` | Stopped session cannot publish snapshot from in-flight event | `OBSERVE` | Event in-flight when session transitions to `STOPPED` | Evaluation aborted, 0 snapshot published | PASS |
+| `P6-OBS-LIFE-006` | AccessibilityService remains bound after Stop Observation | `OBSERVE` | Service bound, session `STOPPED` | `isBound = true`, session `STOPPED` | PASS |

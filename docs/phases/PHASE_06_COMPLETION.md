@@ -4,13 +4,17 @@
 **Execution Date:** May 2024
 **Build Status:** PASS (Debug & Release Kotlin Compilation CLEAN)
 **Lint Status:** PASS (0 errors)
-**Total Tests:** 75/75 PASS (34 Core Unit Tests + 41 App Robolectric Tests across Debug and Release variants)
+**Total Tests:** 81/81 PASS (34 Core Unit Tests + 47 App Robolectric Tests across Debug and Release variants)
 
 ---
 
 ## 1. Executive Summary
 
 Phase 6 implements the **Target Resolution Foundation** of the Universal Action Engine according to the 23-phase frozen architecture. Phase 6 bridges the gap between descriptive observation snapshots (Phase 5) and live target re-acquisition by identifying actionable targets up parent accessibility hierarchies, computing target resolution confidence, and validating live node availability without executing actions or pulling forward autonomous dispatchers.
+
+Additionally, this phase resolves external observation runtime diagnostics:
+1. **Live External UI Updates:** Corrected `AgentAccessibilityService.onAccessibilityEvent` to process content and view change event types (`TYPE_WINDOW_CONTENT_CHANGED`, `TYPE_VIEW_CLICKED`, `TYPE_VIEW_TEXT_CHANGED`, `TYPE_VIEW_FOCUSED`) so that live external application UI state changes (e.g. Calculator) update dynamically while staying in the foreground.
+2. **Authoritative Session Lifecycle:** Bound `externalObservationState` directly in `AgentAccessibilityService` so that tapping `Stop Observation` halts background event processing and snapshot extraction while keeping `AgentAccessibilityService` bound and running.
 
 ---
 
@@ -30,16 +34,19 @@ Phase 6 implements the **Target Resolution Foundation** of the Universal Action 
    - Built `LiveTargetResolver`: Re-acquires matching live `AccessibilityNodeInfo` instances from active window hierarchies, re-verifies requested capabilities on live nodes, and enforces strict `try/finally` recycling. Rejects stale targets (`TARGET_NOT_FOUND`) if the target has disappeared or changed capabilities.
    - Guaranteed **ZERO** action dispatching (`performAction()`) during resolution and re-acquisition.
 
-4. **Diagnostic Event Logging & Deduplication (`:app`):**
+4. **External Observation Event Filtering & Session Control (`:app`):**
+   - Updated `AgentAccessibilityService` to check `externalObservationState == ObservationEngineState.OBSERVING` before evaluating/publishing external snapshots.
+   - Expanded accessibility event filtering to include content and view state changes (`TYPE_WINDOW_CONTENT_CHANGED`, `TYPE_VIEW_CLICKED`, `TYPE_VIEW_TEXT_CHANGED`, `TYPE_VIEW_FOCUSED`), enabling live foreground updates without requiring app switching or manual re-observation.
+
+5. **Diagnostic Event Logging & Deduplication (`:app`):**
    - Built `TargetResolutionLogger`: Logs structured diagnostic events (`TARGET_RESOLUTION_RESOLVED`, `TARGET_RESOLUTION_FAILED`, `TARGET_REACQUISITION_RESOLVED`, `TARGET_REACQUISITION_FAILED`) to `agent.db` via `UnifiedEventLogger` with request-scoped deduplication (`beginRequest`/`endRequest`).
-   - Passes explicit `eventId = UUID.randomUUID().toString()` to the `AgentEvent` constructor call.
 
 ---
 
 ## 3. Test Verification & Results
 
 - **Tier A Unit Tests (`:core`):** 10 test cases (`P6-RESOLVE-001` through `P6-RESOLVE-010`) verifying target resolution strategies, Calculator child `TextView "7"` -> `MaterialButton` parent resolution with `HIGH`/`EXACT` confidence, missing node safety, and pure computation isolation.
-- **Tier B Robolectric Tests (`:app`):** 7 test cases (`P6-LIVE-001` through `P6-LIVE-006` plus `TargetResolutionLoggerTest.kt`) verifying live node re-acquisition, stale target rejection, live capability verification, node recycling, logger event ID generation, deduplication, and zero action dispatch (`P6-LIVE-006` verifies `performedActions.size == 0` on shadow nodes).
+- **Tier B Robolectric Tests (`:app`):** 13 test cases (`P6-LIVE-001` through `P6-LIVE-006`, `P6-LOG-001`, and `P6-OBS-LIFE-001` through `P6-OBS-LIFE-006`) verifying live node re-acquisition, stale target rejection, live capability verification, node recycling, logger deduplication, zero action dispatch (`P6-LIVE-006`), and external observation session lifecycle control.
 - **Regression Verification:** All Phase 1–5 tests continue to pass with 100% success rate across Debug and Release build variants.
 - **Physical Device Status:** **NOT_RUN** (Recorded in `PHYSICAL_DEVICE_TEST_PLAN.md` for physical hardware execution).
 
@@ -57,7 +64,7 @@ Tier A:
 10/10 PASS
 
 Tier B:
-7/7 PASS
+13/13 PASS
 
 Phase 5 Regression:
 PASS

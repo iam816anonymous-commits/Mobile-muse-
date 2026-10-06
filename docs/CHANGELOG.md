@@ -5,8 +5,10 @@
 - Built pure domain `ActionableAncestorResolver` & `TargetResolver` supporting safe parent hierarchy traversal for `CLICK`, `LONG_CLICK`, `SCROLL`, and `EDITABLE` actions up to max depth 30.
 - Implemented `LiveTargetResolver` in `:app` for re-acquiring live `AccessibilityNodeInfo` objects from current window hierarchies with live capability re-verification, safe stale target rejection (`TARGET_NOT_FOUND`), and strict recycling lifecycle management (`try/finally`).
 - Built `TargetResolutionLogger` with request-scoped deduplication (`beginRequest`/`endRequest`) to log diagnostic resolution events to `agent.db` without database flooding.
-- Guaranteed zero action execution (`performAction()`) during target resolution and re-acquisition.
-- Reimplemented Tier A (`TargetResolverTest.kt`) and Tier B (`LiveTargetResolverTest.kt`, `TargetResolutionLoggerTest.kt`) test suites (`P6-RESOLVE-001` through `P6-RESOLVE-010`, `P6-LIVE-001` through `P6-LIVE-006`, `P6-LOG-001`). Verified `P6-LIVE-006` via `ShadowAccessibilityNodeInfo.performedActions` across both Debug and Release build variants.
+- Corrected `AgentAccessibilityService.onAccessibilityEvent` to handle live foreground content/window change events (`TYPE_WINDOW_CONTENT_CHANGED`, `TYPE_VIEW_CLICKED`, `TYPE_VIEW_TEXT_CHANGED`, `TYPE_VIEW_FOCUSED`) so that live external UI state changes (e.g. Calculator) update dynamically while remaining in the foreground.
+- Authoritatively bound external observation session lifecycle (`externalObservationState`) in `AgentAccessibilityService` so that stopping external observation ignores subsequent background events without unbinding `AgentAccessibilityService`.
+- Guaranteed zero action execution (`performAction()`) during target resolution, re-acquisition, and observation.
+- Added Tier A (`TargetResolverTest.kt`) and Tier B (`LiveTargetResolverTest.kt`, `TargetResolutionLoggerTest.kt`, `ExternalObservationLifecycleTest.kt`) test suites (`P6-RESOLVE-001` through `P6-RESOLVE-010`, `P6-LIVE-001` through `P6-LIVE-006`, `P6-LOG-001`, `P6-OBS-LIFE-001` through `P6-OBS-LIFE-006`).
 
 ## Phase 5 (Completed)
 - Implemented single-root snapshot retrieval contract and immediate `.recycle()` memory management.
