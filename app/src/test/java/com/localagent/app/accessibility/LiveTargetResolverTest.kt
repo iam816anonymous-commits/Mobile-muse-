@@ -223,6 +223,8 @@ class LiveTargetResolverTest {
 
     @Test
     fun `P6-LIVE-006 - zero action dispatch occurs during resolution and re-acquisition`() {
+        var actionDispatchCount = 0
+
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "android.widget.Button"
             isClickable = true
@@ -251,6 +253,7 @@ class LiveTargetResolverTest {
 
         assertTrue(reacquisitionResult.reacquired)
         assertNotNull(reacquisitionResult.liveNode)
+        assertEquals(0, actionDispatchCount)
 
         // Clean up live node without performing any action dispatch
         reacquisitionResult.liveNode?.recycle()
