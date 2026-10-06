@@ -1,13 +1,13 @@
 # PHASE_MAP.md — LocalAgent 23-Phase Roadmap
 
-1. Phase 0 — Specification & Research
-2. Phase 1 — Foundation & Domain Core
-3. Phase 2 — Persistent Storage & Unified Logging
-4. Phase 3 — Permission & Capability Manager & Observation Foundation
-5. Phase 4 — Accessibility Service Foundation
-6. Phase 5 — Observation & Snapshot Engine
-7. Phase 6 — Action Engine & Target Resolution
-8. Phase 7 — Node Actions (Click, Scroll, Input)
+1. Phase 0 — Specification & Research [COMPLETED]
+2. Phase 1 — Foundation & Domain Core [COMPLETED]
+3. Phase 2 — Persistent Storage & Unified Logging [COMPLETED]
+4. Phase 3 — Permission & Capability Manager & Observation Foundation [COMPLETED]
+5. Phase 4 — Accessibility Service Foundation [COMPLETED]
+6. Phase 5 — Observation & Snapshot Engine [COMPLETED]
+7. Phase 6 — Universal Action Engine Target Resolution [COMPLETED]
+8. Phase 7 — Node Actions (Click, Scroll, Input) [NEXT PHASE]
 9. Phase 8 — App Control Engine
 10. Phase 9 — Console Thin Client
 11. Phase 10 — Movable Overlay

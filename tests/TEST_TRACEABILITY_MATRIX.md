@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
+This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
 Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
@@ -87,3 +87,27 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Node rendering uniqueness & external snapshot isolation | P5-UI-DUP-005 | AUTOMATED_ROBOLECTRIC | `CurrentObservationActivityTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Read-only observation guarantee (0 dispatches) | P5-READ-001 | AUTOMATED_ROBOLECTRIC | `AgentAccessibilityServiceTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Phase 5 single-root, stop control & heap footprint procedure | P5-DEV-SNAP-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 4 | Manual Observation & Memory Dump on Physical Phone | **NOT_RUN** |
+
+---
+
+## 8. Phase 6 — Universal Action Engine Target Resolution Traceability
+
+| Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
+|---|---|---|---|---|---|
+| Self clickable node resolves to itself | P6-RESOLVE-001 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Non-clickable child TextView resolves to clickable parent MaterialButton | P6-RESOLVE-002 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Nearest valid clickable ancestor wins | P6-RESOLVE-003 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| No clickable ancestor returns NO_TARGET safely | P6-RESOLVE-004 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Long-clickable child & ancestor resolution | P6-RESOLVE-005 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Scrollable child resolves to scrollable ancestor | P6-RESOLVE-006 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Editable target resolution | P6-RESOLVE-007 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Identity confidence is preserved & derived correctly | P6-RESOLVE-008 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Resolution handles missing node ID safely | P6-RESOLVE-009 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Resolution never performs action execution | P6-RESOLVE-010 | AUTOMATED_JVM | `TargetResolverTest.kt` | `./gradlew :core:test` | PASS |
+| Snapshot node re-acquires matching live node | P6-LIVE-001 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Re-acquisition fails safely when target disappears | P6-LIVE-002 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Re-acquisition rejects stale or mismatched identity | P6-LIVE-003 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Re-acquired target capability verified on live node | P6-LIVE-004 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Acquired AccessibilityNodeInfo objects correctly recycled | P6-LIVE-005 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Zero action dispatch occurs during resolution and re-acquisition | P6-LIVE-006 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone Calculator child TextView -> MaterialButton parent resolution procedure | P6-DEV-TARGET-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 5 | Manual Target Resolution on Physical Phone | **NOT_RUN** |

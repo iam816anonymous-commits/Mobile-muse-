@@ -5,3 +5,4 @@ core/build/
 .idea/
 *.iml
 *.apk
+*.log
