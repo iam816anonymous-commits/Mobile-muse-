@@ -39,3 +39,47 @@ This document specifies physical hardware verification procedures for LocalAgent
   9. Confirm stale target is safely rejected (`TARGET_NOT_FOUND`).
   10. Confirm ZERO action execution (clicks/scrolls/typing) occurs during target resolution.
 - **Status:** **NOT_RUN**
+
+---
+
+## 6. Phase 7 Procedures (`P7-PHY-001` .. `P7-PHY-008`)
+
+### `P7-PHY-001` — `GLOBAL_BACK`
+- **Procedure:** Open Calculator, navigate to secondary screen/menu, trigger `GLOBAL_BACK`.
+- **Verification:** Verify navigation changed, pre/post snapshot diff captured, and `NavigationAwareVerificationStrategy` verifies `SUCCESS_VERIFIED`.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-002` — `GLOBAL_HOME`
+- **Procedure:** Open Calculator, trigger `GLOBAL_HOME`.
+- **Verification:** Verify Android Home screen reached, package changed to launcher, and navigation verification succeeds.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-003` — `GLOBAL_RECENTS`
+- **Procedure:** Open Calculator, trigger `GLOBAL_RECENTS`.
+- **Verification:** Verify Android Recents UI appears and window/package navigation change is verified.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-004` — `UI_CLICK` (Calculator)
+- **Procedure:** Observe Calculator, resolve button `TextView "7"`, execute `UI_CLICK`.
+- **Verification:** Verify live re-acquisition targets `MaterialButton`, Calculator display updates to "7", pre/post SnapshotDiff confirms state change, and `TargetAwareVerificationStrategy` verifies `SUCCESS_VERIFIED`.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-005` — `UI_TEXT_INPUT` (Settings / Search)
+- **Procedure:** Open Settings, resolve search input field, execute `UI_TEXT_INPUT` payload `"Display"`.
+- **Verification:** Verify text enters into editable field, pre/post diff captures text attribute change, and `SUCCESS_VERIFIED` returned.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-006` — `UI_SCROLL_FORWARD` (Settings List)
+- **Procedure:** Open scrollable Settings screen, resolve `RecyclerView`, execute `UI_SCROLL_FORWARD`.
+- **Verification:** Verify list scrolls down, new visible nodes appear in post-snapshot diff, and `SUCCESS_VERIFIED` returned.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-007` — `UI_SCROLL_BACKWARD` (Settings List)
+- **Procedure:** Execute `UI_SCROLL_BACKWARD` on scrolled Settings list.
+- **Verification:** Verify list scrolls back up, pre/post diff captures state change, and `SUCCESS_VERIFIED` returned.
+- **Status:** **NOT_RUN**
+
+### `P7-PHY-008` — `UI_LONG_CLICK`
+- **Procedure:** Resolve target supporting long click (e.g. list item or card), execute `UI_LONG_CLICK`.
+- **Verification:** Verify contextual menu or long-click response appears, pre/post diff records state change, and `SUCCESS_VERIFIED` returned.
+- **Status:** **NOT_RUN**

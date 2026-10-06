@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
+This matrix maps every requirement across frozen phases (Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6, Phase 7) to its exact stable Test ID, test classification type, executable source location, execution command, permissions, hardware, and verification status.
 
 Every requirement must map to an automated JVM test, Robolectric test, instrumentation test, physical-device test procedure, or specification audit.
 
@@ -111,4 +111,48 @@ Every requirement must map to an automated JVM test, Robolectric test, instrumen
 | Acquired AccessibilityNodeInfo objects correctly recycled | P6-LIVE-005 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Zero action dispatch occurs during resolution and re-acquisition | P6-LIVE-006 | AUTOMATED_ROBOLECTRIC | `LiveTargetResolverTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Diagnostic logger passes eventId & deduplicates | P6-LOG-001 | AUTOMATED_ROBOLECTRIC | `TargetResolutionLoggerTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| External observation lifecycle - Start & process event | P6-OBS-LIFE-001 | AUTOMATED_ROBOLECTRIC | `ExternalObservationLifecycleTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| External observation lifecycle - Stop rejects events | P6-OBS-LIFE-002 | AUTOMATED_ROBOLECTRIC | `ExternalObservationLifecycleTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| External observation lifecycle - Stop ignores multiple events | P6-OBS-LIFE-003 | AUTOMATED_ROBOLECTRIC | `ExternalObservationLifecycleTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| External observation lifecycle - Resume processing after stop | P6-OBS-LIFE-004 | AUTOMATED_ROBOLECTRIC | `ExternalObservationLifecycleTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| External observation lifecycle - Stopped session blocks queued publication | P6-OBS-LIFE-005 | AUTOMATED_ROBOLECTRIC | `ExternalObservationLifecycleTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| External observation lifecycle - Service remains bound after stop | P6-OBS-LIFE-006 | AUTOMATED_ROBOLECTRIC | `ExternalObservationLifecycleTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
 | Physical phone Calculator child TextView -> MaterialButton parent resolution procedure | P6-DEV-TARGET-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 5 | Manual Target Resolution on Physical Phone | **NOT_RUN** |
+
+---
+
+## 9. Phase 7 — Global & UI Action Execution Traceability
+
+| Requirement | Test ID | Test Type | Executable Location | Execution Command | Status |
+|---|---|---|---|---|---|
+| Identical pre/post snapshot yields unverified status | P7-VERIFY-001 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Target state change yields verification success | P7-VERIFY-002 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Unrelated UI change yields UI change verification | P7-VERIFY-003 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Navigation change yields navigation verification success | P7-VERIFY-004 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| No navigation change yields unverified navigation status | P7-VERIFY-005 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Target disappeared yields verification success | P7-VERIFY-006 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Target identity changed yields verification failure | P7-VERIFY-007 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Invalid/null snapshot yields verification failure | P7-VERIFY-008 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Successful action with unchanged UI yields unverified | P7-VERIFY-009 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| Verification result contains pre/post diff info | P7-VERIFY-010 | AUTOMATED_JVM | `VerificationStrategyTest.kt` | `./gradlew :core:test` | PASS |
+| `GLOBAL_BACK` contract execution | P7-ACTION-001 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `GLOBAL_HOME` contract execution | P7-ACTION-002 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `GLOBAL_RECENTS` contract execution | P7-ACTION-003 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `UI_CLICK` contract execution | P7-ACTION-004 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `UI_LONG_CLICK` contract execution | P7-ACTION-005 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `UI_TEXT_INPUT` contract execution | P7-ACTION-006 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `UI_SCROLL_FORWARD` contract execution | P7-ACTION-007 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| `UI_SCROLL_BACKWARD` contract execution | P7-ACTION-008 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Target resolution failure yields zero action dispatch | P7-SAFE-001 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Target stale yields zero action dispatch | P7-SAFE-002 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Target not actionable yields zero action dispatch | P7-SAFE-003 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Invalid request missing ID & identity yields zero action dispatch | P7-SAFE-004 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Global action dispatch only performed by global action executor | P7-SAFE-005 | AUTOMATED_ROBOLECTRIC | `ActionExecutionTest.kt` | `./gradlew :app:testDebugUnitTest` | PASS |
+| Physical phone `GLOBAL_BACK` procedure | P7-PHY-001 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Back Execution on Physical Phone | **NOT_RUN** |
+| Physical phone `GLOBAL_HOME` procedure | P7-PHY-002 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Home Execution on Physical Phone | **NOT_RUN** |
+| Physical phone `GLOBAL_RECENTS` procedure | P7-PHY-003 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Recents Execution on Physical Phone | **NOT_RUN** |
+| Physical phone `UI_CLICK` procedure | P7-PHY-004 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Click Execution on Physical Phone | **NOT_RUN** |
+| Physical phone `UI_TEXT_INPUT` procedure | P7-PHY-005 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Text Input on Physical Phone | **NOT_RUN** |
+| Physical phone `UI_SCROLL_FORWARD` procedure | P7-PHY-006 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Scroll Forward on Physical Phone | **NOT_RUN** |
+| Physical phone `UI_SCROLL_BACKWARD` procedure | P7-PHY-007 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Scroll Backward on Physical Phone | **NOT_RUN** |
+| Physical phone `UI_LONG_CLICK` procedure | P7-PHY-008 | PHYSICAL_DEVICE | `PHYSICAL_DEVICE_TEST_PLAN.md` Sec 6 | Manual Long Click on Physical Phone | **NOT_RUN** |
