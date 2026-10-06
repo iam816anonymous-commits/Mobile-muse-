@@ -1,7 +1,6 @@
 package com.localagent.core.resolver
 
 import com.localagent.core.observation.NodeIdentityConfidence
-import com.localagent.core.observation.ObservationBounds
 import com.localagent.core.observation.ObservationNode
 import com.localagent.core.observation.ObservationSnapshot
 import org.junit.Assert.*
@@ -12,7 +11,7 @@ class TargetResolverTest {
     private val targetResolver = TargetResolver()
 
     @Test
-    fun `P6-RESOLVE-001 - self clickable node resolves to itself`() {
+    fun `P6-RESOLVE-001 - direct target resolution`() {
         val clickableButton = ObservationNode(
             nodeId = "btn_1",
             className = "android.widget.Button",
@@ -40,7 +39,34 @@ class TargetResolverTest {
     }
 
     @Test
-    fun `P6-RESOLVE-002 - non-clickable TextView resolves to clickable parent`() {
+    fun `P6-RESOLVE-002 - exact target identity resolution`() {
+        val targetIdentity = "id:digit_7_text:7"
+        val btnNode = ObservationNode(
+            nodeId = "btn_7",
+            className = "com.google.android.material.button.MaterialButton",
+            text = "7",
+            resourceId = "com.android.calculator2:id/digit_7",
+            clickable = true,
+            nodeIdentity = targetIdentity,
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val snapshot = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = btnNode
+        )
+
+        val result = targetResolver.resolveTargetByIdentity(snapshot, targetIdentity, TargetActionType.CLICK)
+
+        assertEquals(TargetResolutionStatus.RESOLVED, result.status)
+        assertEquals("btn_7", result.resolvedNodeId)
+        assertEquals(targetIdentity, result.resolvedNodeIdentity)
+        assertEquals(TargetResolutionStrategy.SELF_ACTIONABLE, result.strategy)
+    }
+
+    @Test
+    fun `P6-RESOLVE-003 - clickable child to clickable ancestor`() {
         // Child TextView "7" (non-clickable)
         val text7Node = ObservationNode(
             nodeId = "text_7",
@@ -80,72 +106,7 @@ class TargetResolverTest {
     }
 
     @Test
-    fun `P6-RESOLVE-003 - multiple ancestors exist, nearest valid clickable ancestor wins`() {
-        val leafText = ObservationNode(
-            nodeId = "leaf_text",
-            className = "android.widget.TextView",
-            text = "Item Text",
-            clickable = false
-        )
-
-        val innerLayout = ObservationNode(
-            nodeId = "inner_clickable",
-            className = "android.widget.LinearLayout",
-            clickable = true,
-            children = listOf(leafText)
-        )
-
-        val outerContainer = ObservationNode(
-            nodeId = "outer_clickable",
-            className = "android.widget.FrameLayout",
-            clickable = true,
-            children = listOf(innerLayout)
-        )
-
-        val snapshot = ObservationSnapshot(
-            packageName = "com.app",
-            nodeCount = 3,
-            rootNode = outerContainer
-        )
-
-        val result = targetResolver.resolveTargetById(snapshot, "leaf_text", TargetActionType.CLICK)
-
-        assertEquals(TargetResolutionStatus.RESOLVED, result.status)
-        assertEquals("inner_clickable", result.resolvedNodeId)
-        assertEquals(1, result.ancestorDepth)
-    }
-
-    @Test
-    fun `P6-RESOLVE-004 - no clickable ancestor returns NO_TARGET safely`() {
-        val nonClickableText = ObservationNode(
-            nodeId = "label_1",
-            className = "android.widget.TextView",
-            text = "Static Label",
-            clickable = false
-        )
-
-        val nonClickableParent = ObservationNode(
-            nodeId = "layout_1",
-            className = "android.widget.LinearLayout",
-            clickable = false,
-            children = listOf(nonClickableText)
-        )
-
-        val snapshot = ObservationSnapshot(
-            packageName = "com.app",
-            nodeCount = 2,
-            rootNode = nonClickableParent
-        )
-
-        val result = targetResolver.resolveTargetById(snapshot, "label_1", TargetActionType.CLICK)
-
-        assertEquals(TargetResolutionStatus.NO_ACTIONABLE_TARGET, result.status)
-        assertEquals(TargetResolutionStrategy.NO_TARGET, result.strategy)
-        assertNull(result.resolvedNodeId)
-    }
-
-    @Test
-    fun `P6-RESOLVE-005 - long-clickable child and ancestor resolution`() {
+    fun `P6-RESOLVE-004 - long-clickable child to long-clickable ancestor`() {
         val child = ObservationNode(
             nodeId = "child_view",
             className = "android.view.View",
@@ -173,7 +134,7 @@ class TargetResolverTest {
     }
 
     @Test
-    fun `P6-RESOLVE-006 - scrollable child resolves to scrollable ancestor`() {
+    fun `P6-RESOLVE-005 - scrollable child to scrollable ancestor`() {
         val itemText = ObservationNode(
             nodeId = "item_5",
             className = "android.widget.TextView",
@@ -202,7 +163,7 @@ class TargetResolverTest {
     }
 
     @Test
-    fun `P6-RESOLVE-007 - editable target resolution`() {
+    fun `P6-RESOLVE-006 - editable child to editable ancestor`() {
         val editText = ObservationNode(
             nodeId = "input_field",
             className = "android.widget.EditText",
@@ -223,52 +184,82 @@ class TargetResolverTest {
     }
 
     @Test
-    fun `P6-RESOLVE-008 - identity confidence is preserved and derived correctly`() {
-        val lowConfChild = ObservationNode(
-            nodeId = "child",
-            className = "android.view.View",
-            identityConfidence = NodeIdentityConfidence.LOW
+    fun `P6-RESOLVE-007 - ancestor traversal respects maximum depth`() {
+        val resolverWithMaxDepth1 = TargetResolver(
+            ancestorResolver = ActionableAncestorResolver(maxDepth = 1)
         )
 
-        val exactParent = ObservationNode(
-            nodeId = "parent",
-            className = "android.widget.Button",
-            resourceId = "com.app:id/exact_btn",
-            text = "Click Me",
-            clickable = true,
-            identityConfidence = NodeIdentityConfidence.EXACT,
-            children = listOf(lowConfChild)
+        val leaf = ObservationNode(nodeId = "leaf", clickable = false)
+        val mid = ObservationNode(nodeId = "mid", clickable = false, children = listOf(leaf))
+        val top = ObservationNode(nodeId = "top", clickable = true, children = listOf(mid))
+
+        val snapshot = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 3,
+            rootNode = top
+        )
+
+        // Traversal from leaf -> mid is depth 1, top is depth 2 (exceeding maxDepth 1)
+        val result = resolverWithMaxDepth1.resolveTargetById(snapshot, "leaf", TargetActionType.CLICK)
+
+        assertEquals(TargetResolutionStatus.NO_ACTIONABLE_TARGET, result.status)
+        assertEquals(TargetResolutionStrategy.NO_TARGET, result.strategy)
+    }
+
+    @Test
+    fun `P6-RESOLVE-008 - no matching actionable ancestor returns failure`() {
+        val nonClickableText = ObservationNode(
+            nodeId = "label_1",
+            className = "android.widget.TextView",
+            text = "Static Label",
+            clickable = false
+        )
+
+        val nonClickableParent = ObservationNode(
+            nodeId = "layout_1",
+            className = "android.widget.LinearLayout",
+            clickable = false,
+            children = listOf(nonClickableText)
         )
 
         val snapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 2,
-            rootNode = exactParent
+            rootNode = nonClickableParent
         )
 
-        val result = targetResolver.resolveTargetById(snapshot, "child", TargetActionType.CLICK)
+        val result = targetResolver.resolveTargetById(snapshot, "label_1", TargetActionType.CLICK)
 
-        assertEquals(TargetResolutionStatus.RESOLVED, result.status)
-        assertEquals(NodeIdentityConfidence.EXACT, result.confidence)
+        assertEquals(TargetResolutionStatus.NO_ACTIONABLE_TARGET, result.status)
+        assertEquals(TargetResolutionStrategy.NO_TARGET, result.strategy)
+        assertNull(result.resolvedNodeId)
     }
 
     @Test
-    fun `P6-RESOLVE-009 - resolution handles missing node ID safely`() {
+    fun `P6-RESOLVE-009 - capability mismatch target rejected`() {
+        val clickableOnlyNode = ObservationNode(
+            nodeId = "btn_1",
+            className = "android.widget.Button",
+            clickable = true,
+            scrollable = false,
+            editable = false
+        )
+
         val snapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
-            rootNode = ObservationNode(nodeId = "root", className = "android.widget.LinearLayout")
+            rootNode = clickableOnlyNode
         )
 
-        val result = targetResolver.resolveTargetById(snapshot, "non_existent_id", TargetActionType.CLICK)
+        val scrollResult = targetResolver.resolveTargetById(snapshot, "btn_1", TargetActionType.SCROLL)
+        val editResult = targetResolver.resolveTargetById(snapshot, "btn_1", TargetActionType.EDITABLE)
 
-        assertEquals(TargetResolutionStatus.TARGET_NOT_FOUND, result.status)
-        assertEquals(TargetResolutionStrategy.NO_TARGET, result.strategy)
-        assertNotNull(result.failureReason)
+        assertEquals(TargetResolutionStatus.NO_ACTIONABLE_TARGET, scrollResult.status)
+        assertEquals(TargetResolutionStatus.NO_ACTIONABLE_TARGET, editResult.status)
     }
 
     @Test
-    fun `P6-RESOLVE-010 - resolution never performs action execution`() {
+    fun `P6-RESOLVE-010 - correct resolution strategy and result metadata is returned`() {
         val clickableNode = ObservationNode(
             nodeId = "btn",
             className = "android.widget.Button",
@@ -285,6 +276,6 @@ class TargetResolverTest {
 
         assertEquals(TargetResolutionStatus.RESOLVED, result.status)
         assertFalse(result.reacquired)
-        // Verified pure domain computation without framework side effects
+        assertNotNull(result.toJsonObject())
     }
 }

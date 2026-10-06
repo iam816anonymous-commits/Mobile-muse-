@@ -12,7 +12,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowAccessibilityNodeInfo
 import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
@@ -22,7 +21,7 @@ class LiveTargetResolverTest {
     private val liveTargetResolver = LiveTargetResolver()
 
     @Test
-    fun `P6-LIVE-001 - snapshot node successfully re-acquires corresponding live node`() {
+    fun `P6-LIVE-001 - live target can be re-acquired from current accessibility hierarchy`() {
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "com.google.android.material.button.MaterialButton"
             viewIdResourceName = "com.android.calculator2:id/digit_7"
@@ -66,23 +65,22 @@ class LiveTargetResolverTest {
     }
 
     @Test
-    fun `P6-LIVE-002 - re-acquisition fails safely when target disappears`() {
-        // Current live UI contains only a different button "8"
+    fun `P6-LIVE-002 - re-acquired node matches intended target identity`() {
+        val targetIdentity = "id:digit_7_text:7"
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "com.google.android.material.button.MaterialButton"
-            viewIdResourceName = "com.android.calculator2:id/digit_8"
-            text = "8"
+            viewIdResourceName = "com.android.calculator2:id/digit_7"
+            text = "7"
             isClickable = true
         }
 
-        // Requested target "7" no longer in live UI
         val resolvedTarget = ObservationNode(
             nodeId = "btn_7",
             className = "com.google.android.material.button.MaterialButton",
             text = "7",
             resourceId = "com.android.calculator2:id/digit_7",
             clickable = true,
-            nodeIdentity = "id:digit_7_text:7",
+            nodeIdentity = targetIdentity,
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
@@ -102,60 +100,21 @@ class LiveTargetResolverTest {
             actionType = TargetActionType.CLICK
         )
 
-        assertFalse(reacquisitionResult.reacquired)
-        assertNull(reacquisitionResult.liveNode)
-        assertNotNull(reacquisitionResult.failureReason)
+        assertTrue(reacquisitionResult.reacquired)
+        assertEquals(targetIdentity, reacquisitionResult.targetResolutionResult.resolvedNodeIdentity)
 
+        reacquisitionResult.liveNode?.recycle()
         rootNodeInfo.recycle()
     }
 
     @Test
-    fun `P6-LIVE-003 - re-acquisition rejects stale or mismatched identity`() {
-        val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
-            className = "android.widget.TextView"
-            text = "Stale Content"
-            isClickable = false
-        }
-
-        val resolvedTarget = ObservationNode(
-            nodeId = "btn_7",
-            className = "com.google.android.material.button.MaterialButton",
-            text = "7",
-            resourceId = "com.android.calculator2:id/digit_7",
-            clickable = true,
-            nodeIdentity = "id:digit_7_text:7",
-            identityConfidence = NodeIdentityConfidence.EXACT
-        )
-
-        val resolutionResult = TargetResolutionResult(
-            requestedNodeId = "text_7",
-            resolvedNodeId = "btn_7",
-            actionType = TargetActionType.CLICK,
-            strategy = TargetResolutionStrategy.CLICKABLE_ANCESTOR,
-            status = TargetResolutionStatus.RESOLVED
-        )
-
-        val reacquisitionResult = liveTargetResolver.reacquireLiveTarget(
-            rootLiveNode = rootNodeInfo,
-            targetResolutionResult = resolutionResult,
-            resolvedTarget = resolvedTarget,
-            actionType = TargetActionType.CLICK
-        )
-
-        assertFalse(reacquisitionResult.reacquired)
-        assertNull(reacquisitionResult.liveNode)
-
-        rootNodeInfo.recycle()
-    }
-
-    @Test
-    fun `P6-LIVE-004 - re-acquired target capability is verified again on live node`() {
-        // Live node matches resourceId & text, but isClickable is false
+    fun `P6-LIVE-003 - re-acquired node is capability checked again`() {
+        // Live node matches identity, but isClickable is false in current live UI
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "com.google.android.material.button.MaterialButton"
             viewIdResourceName = "com.android.calculator2:id/digit_7"
             text = "7"
-            isClickable = false // Disabled or non-clickable in live state
+            isClickable = false // Non-clickable live
         }
 
         val resolvedTarget = ObservationNode(
@@ -191,7 +150,49 @@ class LiveTargetResolverTest {
     }
 
     @Test
-    fun `P6-LIVE-005 - acquired AccessibilityNodeInfo objects are correctly recycled`() {
+    fun `P6-LIVE-004 - stale or missing target is rejected safely`() {
+        // Live node does not match target (different button "8")
+        val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
+            className = "com.google.android.material.button.MaterialButton"
+            viewIdResourceName = "com.android.calculator2:id/digit_8"
+            text = "8"
+            isClickable = true
+        }
+
+        val resolvedTarget = ObservationNode(
+            nodeId = "btn_7",
+            className = "com.google.android.material.button.MaterialButton",
+            text = "7",
+            resourceId = "com.android.calculator2:id/digit_7",
+            clickable = true,
+            nodeIdentity = "id:digit_7_text:7",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val resolutionResult = TargetResolutionResult(
+            requestedNodeId = "text_7",
+            resolvedNodeId = "btn_7",
+            actionType = TargetActionType.CLICK,
+            strategy = TargetResolutionStrategy.CLICKABLE_ANCESTOR,
+            status = TargetResolutionStatus.RESOLVED
+        )
+
+        val reacquisitionResult = liveTargetResolver.reacquireLiveTarget(
+            rootLiveNode = rootNodeInfo,
+            targetResolutionResult = resolutionResult,
+            resolvedTarget = resolvedTarget,
+            actionType = TargetActionType.CLICK
+        )
+
+        assertFalse(reacquisitionResult.reacquired)
+        assertNull(reacquisitionResult.liveNode)
+        assertNotNull(reacquisitionResult.failureReason)
+
+        rootNodeInfo.recycle()
+    }
+
+    @Test
+    fun `P6-LIVE-005 - re-acquisition correctly handles actionable ancestor relationships`() {
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "android.widget.LinearLayout"
             isClickable = false
@@ -224,18 +225,21 @@ class LiveTargetResolverTest {
     }
 
     @Test
-    fun `P6-LIVE-006 - zero action dispatch occurs during resolution and re-acquisition`() {
+    fun `P6-LIVE-006 - resolution and re-acquisition are READ-ONLY`() {
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "android.widget.Button"
+            viewIdResourceName = "com.app:id/btn"
+            text = "Button"
             isClickable = true
         }
-
-        val shadowRoot = shadowOf(rootNodeInfo)
 
         val resolvedTarget = ObservationNode(
             nodeId = "btn",
             className = "android.widget.Button",
-            clickable = true
+            resourceId = "com.app:id/btn",
+            text = "Button",
+            clickable = true,
+            nodeIdentity = "id:btn_text:Button"
         )
 
         val resolutionResult = TargetResolutionResult(
@@ -256,15 +260,15 @@ class LiveTargetResolverTest {
         assertTrue(reacquisitionResult.reacquired)
         assertNotNull(reacquisitionResult.liveNode)
 
-        val matchedNode = reacquisitionResult.liveNode!!
-        val shadowMatched = shadowOf(matchedNode)
+        val liveNode = reacquisitionResult.liveNode!!
+        val shadowRoot = shadowOf(rootNodeInfo)
+        val shadowLive = shadowOf(liveNode)
 
-        // Explicitly assert zero performAction calls were dispatched on root or matched live node
+        // Verify zero performAction invocations were dispatched to framework node shadows
         assertEquals(0, shadowRoot.performedActions.size)
-        assertEquals(0, shadowMatched.performedActions.size)
+        assertEquals(0, shadowLive.performedActions.size)
 
-        // Clean up live node without performing any action dispatch
-        matchedNode.recycle()
+        liveNode.recycle()
         rootNodeInfo.recycle()
     }
 }

@@ -6,7 +6,7 @@
 - Implemented `LiveTargetResolver` in `:app` for re-acquiring live `AccessibilityNodeInfo` objects from current window hierarchies with live capability re-verification, safe stale target rejection (`TARGET_NOT_FOUND`), and strict recycling lifecycle management (`try/finally`).
 - Built `TargetResolutionLogger` with request-scoped deduplication (`beginRequest`/`endRequest`) to log diagnostic resolution events to `agent.db` without database flooding.
 - Guaranteed zero action execution (`performAction()`) during target resolution and re-acquisition.
-- Created Tier A (`TargetResolverTest.kt`) and Tier B (`LiveTargetResolverTest.kt`, `TargetResolutionLoggerTest.kt`) test suites (`P6-RESOLVE-001` through `P6-RESOLVE-010`, `P6-LIVE-001` through `P6-LIVE-006`, `P6-LOG-001`). Verified `P6-LIVE-006` via `ShadowAccessibilityNodeInfo.performedActions` across both Debug and Release build variants.
+- Reimplemented Tier A (`TargetResolverTest.kt`) and Tier B (`LiveTargetResolverTest.kt`, `TargetResolutionLoggerTest.kt`) test suites (`P6-RESOLVE-001` through `P6-RESOLVE-010`, `P6-LIVE-001` through `P6-LIVE-006`, `P6-LOG-001`). Verified `P6-LIVE-006` via `ShadowAccessibilityNodeInfo.performedActions` across both Debug and Release build variants.
 
 ## Phase 5 (Completed)
 - Implemented single-root snapshot retrieval contract and immediate `.recycle()` memory management.
