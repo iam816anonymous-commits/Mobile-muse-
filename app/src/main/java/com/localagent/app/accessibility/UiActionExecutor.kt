@@ -193,7 +193,7 @@ class UiActionExecutor(
             targetConfidence = result.targetResolutionResult?.confidence,
             preSnapshotId = result.preSnapshot?.snapshotId,
             postSnapshotId = result.postSnapshot?.snapshotId,
-            diffSummary = result.verificationResult.diff?.summary ?: "No diff",
+            diffSummary = result.verificationResult.diffResult?.toJsonString() ?: "No diff",
             status = result.verificationResult.status,
             resultCode = result.verificationResult.resultCode
         )

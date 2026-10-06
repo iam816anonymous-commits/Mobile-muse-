@@ -1,5 +1,7 @@
 package com.localagent.core.action
 
+import com.localagent.core.observation.NodeDiffType
+import com.localagent.core.observation.ObservationNode
 import com.localagent.core.observation.ObservationSnapshot
 import com.localagent.core.observation.SnapshotDiffEngine
 import com.localagent.core.result.ResultCode
@@ -31,15 +33,15 @@ class TargetAwareVerificationStrategy(
             )
         }
 
-        val diff = diffEngine.computeDiff(preSnapshot, postSnapshot)
+        val diffResult = diffEngine.computeDiff(preSnapshot, postSnapshot)
 
-        // Rule 1: Identical pre/post snapshots
-        if (diff.isIdentical) {
+        // Rule 1: Identical pre/post snapshots (no changes)
+        if (!diffResult.hasChanges) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
                 resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
                 reason = "Pre and post observation snapshots are identical. UI state did not visibly change.",
-                diff = diff
+                diffResult = diffResult
             )
         }
 
@@ -48,22 +50,24 @@ class TargetAwareVerificationStrategy(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
                 reason = "UI state changed visibly after action dispatch",
-                diff = diff
+                diffResult = diffResult
             )
         }
 
         // Target-specific checks
-        val preTargetNode = SnapshotDiffEngine.findNodeById(preSnapshot.rootNode, targetNodeId)
-        val postTargetNode = SnapshotDiffEngine.findNodeById(postSnapshot.rootNode, targetNodeId)
+        val preTargetNode = findNodeInSnapshot(preSnapshot.rootNode, targetNodeId)
+        val postTargetNode = findNodeInSnapshot(postSnapshot.rootNode, targetNodeId)
 
         // Case A: Target disappeared after action
         if (preTargetNode != null && postTargetNode == null) {
-            val removedEntry = diff.removedNodes.firstOrNull { it.nodeId == targetNodeId }
+            val removedEntry = diffResult.diffEntries.firstOrNull {
+                it.diffType == NodeDiffType.REMOVED && (it.beforeNode?.nodeId == targetNodeId || it.nodeIdentity == preTargetNode.nodeIdentity)
+            }
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
                 reason = "Target node $targetNodeId was removed/navigated away from UI",
-                diff = diff
+                diffResult = diffResult
             )
         }
 
@@ -77,28 +81,30 @@ class TargetAwareVerificationStrategy(
                     status = VerificationStatus.VERIFICATION_FAILED,
                     resultCode = ResultCode.TARGET_STALE,
                     reason = "Target node identity changed unexpectedly after action from '${preTargetNode.nodeIdentity}' to '${postTargetNode.nodeIdentity}'",
-                    diff = diff
+                    diffResult = diffResult
                 )
             }
 
-            val changedEntry = diff.changedNodes.firstOrNull { it.nodeId == targetNodeId }
+            val changedEntry = diffResult.diffEntries.firstOrNull {
+                it.diffType == NodeDiffType.CHANGED && (it.afterNode?.nodeId == targetNodeId || it.beforeNode?.nodeId == targetNodeId)
+            }
             if (changedEntry != null) {
                 return VerificationResult(
                     status = VerificationStatus.EXECUTED_AND_VERIFIED,
                     resultCode = ResultCode.SUCCESS_VERIFIED,
-                    reason = "Target node $targetNodeId attributes changed: ${changedEntry.attributeChanges}",
-                    diff = diff
+                    reason = "Target node $targetNodeId attributes changed: ${changedEntry.changedAttributes}",
+                    diffResult = diffResult
                 )
             }
         }
 
-        // Case C: Unrelated UI change
-        if (diff.addedNodes.isNotEmpty() || diff.removedNodes.isNotEmpty() || diff.changedNodes.isNotEmpty()) {
+        // Case C: Overall UI changes present
+        if (diffResult.totalAdded > 0 || diffResult.totalRemoved > 0 || diffResult.totalChanged > 0) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
-                reason = "UI changed visibly with ${diff.addedNodes.size} added, ${diff.removedNodes.size} removed, ${diff.changedNodes.size} changed nodes",
-                diff = diff
+                reason = "UI changed visibly with ${diffResult.totalAdded} added, ${diffResult.totalRemoved} removed, ${diffResult.totalChanged} changed nodes",
+                diffResult = diffResult
             )
         }
 
@@ -106,8 +112,18 @@ class TargetAwareVerificationStrategy(
             status = VerificationStatus.VERIFICATION_FAILED,
             resultCode = ResultCode.ACTION_FAILED,
             reason = "No target-aware or UI state change confirmed for node $targetNodeId",
-            diff = diff
+            diffResult = diffResult
         )
+    }
+
+    private fun findNodeInSnapshot(root: ObservationNode?, nodeId: String): ObservationNode? {
+        if (root == null) return null
+        if (root.nodeId == nodeId) return root
+        for (child in root.children) {
+            val match = findNodeInSnapshot(child, nodeId)
+            if (match != null) return match
+        }
+        return null
     }
 }
 
@@ -129,7 +145,7 @@ class NavigationAwareVerificationStrategy(
             )
         }
 
-        val diff = diffEngine.computeDiff(preSnapshot, postSnapshot)
+        val diffResult = diffEngine.computeDiff(preSnapshot, postSnapshot)
 
         val packageChanged = preSnapshot.packageName != postSnapshot.packageName
         val activityChanged = preSnapshot.activityName != null &&
@@ -137,7 +153,7 @@ class NavigationAwareVerificationStrategy(
                 preSnapshot.activityName != postSnapshot.activityName
         val windowChanged = preSnapshot.windowId != postSnapshot.windowId
 
-        if (packageChanged || activityChanged || windowChanged || !diff.isIdentical) {
+        if (packageChanged || activityChanged || windowChanged || diffResult.hasChanges) {
             val navReason = when {
                 packageChanged -> "Package navigated from ${preSnapshot.packageName} to ${postSnapshot.packageName}"
                 activityChanged -> "Activity navigated from ${preSnapshot.activityName} to ${postSnapshot.activityName}"
@@ -149,7 +165,7 @@ class NavigationAwareVerificationStrategy(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
                 reason = navReason,
-                diff = diff
+                diffResult = diffResult
             )
         }
 
@@ -157,7 +173,7 @@ class NavigationAwareVerificationStrategy(
             status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
             resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
             reason = "Navigation action $actionType dispatched but no package, activity, window, or UI change occurred",
-            diff = diff
+            diffResult = diffResult
         )
     }
 }

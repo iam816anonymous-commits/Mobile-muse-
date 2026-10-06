@@ -2,7 +2,7 @@ package com.localagent.core.action
 
 import com.localagent.core.observation.NodeIdentityConfidence
 import com.localagent.core.observation.ObservationSnapshot
-import com.localagent.core.observation.SnapshotDiff
+import com.localagent.core.observation.SnapshotDiffResult
 import com.localagent.core.resolver.TargetResolutionResult
 import com.localagent.core.result.ResultCode
 import org.json.JSONObject
@@ -56,14 +56,14 @@ data class VerificationResult(
     val status: VerificationStatus,
     val resultCode: ResultCode,
     val reason: String? = null,
-    val diff: SnapshotDiff? = null
+    val diffResult: SnapshotDiffResult? = null
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
             put("status", status.name)
             put("resultCode", resultCode.name)
             reason?.let { put("reason", it) }
-            diff?.let { put("diff", it.toJsonObject()) }
+            diffResult?.let { put("diffResult", it.toJsonString()) }
         }
     }
 }

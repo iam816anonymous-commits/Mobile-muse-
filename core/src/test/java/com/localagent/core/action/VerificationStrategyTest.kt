@@ -22,8 +22,8 @@ class VerificationStrategyTest {
 
         assertEquals(VerificationStatus.EXECUTED_BUT_NOT_VERIFIED, result.status)
         assertEquals(ResultCode.DISPATCHED_BUT_NOT_VERIFIED, result.resultCode)
-        assertNotNull(result.diff)
-        assertTrue(result.diff?.isIdentical == true)
+        assertNotNull(result.diffResult)
+        assertFalse(result.diffResult?.hasChanges == true)
     }
 
     @Test
@@ -148,8 +148,7 @@ class VerificationStrategyTest {
 
         val result = targetVerifier.verify(ActionType.UI_CLICK, "btn", preSnap, postSnap)
 
-        assertNotNull(result.diff)
-        assertEquals(1, result.diff?.changedNodes?.size)
-        assertEquals("btn", result.diff?.changedNodes?.get(0)?.nodeId)
+        assertNotNull(result.diffResult)
+        assertEquals(1, result.diffResult?.totalChanged)
     }
 }

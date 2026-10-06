@@ -8,8 +8,6 @@ import com.localagent.core.action.ActionRequest
 import com.localagent.core.action.ActionType
 import com.localagent.core.action.NavigationAwareVerificationStrategy
 import com.localagent.core.action.VerificationStatus
-import com.localagent.core.evidence.EvidenceSource
-import com.localagent.core.evidence.ObservationEvidence
 import com.localagent.core.logging.AgentEvent
 import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
@@ -111,7 +109,7 @@ class GlobalActionExecutor(
             targetConfidence = result.targetResolutionResult?.confidence,
             preSnapshotId = result.preSnapshot?.snapshotId,
             postSnapshotId = result.postSnapshot?.snapshotId,
-            diffSummary = result.verificationResult.diff?.summary ?: "No diff",
+            diffSummary = result.verificationResult.diffResult?.toJsonString() ?: "No diff",
             status = result.verificationResult.status,
             resultCode = result.verificationResult.resultCode
         )
