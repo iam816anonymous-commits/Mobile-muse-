@@ -1,7 +1,6 @@
 package com.localagent.app.accessibility
 
 import android.accessibilityservice.AccessibilityService
-import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import com.localagent.app.LocalAgentApplication
 import com.localagent.core.action.ActionRequest
@@ -28,7 +27,7 @@ class ActionExecutionTest {
     private lateinit var service: AgentAccessibilityService
     private lateinit var shadowService: ShadowAccessibilityService
     private lateinit var globalExecutor: GlobalActionExecutor
-    private lateinit var uiExecutor: UiActionExecutor
+    private var liveNodeSupplier: (() -> AccessibilityNodeInfo?)? = null
 
     @Before
     fun setUp() {
@@ -38,7 +37,14 @@ class ActionExecutionTest {
         service.externalObservationState = ObservationEngineState.OBSERVING
         shadowService = shadowOf(service as AccessibilityService)
         globalExecutor = GlobalActionExecutor(accessibilityService = service)
-        uiExecutor = UiActionExecutor(accessibilityService = service)
+        liveNodeSupplier = null
+    }
+
+    private fun createUiExecutor(): UiActionExecutor {
+        return UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { liveNodeSupplier?.invoke() }
+        )
     }
 
     // --- GROUP B: P7-ACTION Contract Execution Tests ---
@@ -103,8 +109,9 @@ class ActionExecutionTest {
             nodeCount = 1,
             rootNode = obsNode
         )
-        shadowService.rootInActiveWindow = liveBtn
+        liveNodeSupplier = { liveBtn }
 
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = "submit"
@@ -146,8 +153,9 @@ class ActionExecutionTest {
             nodeCount = 1,
             rootNode = obsNode
         )
-        shadowService.rootInActiveWindow = liveCard
+        liveNodeSupplier = { liveCard }
 
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_LONG_CLICK,
             targetNodeId = "card"
@@ -188,8 +196,9 @@ class ActionExecutionTest {
             nodeCount = 1,
             rootNode = obsNode
         )
-        shadowService.rootInActiveWindow = liveEdit
+        liveNodeSupplier = { liveEdit }
 
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_TEXT_INPUT,
             targetNodeId = "input_field",
@@ -230,8 +239,9 @@ class ActionExecutionTest {
             nodeCount = 1,
             rootNode = obsNode
         )
-        shadowService.rootInActiveWindow = liveRecycler
+        liveNodeSupplier = { liveRecycler }
 
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_SCROLL_FORWARD,
             targetNodeId = "recycler_view"
@@ -271,8 +281,9 @@ class ActionExecutionTest {
             nodeCount = 1,
             rootNode = obsNode
         )
-        shadowService.rootInActiveWindow = liveRecycler
+        liveNodeSupplier = { liveRecycler }
 
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_SCROLL_BACKWARD,
             targetNodeId = "recycler_view"
@@ -295,6 +306,7 @@ class ActionExecutionTest {
     @Test
     fun `P7-SAFE-001 - Stale target yields zero framework action dispatch`() {
         // Target present in pre-snapshot but missing from live root node
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeIdentity = "stale_identity_123"
@@ -310,6 +322,7 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-002 - Missing target yields zero framework action dispatch`() {
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = "non_existent_node"
@@ -342,6 +355,7 @@ class ActionExecutionTest {
         )
 
         service.currentObservationSnapshot = nonActionableSnapshot
+        val uiExecutor = createUiExecutor()
 
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
@@ -358,6 +372,7 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-004 - Invalid target request missing ID and identity yields zero action dispatch`() {
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = null,
@@ -374,6 +389,7 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-005 - Global action dispatch is performed ONLY by GlobalActionExecutor and rejected by UiActionExecutor`() {
+        val uiExecutor = createUiExecutor()
         val request = ActionRequest(actionType = ActionType.GLOBAL_BACK)
 
         // 1. UiActionExecutor must reject global action without dispatching

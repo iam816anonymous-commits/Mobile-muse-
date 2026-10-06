@@ -26,7 +26,8 @@ class UiActionExecutor(
     private val targetResolver: TargetResolver = TargetResolver(),
     private val liveTargetResolver: LiveTargetResolver = LiveTargetResolver(),
     private val verificationStrategy: TargetAwareVerificationStrategy = TargetAwareVerificationStrategy(),
-    private val resolutionLogger: TargetResolutionLogger? = null
+    private val resolutionLogger: TargetResolutionLogger? = null,
+    private val liveRootNodeProvider: () -> AccessibilityNodeInfo? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.rootInActiveWindow }
 ) {
     fun execute(request: ActionRequest): ActionExecutionResult {
         val startTime = System.currentTimeMillis()
@@ -94,7 +95,7 @@ class UiActionExecutor(
         val resolvedNode = resolutionResult.resolvedNode!!
 
         // 2. Live Re-acquisition
-        val liveRoot = service.rootInActiveWindow
+        val liveRoot = liveRootNodeProvider()
         val reacquisitionResult = liveTargetResolver.reacquireLiveTarget(
             rootLiveNode = liveRoot,
             targetResolutionResult = resolutionResult,
