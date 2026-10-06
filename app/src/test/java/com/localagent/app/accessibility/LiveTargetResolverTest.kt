@@ -12,6 +12,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowAccessibilityNodeInfo
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
@@ -223,12 +225,12 @@ class LiveTargetResolverTest {
 
     @Test
     fun `P6-LIVE-006 - zero action dispatch occurs during resolution and re-acquisition`() {
-        var actionDispatchCount = 0
-
         val rootNodeInfo = AccessibilityNodeInfo.obtain().apply {
             className = "android.widget.Button"
             isClickable = true
         }
+
+        val shadowRoot = shadowOf(rootNodeInfo)
 
         val resolvedTarget = ObservationNode(
             nodeId = "btn",
@@ -253,10 +255,16 @@ class LiveTargetResolverTest {
 
         assertTrue(reacquisitionResult.reacquired)
         assertNotNull(reacquisitionResult.liveNode)
-        assertEquals(0, actionDispatchCount)
+
+        val matchedNode = reacquisitionResult.liveNode!!
+        val shadowMatched = shadowOf(matchedNode)
+
+        // Explicitly assert zero performAction calls were dispatched on root or matched live node
+        assertEquals(0, shadowRoot.performedActions.size)
+        assertEquals(0, shadowMatched.performedActions.size)
 
         // Clean up live node without performing any action dispatch
-        reacquisitionResult.liveNode?.recycle()
+        matchedNode.recycle()
         rootNodeInfo.recycle()
     }
 }
