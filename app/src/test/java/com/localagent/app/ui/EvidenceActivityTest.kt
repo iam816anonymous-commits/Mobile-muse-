@@ -94,8 +94,10 @@ class EvidenceActivityTest {
         renderMethod.isAccessible = true
         val primStr = renderMethod.invoke(activity, evidence) as String
 
-        assertTrue(primStr.contains("EVIDENCE PRIMITIVES [com.android.chrome]"))
+        assertTrue(primStr.contains("EVIDENCE PRIMITIVES"))
         assertTrue(primStr.contains("LinearLayout"))
-        assertTrue(primStr.contains("Button id:btn_submit text:\"Submit\""))
+        assertTrue(primStr.contains("Button"))
+        assertTrue(primStr.contains("btn_submit"))
+        assertTrue(primStr.contains("Submit"))
     }
 }

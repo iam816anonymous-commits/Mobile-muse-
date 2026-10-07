@@ -159,10 +159,14 @@ class CurrentObservationActivity : AppCompatActivity() {
 
         if (currentSnap != null) {
             binding.tvSnapshotMeta.text = "Package: ${currentSnap.packageName} | Nodes: ${currentSnap.nodeCount} | Depth: ${currentSnap.truncationInfo.maxDepthReached} | Truncated: ${currentSnap.truncationInfo.isTruncated}"
-            binding.tvCurrentNodeTree.text = NodeTreeRenderer.renderSnapshotTree(currentSnap)
+            binding.tvCurrentNodeTree.text = renderSnapshotNodeTree(currentSnap)
         } else {
             binding.tvSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
             binding.tvCurrentNodeTree.text = if (a11yBound) "No current observation captured." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
+    }
+
+    private fun renderSnapshotNodeTree(snapshot: ObservationSnapshot): String {
+        return NodeTreeRenderer.renderSnapshotTree(snapshot)
     }
 }

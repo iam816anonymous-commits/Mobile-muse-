@@ -10,17 +10,20 @@ object NodeTreeRenderer {
     fun renderSnapshotTree(snapshot: ObservationSnapshot): String {
         val root = snapshot.rootNode ?: return "Empty root node"
         val sb = StringBuilder()
-        sb.append("ROOT [Package: ${snapshot.packageName}]\n")
+        sb.append("ROOT [${snapshot.packageName}]\n")
         sb.append("========================================\n")
-        renderNodeCard(root, depth = 0, sb = sb, indent = "")
+        renderNodeCard(root, depth = 0, sb = sb)
         return sb.toString()
+    }
+
+    fun renderEvidencePrimitives(evidence: ObservationEvidence): String {
+        return renderEvidenceTree(evidence)
     }
 
     private fun renderNodeCard(
         node: ObservationNode,
         depth: Int,
-        sb: StringBuilder,
-        indent: String
+        sb: StringBuilder
     ) {
         val indentPrefix = "  ".repeat(depth)
         val connector = if (depth == 0) "ROOT" else "└─ "
@@ -49,9 +52,9 @@ object NodeTreeRenderer {
                 .append(" (conf: ").append(node.identityConfidence).append(")\n")
         }
 
-        sb.append(detailIndent).append("Bounds: [")
-            .append(node.bounds.left).append(", ").append(node.bounds.top).append(", ")
-            .append(node.bounds.right).append(", ").append(node.bounds.bottom)
+        sb.append(detailIndent).append("bounds:[")
+            .append(node.bounds.left).append(",").append(node.bounds.top).append(",")
+            .append(node.bounds.right).append(",").append(node.bounds.bottom)
             .append("] (").append(node.bounds.width).append("x").append(node.bounds.height).append(")\n")
 
         val flags = buildFlagsString(node)
@@ -62,7 +65,7 @@ object NodeTreeRenderer {
         sb.append(detailIndent).append("----------------------------------------\n")
 
         for (child in node.children) {
-            renderNodeCard(child, depth + 1, sb, indent = detailIndent)
+            renderNodeCard(child, depth + 1, sb)
         }
     }
 

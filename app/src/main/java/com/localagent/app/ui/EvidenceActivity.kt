@@ -107,7 +107,7 @@ class EvidenceActivity : AppCompatActivity() {
 
         if (currentEv != null) {
             binding.tvCurrentEvidenceMeta.text = formatMetaText(currentEv)
-            binding.tvCurrentEvidencePrimitives.text = NodeTreeRenderer.renderEvidenceTree(currentEv)
+            binding.tvCurrentEvidencePrimitives.text = renderEvidencePrimitives(currentEv)
         } else {
             binding.tvCurrentEvidenceMeta.text = "Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
             binding.tvCurrentEvidencePrimitives.text = if (a11yBound) "No current evidence generated." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
@@ -115,11 +115,15 @@ class EvidenceActivity : AppCompatActivity() {
 
         if (externalEv != null) {
             binding.tvExternalEvidenceMeta.text = formatMetaText(externalEv)
-            binding.tvExternalEvidencePrimitives.text = NodeTreeRenderer.renderEvidenceTree(externalEv)
+            binding.tvExternalEvidencePrimitives.text = renderEvidencePrimitives(externalEv)
         } else {
             binding.tvExternalEvidenceMeta.text = "Evidence ID: None\nSnapshot ID: None\nProvenance Hash: None\nPackage: None | Primitives: 0"
             binding.tvExternalEvidencePrimitives.text = if (a11yBound) "No external evidence generated." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
+    }
+
+    private fun renderEvidencePrimitives(evidence: ObservationEvidence): String {
+        return NodeTreeRenderer.renderEvidenceTree(evidence)
     }
 
     private fun formatMetaText(evidence: ObservationEvidence): String {

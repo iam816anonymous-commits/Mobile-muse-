@@ -165,11 +165,15 @@ class ExternalObservationActivity : AppCompatActivity() {
 
         if (externalSnap != null) {
             binding.tvExternalSnapshotMeta.text = "Package: ${externalSnap.packageName} | Nodes: ${externalSnap.nodeCount} | Depth: ${externalSnap.truncationInfo.maxDepthReached} | Truncated: ${externalSnap.truncationInfo.isTruncated}"
-            binding.tvExternalNodeTree.text = NodeTreeRenderer.renderSnapshotTree(externalSnap)
+            binding.tvExternalNodeTree.text = renderSnapshotNodeTree(externalSnap)
         } else {
             binding.tvExternalSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false"
             binding.tvExternalNodeTree.text = if (a11yBound) "No external observation captured." else "Accessibility Service unbound. Open Permission Center from Home to enable service."
         }
+    }
+
+    private fun renderSnapshotNodeTree(snapshot: ObservationSnapshot): String {
+        return NodeTreeRenderer.renderSnapshotTree(snapshot)
     }
 
     private fun formatDiagnosticsContent(diag: ObservationWindowDiagnostics?): String {
