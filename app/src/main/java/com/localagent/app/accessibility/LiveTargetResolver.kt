@@ -24,7 +24,8 @@ class LiveTargetResolver {
         rootLiveNode: AccessibilityNodeInfo?,
         targetResolutionResult: TargetResolutionResult,
         resolvedTarget: ObservationNode,
-        actionType: TargetActionType
+        actionType: TargetActionType,
+        requestedTargetQuery: String? = null
     ): LiveReacquisitionResult {
         if (rootLiveNode == null) {
             return LiveReacquisitionResult(
@@ -43,7 +44,7 @@ class LiveTargetResolver {
 
         // Search live hierarchy for matching node
         try {
-            matchedLiveNode = findMatchingLiveNode(rootLiveNode, resolvedTarget)
+            matchedLiveNode = findMatchingLiveNode(rootLiveNode, resolvedTarget, requestedTargetQuery)
         } catch (e: Exception) {
             return LiveReacquisitionResult(
                 targetResolutionResult = targetResolutionResult.copy(
@@ -134,13 +135,14 @@ class LiveTargetResolver {
 
     private fun findMatchingLiveNode(
         root: AccessibilityNodeInfo,
-        target: ObservationNode
+        target: ObservationNode,
+        requestedQuery: String? = null
     ): AccessibilityNodeInfo? {
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(AccessibilityNodeInfo.obtain(root))
 
         val targetResId = target.resourceId?.trim()?.ifBlank { null }
-        val targetText = target.text?.trim()?.ifBlank { null }
+        val targetText = target.text?.trim()?.ifBlank { null } ?: requestedQuery?.trim()?.ifBlank { null }
         val targetDesc = target.contentDescription?.trim()?.ifBlank { null }
         val targetClass = target.className
 

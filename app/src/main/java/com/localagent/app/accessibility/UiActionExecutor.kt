@@ -111,11 +111,16 @@ class UiActionExecutor(
 
         // 2. Live Re-acquisition
         val liveRoot = liveRootNodeProvider(preSnapshot.packageName)
+
+        // Diagnostic Logging
+        logDiagnosticContext(request, preSnapshot, service, liveRoot, resolvedNode)
+
         val reacquisitionResult = liveTargetResolver.reacquireLiveTarget(
             rootLiveNode = liveRoot,
             targetResolutionResult = resolutionResult,
             resolvedTarget = resolvedNode,
-            actionType = targetActionType
+            actionType = targetActionType,
+            requestedTargetQuery = request.targetNodeId ?: request.targetNodeIdentity
         )
         resolutionLogger?.logTargetResolution(reacquisitionResult.targetResolutionResult)
         resolutionLogger?.endRequest()
@@ -133,6 +138,9 @@ class UiActionExecutor(
         val liveNode = reacquisitionResult.liveNode!!
         var dispatchSuccess = false
 
+        // Log resolved live target details
+        logResolvedLiveTarget(liveNode, request)
+
         // 3. Dispatch Action against Live Node
         try {
             dispatchSuccess = when (request.actionType) {
@@ -149,6 +157,7 @@ class UiActionExecutor(
                 ActionType.UI_SCROLL_BACKWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
                 else -> false
             }
+            logDispatchResult(request, dispatchSuccess)
         } finally {
             liveNode.recycle()
             if (liveRoot != null && liveRoot != liveNode) {
@@ -200,6 +209,100 @@ class UiActionExecutor(
 
         logActionEvidence(result)
         return result
+    }
+
+    private fun logDiagnosticContext(
+        request: ActionRequest,
+        preSnapshot: ObservationSnapshot,
+        service: AgentAccessibilityService,
+        liveRoot: AccessibilityNodeInfo?,
+        resolvedNode: com.localagent.core.observation.ObservationNode
+    ) {
+        val app = (accessibilityService as? AgentAccessibilityService)?.application as? LocalAgentApplication ?: return
+        val activeSessionId = app.eventLogger.getActiveSession().sessionId
+
+        val windowsInfo = service.latestDiagnostics.availableWindows.joinToString(";") { win ->
+            "winId:${win.windowId},pkg:${win.packageName},type:${win.windowTypeName},active:${win.isActive},focused:${win.isFocused}"
+        }
+
+        val json = """
+            {
+              "requestedAction": "${request.actionType}",
+              "requestedTarget": "${request.targetNodeId ?: request.targetNodeIdentity}",
+              "targetPackage": "${preSnapshot.packageName}",
+              "currentForegroundPackage": "${service.activePackageName}",
+              "activeRootPackage": "${liveRoot?.packageName}",
+              "windowsCount": ${service.latestDiagnostics.availableWindows.size},
+              "availableWindows": "$windowsInfo",
+              "selectedTargetWindowId": ${service.latestDiagnostics.lastExternalWindowId},
+              "selectedTargetWindowPackage": "${service.latestDiagnostics.lastExternalPackage}",
+              "resolvedTargetText": "${resolvedNode.text ?: ""}",
+              "resolvedTargetResId": "${resolvedNode.resourceId ?: ""}",
+              "resolvedTargetIdentity": "${resolvedNode.nodeIdentity}"
+            }
+        """.trimIndent()
+
+        app.eventLogger.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.ACTION,
+                eventType = "ACTION_DIAGNOSTIC_BEFORE_DISPATCH",
+                actionType = request.actionType.name,
+                sourceChannel = request.sourceChannel,
+                severity = EventSeverity.INFO,
+                metadataJson = json
+            )
+        )
+    }
+
+    private fun logResolvedLiveTarget(liveNode: AccessibilityNodeInfo, request: ActionRequest) {
+        val app = (accessibilityService as? AgentAccessibilityService)?.application as? LocalAgentApplication ?: return
+        val activeSessionId = app.eventLogger.getActiveSession().sessionId
+
+        val json = """
+            {
+              "liveNodePackage": "${liveNode.packageName}",
+              "liveNodeClass": "${liveNode.className}",
+              "liveNodeText": "${liveNode.text}",
+              "liveNodeResId": "${liveNode.viewIdResourceName}",
+              "isClickable": ${liveNode.isClickable},
+              "isLongClickable": ${liveNode.isLongClickable},
+              "isScrollable": ${liveNode.isScrollable},
+              "isEditable": ${liveNode.isEditable}
+            }
+        """.trimIndent()
+
+        app.eventLogger.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.ACTION,
+                eventType = "ACTION_DIAGNOSTIC_LIVE_NODE_ACQUIRED",
+                actionType = request.actionType.name,
+                sourceChannel = request.sourceChannel,
+                severity = EventSeverity.INFO,
+                metadataJson = json
+            )
+        )
+    }
+
+    private fun logDispatchResult(request: ActionRequest, success: Boolean) {
+        val app = (accessibilityService as? AgentAccessibilityService)?.application as? LocalAgentApplication ?: return
+        val activeSessionId = app.eventLogger.getActiveSession().sessionId
+
+        app.eventLogger.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.ACTION,
+                eventType = "ACTION_DIAGNOSTIC_DISPATCH_RESULT",
+                actionType = request.actionType.name,
+                sourceChannel = request.sourceChannel,
+                severity = if (success) EventSeverity.INFO else EventSeverity.WARNING,
+                metadataJson = "{\"dispatchSuccess\":$success}"
+            )
+        )
     }
 
     private fun logActionEvidence(result: ActionExecutionResult) {
