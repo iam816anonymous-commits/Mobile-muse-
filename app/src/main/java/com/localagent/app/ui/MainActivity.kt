@@ -224,10 +224,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun executeNormalizedCommand(command: NormalizedCommand): String {
+        val service = AgentAccessibilityService.INSTANCE
+        val isA11yBound = AgentAccessibilityService.isBound && service != null
+
         return when (command.actionType) {
             ActionType.OBSERVE -> {
-                if (AgentAccessibilityService.isBound) {
-                    val snapshot = AgentAccessibilityService.INSTANCE?.captureLiveSnapshot()
+                if (isA11yBound) {
+                    val snapshot = service?.captureLiveSnapshot()
                     if (snapshot != null) {
                         "Command: OBSERVE | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount} | Truncated: ${snapshot.truncationInfo.isTruncated}"
                     } else {
@@ -237,14 +240,50 @@ class MainActivity : AppCompatActivity() {
                     "Command: OBSERVE | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Open Settings to enable)"
                 }
             }
-            ActionType.GLOBAL_BACK -> "Command: GLOBAL_BACK | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.GLOBAL_HOME -> "Command: GLOBAL_HOME | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.GLOBAL_RECENTS -> "Command: GLOBAL_RECENTS | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.UI_CLICK -> "Command: UI_CLICK | Target: ${command.targetSelector} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.UI_LONG_CLICK -> "Command: UI_LONG_CLICK | Target: ${command.targetSelector} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.UI_SCROLL_FORWARD -> "Command: UI_SCROLL_FORWARD | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.UI_SCROLL_BACKWARD -> "Command: UI_SCROLL_BACKWARD | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound"
-            ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y ${if (AgentAccessibilityService.isBound) "BOUND" else "DISCONNECTED"}, Core Ready"
+            ActionType.GLOBAL_BACK, ActionType.GLOBAL_HOME, ActionType.GLOBAL_RECENTS -> {
+                if (isA11yBound) {
+                    val globalExecutor = com.localagent.app.accessibility.GlobalActionExecutor(accessibilityService = service)
+                    val coreActionType = when (command.actionType) {
+                        ActionType.GLOBAL_BACK -> com.localagent.core.action.ActionType.GLOBAL_BACK
+                        ActionType.GLOBAL_HOME -> com.localagent.core.action.ActionType.GLOBAL_HOME
+                        ActionType.GLOBAL_RECENTS -> com.localagent.core.action.ActionType.GLOBAL_RECENTS
+                        else -> com.localagent.core.action.ActionType.GLOBAL_BACK
+                    }
+                    val request = com.localagent.core.action.ActionRequest(
+                        actionType = coreActionType,
+                        sourceChannel = command.source.name
+                    )
+                    val result = globalExecutor.execute(request)
+                    "Command: ${command.actionType} | Status: ${result.verificationResult.resultCode} | Reason: ${result.verificationResult.reason ?: "Executed"}"
+                } else {
+                    "Command: ${command.actionType} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Open Settings to enable)"
+                }
+            }
+            ActionType.UI_CLICK, ActionType.UI_LONG_CLICK, ActionType.UI_TEXT_INPUT, ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> {
+                if (isA11yBound) {
+                    val uiExecutor = com.localagent.app.accessibility.UiActionExecutor(accessibilityService = service)
+                    val coreActionType = when (command.actionType) {
+                        ActionType.UI_CLICK -> com.localagent.core.action.ActionType.UI_CLICK
+                        ActionType.UI_LONG_CLICK -> com.localagent.core.action.ActionType.UI_LONG_CLICK
+                        ActionType.UI_TEXT_INPUT -> com.localagent.core.action.ActionType.UI_TEXT_INPUT
+                        ActionType.UI_SCROLL_FORWARD -> com.localagent.core.action.ActionType.UI_SCROLL_FORWARD
+                        ActionType.UI_SCROLL_BACKWARD -> com.localagent.core.action.ActionType.UI_SCROLL_BACKWARD
+                        else -> com.localagent.core.action.ActionType.UI_CLICK
+                    }
+                    val request = com.localagent.core.action.ActionRequest(
+                        actionType = coreActionType,
+                        targetNodeId = command.targetSelector,
+                        targetNodeIdentity = command.parameters["targetIdentity"],
+                        textInputPayload = command.parameters["text"],
+                        sourceChannel = command.source.name
+                    )
+                    val result = uiExecutor.execute(request)
+                    "Command: ${command.actionType} | Target: ${command.targetSelector ?: "None"} | Status: ${result.verificationResult.resultCode} | Reason: ${result.verificationResult.reason ?: "Executed"}"
+                } else {
+                    "Command: ${command.actionType} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Open Settings to enable)"
+                }
+            }
+            ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y ${if (isA11yBound) "BOUND" else "DISCONNECTED"}, Core Ready"
             ActionType.APP_LAUNCH -> "Command: APP_LAUNCH | Target: ${command.parameters["appLabel"]} | Status: ${ResultCode.DISPATCHED_BUT_NOT_VERIFIED} | Reason: App launch dispatched without foreground verification"
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }
