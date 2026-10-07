@@ -79,7 +79,12 @@ class AgentAccessibilityService : AccessibilityService() {
 
     @Volatile
     var lastExternalObservationSnapshot: ObservationSnapshot? = null
-        set
+        set(value) {
+            field = value
+            if (value != null && isValidExternalApplicationPackage(value.packageName)) {
+                lastExternalPackageName = value.packageName
+            }
+        }
 
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()

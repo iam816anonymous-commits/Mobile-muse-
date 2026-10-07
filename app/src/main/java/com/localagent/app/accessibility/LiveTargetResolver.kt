@@ -69,11 +69,27 @@ class LiveTargetResolver {
         }
 
         // Verify capability on live node
-        val isActionable = when (actionType) {
+        var isActionable = when (actionType) {
             TargetActionType.CLICK -> matchedLiveNode.isClickable
             TargetActionType.LONG_CLICK -> matchedLiveNode.isLongClickable
             TargetActionType.SCROLL -> matchedLiveNode.isScrollable
             TargetActionType.EDITABLE -> matchedLiveNode.isEditable
+        }
+
+        // Ascend to clickable ancestor on live hierarchy if child node is matched (e.g. Calculator TextView inside MaterialButton)
+        if (!isActionable && actionType == TargetActionType.CLICK) {
+            var parent = matchedLiveNode.parent
+            while (parent != null) {
+                if (parent.isClickable) {
+                    matchedLiveNode.recycle()
+                    matchedLiveNode = parent
+                    isActionable = true
+                    break
+                }
+                val prev = parent
+                parent = parent.parent
+                prev.recycle()
+            }
         }
 
         if (!isActionable) {
@@ -153,8 +169,13 @@ class LiveTargetResolver {
                 }
             }
 
-            // Strategy 3: Text + Class match
-            if (!matches && targetText != null && currentText == targetText && currentClass == targetClass) {
+            // Strategy 3: Text match (case-insensitive)
+            if (!matches && targetText != null && currentText?.equals(targetText, ignoreCase = true) == true) {
+                matches = true
+            }
+
+            // Strategy 4: Content description match (case-insensitive)
+            if (!matches && targetDesc != null && currentDesc?.equals(targetDesc, ignoreCase = true) == true) {
                 matches = true
             }
 
