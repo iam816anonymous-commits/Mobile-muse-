@@ -76,7 +76,7 @@ class LiveTargetResolver {
             TargetActionType.CLICK -> liveNode.isClickable
             TargetActionType.LONG_CLICK -> liveNode.isLongClickable
             TargetActionType.SCROLL -> liveNode.isScrollable
-            TargetActionType.EDITABLE -> liveNode.isEditable
+            TargetActionType.EDITABLE -> liveNode.isEditable || liveNode.className?.toString()?.contains("EditText", ignoreCase = true) == true
         }
 
         // Ascend to clickable ancestor on live hierarchy if child node is matched (e.g. Calculator TextView inside MaterialButton)
