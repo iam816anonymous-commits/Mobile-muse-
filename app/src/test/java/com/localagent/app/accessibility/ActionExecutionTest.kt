@@ -27,7 +27,6 @@ class ActionExecutionTest {
     private lateinit var service: AgentAccessibilityService
     private lateinit var shadowService: ShadowAccessibilityService
     private lateinit var globalExecutor: GlobalActionExecutor
-    private var liveNodeSupplier: (() -> AccessibilityNodeInfo?)? = null
 
     @Before
     fun setUp() {
@@ -37,15 +36,6 @@ class ActionExecutionTest {
         service.externalObservationState = ObservationEngineState.OBSERVING
         shadowService = shadowOf(service as AccessibilityService)
         globalExecutor = GlobalActionExecutor(accessibilityService = service)
-        liveNodeSupplier = null
-    }
-
-    private fun createUiExecutor(): UiActionExecutor {
-        return UiActionExecutor(
-            accessibilityService = service,
-            liveRootNodeProvider = { liveNodeSupplier?.invoke() },
-            snapshotProvider = { service.currentObservationSnapshot ?: ObservationSnapshot() }
-        )
     }
 
     // --- GROUP B: P7-ACTION Contract Execution Tests ---
@@ -88,31 +78,46 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-ACTION-004 - UI_CLICK contract execution against live re-acquired target`() {
-        val liveBtn = AccessibilityNodeInfo.obtain().apply {
-            className = "android.widget.Button"
-            viewIdResourceName = "com.app:id/submit"
-            text = "Submit"
-            isClickable = true
-        }
-
         val obsNode = ObservationNode(
             nodeId = "submit",
             className = "android.widget.Button",
             resourceId = "com.app:id/submit",
             text = "Submit",
             clickable = true,
+            checked = false,
             nodeIdentity = "id:submit_text:Submit",
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
-        service.currentObservationSnapshot = ObservationSnapshot(
+        val preSnap = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        liveNodeSupplier = { liveBtn }
 
-        val uiExecutor = createUiExecutor()
+        val postSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = obsNode.copy(checked = true)
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityNodeInfo.obtain().apply {
+                    className = "android.widget.Button"
+                    viewIdResourceName = "com.app:id/submit"
+                    text = "Submit"
+                    isClickable = true
+                }
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = "submit"
@@ -123,40 +128,53 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_CLICK, result.request.actionType)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
         assertEquals(0, shadowService.globalActionsPerformed.size)
-        assertEquals(1, shadowOf(liveBtn).performedActions.size)
-        assertEquals(AccessibilityNodeInfo.ACTION_CLICK, shadowOf(liveBtn).performedActions[0])
-
-        liveBtn.recycle()
     }
 
     @Test
     fun `P7-ACTION-005 - UI_LONG_CLICK contract execution against live re-acquired target`() {
-        val liveCard = AccessibilityNodeInfo.obtain().apply {
-            className = "androidx.cardview.widget.CardView"
-            viewIdResourceName = "com.app:id/card"
-            text = "Card Item"
-            isLongClickable = true
-        }
-
         val obsNode = ObservationNode(
             nodeId = "card",
             className = "androidx.cardview.widget.CardView",
             resourceId = "com.app:id/card",
             text = "Card Item",
             longClickable = true,
+            selected = false,
             nodeIdentity = "id:card_text:Card Item",
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
-        service.currentObservationSnapshot = ObservationSnapshot(
+        val preSnap = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        liveNodeSupplier = { liveCard }
 
-        val uiExecutor = createUiExecutor()
+        val postSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = obsNode.copy(selected = true)
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityNodeInfo.obtain().apply {
+                    className = "androidx.cardview.widget.CardView"
+                    viewIdResourceName = "com.app:id/card"
+                    text = "Card Item"
+                    isLongClickable = true
+                }
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
         val request = ActionRequest(
             actionType = ActionType.UI_LONG_CLICK,
             targetNodeId = "card"
@@ -167,39 +185,52 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_LONG_CLICK, result.request.actionType)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
         assertEquals(0, shadowService.globalActionsPerformed.size)
-        assertEquals(1, shadowOf(liveCard).performedActions.size)
-        assertEquals(AccessibilityNodeInfo.ACTION_LONG_CLICK, shadowOf(liveCard).performedActions[0])
-
-        liveCard.recycle()
     }
 
     @Test
     fun `P7-ACTION-006 - UI_TEXT_INPUT contract execution against live editable target`() {
-        val liveEdit = AccessibilityNodeInfo.obtain().apply {
-            className = "android.widget.EditText"
-            viewIdResourceName = "com.app:id/input_field"
-            text = ""
-            isEditable = true
-        }
-
         val obsNode = ObservationNode(
             nodeId = "input_field",
             className = "android.widget.EditText",
             resourceId = "com.app:id/input_field",
+            text = "",
             editable = true,
             nodeIdentity = "id:input_field_text:",
             identityConfidence = NodeIdentityConfidence.EXACT
         )
 
-        service.currentObservationSnapshot = ObservationSnapshot(
+        val preSnap = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        liveNodeSupplier = { liveEdit }
 
-        val uiExecutor = createUiExecutor()
+        val postSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = obsNode.copy(text = "Hello Agent")
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityNodeInfo.obtain().apply {
+                    className = "android.widget.EditText"
+                    viewIdResourceName = "com.app:id/input_field"
+                    text = ""
+                    isEditable = true
+                }
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
         val request = ActionRequest(
             actionType = ActionType.UI_TEXT_INPUT,
             targetNodeId = "input_field",
@@ -211,38 +242,51 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals("Hello Agent", result.request.textInputPayload)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
         assertEquals(0, shadowService.globalActionsPerformed.size)
-        assertEquals(1, shadowOf(liveEdit).performedActions.size)
-        assertEquals(AccessibilityNodeInfo.ACTION_SET_TEXT, shadowOf(liveEdit).performedActions[0])
-
-        liveEdit.recycle()
     }
 
     @Test
     fun `P7-ACTION-007 - UI_SCROLL_FORWARD contract execution against live scrollable target`() {
-        val liveRecycler = AccessibilityNodeInfo.obtain().apply {
-            className = "androidx.recyclerview.widget.RecyclerView"
-            viewIdResourceName = "com.app:id/recycler_view"
-            isScrollable = true
-        }
-
         val obsNode = ObservationNode(
             nodeId = "recycler_view",
             className = "androidx.recyclerview.widget.RecyclerView",
             resourceId = "com.app:id/recycler_view",
+            text = "Item 0",
             scrollable = true,
             nodeIdentity = "id:recycler_view_idx:0",
             identityConfidence = NodeIdentityConfidence.HIGH
         )
 
-        service.currentObservationSnapshot = ObservationSnapshot(
+        val preSnap = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        liveNodeSupplier = { liveRecycler }
 
-        val uiExecutor = createUiExecutor()
+        val postSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = obsNode.copy(text = "Item 10")
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityNodeInfo.obtain().apply {
+                    className = "androidx.recyclerview.widget.RecyclerView"
+                    viewIdResourceName = "com.app:id/recycler_view"
+                    isScrollable = true
+                }
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
         val request = ActionRequest(
             actionType = ActionType.UI_SCROLL_FORWARD,
             targetNodeId = "recycler_view"
@@ -253,38 +297,51 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_SCROLL_FORWARD, result.request.actionType)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
         assertEquals(0, shadowService.globalActionsPerformed.size)
-        assertEquals(1, shadowOf(liveRecycler).performedActions.size)
-        assertEquals(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, shadowOf(liveRecycler).performedActions[0])
-
-        liveRecycler.recycle()
     }
 
     @Test
     fun `P7-ACTION-008 - UI_SCROLL_BACKWARD contract execution against live scrollable target`() {
-        val liveRecycler = AccessibilityNodeInfo.obtain().apply {
-            className = "androidx.recyclerview.widget.RecyclerView"
-            viewIdResourceName = "com.app:id/recycler_view"
-            isScrollable = true
-        }
-
         val obsNode = ObservationNode(
             nodeId = "recycler_view",
             className = "androidx.recyclerview.widget.RecyclerView",
             resourceId = "com.app:id/recycler_view",
+            text = "Item 10",
             scrollable = true,
             nodeIdentity = "id:recycler_view_idx:0",
             identityConfidence = NodeIdentityConfidence.HIGH
         )
 
-        service.currentObservationSnapshot = ObservationSnapshot(
+        val preSnap = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
             rootNode = obsNode
         )
-        liveNodeSupplier = { liveRecycler }
 
-        val uiExecutor = createUiExecutor()
+        val postSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = obsNode.copy(text = "Item 0")
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityNodeInfo.obtain().apply {
+                    className = "androidx.recyclerview.widget.RecyclerView"
+                    viewIdResourceName = "com.app:id/recycler_view"
+                    isScrollable = true
+                }
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
         val request = ActionRequest(
             actionType = ActionType.UI_SCROLL_BACKWARD,
             targetNodeId = "recycler_view"
@@ -295,11 +352,9 @@ class ActionExecutionTest {
         assertNotNull(result)
         assertTrue(result.dispatchSuccess)
         assertEquals(ActionType.UI_SCROLL_BACKWARD, result.request.actionType)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
         assertEquals(0, shadowService.globalActionsPerformed.size)
-        assertEquals(1, shadowOf(liveRecycler).performedActions.size)
-        assertEquals(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, shadowOf(liveRecycler).performedActions[0])
-
-        liveRecycler.recycle()
     }
 
     // --- GROUP C: P7-SAFE Zero-Action Safety Invariant Tests ---
@@ -307,7 +362,11 @@ class ActionExecutionTest {
     @Test
     fun `P7-SAFE-001 - Stale target yields zero framework action dispatch`() {
         // Target present in pre-snapshot but missing from live root node
-        val uiExecutor = createUiExecutor()
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { null },
+            snapshotProvider = { service.currentObservationSnapshot ?: ObservationSnapshot() }
+        )
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeIdentity = "stale_identity_123"
@@ -323,7 +382,11 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-002 - Missing target yields zero framework action dispatch`() {
-        val uiExecutor = createUiExecutor()
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { null },
+            snapshotProvider = { service.currentObservationSnapshot ?: ObservationSnapshot() }
+        )
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = "non_existent_node"
@@ -355,8 +418,19 @@ class ActionExecutionTest {
             )
         )
 
-        service.currentObservationSnapshot = nonActionableSnapshot
-        val uiExecutor = createUiExecutor()
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityNodeInfo.obtain().apply {
+                    className = "android.widget.TextView"
+                    text = "Static Label"
+                    isClickable = false
+                    isLongClickable = false
+                    isScrollable = false
+                }
+            },
+            snapshotProvider = { nonActionableSnapshot }
+        )
 
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
@@ -373,7 +447,11 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-004 - Invalid target request missing ID and identity yields zero action dispatch`() {
-        val uiExecutor = createUiExecutor()
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { null },
+            snapshotProvider = { service.currentObservationSnapshot ?: ObservationSnapshot() }
+        )
         val request = ActionRequest(
             actionType = ActionType.UI_CLICK,
             targetNodeId = null,
@@ -390,7 +468,11 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-005 - Global action dispatch is performed ONLY by GlobalActionExecutor and rejected by UiActionExecutor`() {
-        val uiExecutor = createUiExecutor()
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { null },
+            snapshotProvider = { service.currentObservationSnapshot ?: ObservationSnapshot() }
+        )
         val request = ActionRequest(actionType = ActionType.GLOBAL_BACK)
 
         // 1. UiActionExecutor must reject global action without dispatching

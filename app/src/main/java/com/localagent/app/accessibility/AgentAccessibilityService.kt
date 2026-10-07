@@ -494,7 +494,7 @@ class AgentAccessibilityService : AccessibilityService() {
                                     isFocused = focused,
                                     score = score
                                 ),
-                                node = root
+                                node = if (root != null) AccessibilityNodeInfo.obtain(root) else null
                             )
                         )
                     }
@@ -521,7 +521,7 @@ class AgentAccessibilityService : AccessibilityService() {
                             isFocused = true,
                             score = score
                         ),
-                        node = root
+                        node = AccessibilityNodeInfo.obtain(root)
                     )
                 )
             }

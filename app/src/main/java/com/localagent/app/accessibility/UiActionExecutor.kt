@@ -103,11 +103,11 @@ class UiActionExecutor(
             resolvedTarget = resolvedNode,
             actionType = targetActionType
         )
-        liveRoot?.recycle()
         resolutionLogger?.logTargetResolution(reacquisitionResult.targetResolutionResult)
         resolutionLogger?.endRequest()
 
         if (!reacquisitionResult.reacquired || reacquisitionResult.liveNode == null) {
+            liveRoot?.recycle()
             val verResult = VerificationResult(
                 status = VerificationStatus.TARGET_STALE,
                 resultCode = ResultCode.TARGET_STALE,
@@ -137,6 +137,9 @@ class UiActionExecutor(
             }
         } finally {
             liveNode.recycle()
+            if (liveRoot != null && liveRoot != liveNode) {
+                liveRoot.recycle()
+            }
         }
 
         // 4. Capture Post-Action Snapshot
