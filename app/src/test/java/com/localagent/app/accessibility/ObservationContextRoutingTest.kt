@@ -699,4 +699,41 @@ class ObservationContextRoutingTest {
         assertTrue(resRecents.dispatchSuccess)
         assertEquals(3, shadowService.globalActionsPerformed.size)
     }
+
+    @Test
+    fun `PHASE7-WINDOW-001 - Targeted UI action must not use LocalAgent active window when target package is external application`() {
+        val extSnapshot = ObservationSnapshot(
+            packageName = "com.transsion.calculator",
+            nodeCount = 1,
+            rootNode = ObservationNode(
+                nodeId = "digit_7",
+                className = "android.widget.Button",
+                text = "7",
+                clickable = true,
+                packageName = "com.transsion.calculator"
+            )
+        )
+        service.lastExternalObservationSnapshot = extSnapshot
+
+        var queriedPackageName: String? = null
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { targetPkg ->
+                queriedPackageName = targetPkg
+                AccessibilityNodeInfo.obtain().apply {
+                    packageName = targetPkg ?: "com.transsion.calculator"
+                    className = "android.widget.Button"
+                    text = "7"
+                    isClickable = true
+                }
+            },
+            snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
+        )
+
+        val request = ActionRequest(actionType = ActionType.UI_CLICK, targetNodeId = "7")
+        val result = uiExecutor.execute(request)
+
+        assertTrue(result.dispatchSuccess)
+        assertEquals("com.transsion.calculator", queriedPackageName)
+    }
 }

@@ -27,7 +27,10 @@ class UiActionExecutor(
     private val liveTargetResolver: LiveTargetResolver = LiveTargetResolver(),
     private val verificationStrategy: TargetAwareVerificationStrategy = TargetAwareVerificationStrategy(),
     private val resolutionLogger: TargetResolutionLogger? = null,
-    private val liveRootNodeProvider: () -> AccessibilityNodeInfo? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.rootInActiveWindow },
+    private val liveRootNodeProvider: (targetPackageName: String?) -> AccessibilityNodeInfo? = { targetPkg ->
+        val service = accessibilityService ?: AgentAccessibilityService.INSTANCE
+        service?.getLiveExternalRootNode(targetPkg) ?: service?.rootInActiveWindow
+    },
     private val snapshotProvider: () -> ObservationSnapshot? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.getSnapshotForContext(isExternal = true) ?: (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() },
     private val requireExternalContext: Boolean = true
 ) {
@@ -107,7 +110,7 @@ class UiActionExecutor(
         val resolvedNode = resolutionResult.resolvedNode!!
 
         // 2. Live Re-acquisition
-        val liveRoot = liveRootNodeProvider()
+        val liveRoot = liveRootNodeProvider(preSnapshot.packageName)
         val reacquisitionResult = liveTargetResolver.reacquireLiveTarget(
             rootLiveNode = liveRoot,
             targetResolutionResult = resolutionResult,

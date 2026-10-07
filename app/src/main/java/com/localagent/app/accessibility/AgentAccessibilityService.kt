@@ -451,6 +451,41 @@ class AgentAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
+        val windowCandidates = collectWindowCandidates()
+        val app = application as? LocalAgentApplication
+        val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
+        val rejectedPackages = mutableSetOf<String>()
+
+        // 1. Try matching targetPackageName directly if provided
+        if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+            val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+            if (directMatch?.node != null) {
+                val matchedNode = AccessibilityNodeInfo.obtain(directMatch.node)
+                // Clean up candidate nodes
+                windowCandidates.forEach { it.node?.recycle() }
+                return matchedNode
+            }
+        }
+
+        // 2. Fall back to best valid external window
+        val bestExternal = selectBestExternalWindow(
+            candidates = windowCandidates,
+            activeSessionId = activeSessionId,
+            rejectedPackagesInRequest = rejectedPackages
+        )
+
+        val resultNode = if (bestExternal?.node != null) {
+            AccessibilityNodeInfo.obtain(bestExternal.node)
+        } else {
+            null
+        }
+
+        // Clean up candidate nodes
+        windowCandidates.forEach { it.node?.recycle() }
+        return resultNode
+    }
+
     fun getSnapshotForContext(isExternal: Boolean): ObservationSnapshot? {
         return if (isExternal) {
             lastExternalObservationSnapshot ?: currentObservationSnapshot?.takeIf { isValidExternalApplicationPackage(it.packageName) }
