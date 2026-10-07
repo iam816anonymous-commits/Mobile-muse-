@@ -270,15 +270,23 @@ class MainActivity : AppCompatActivity() {
                         ActionType.UI_SCROLL_BACKWARD -> com.localagent.core.action.ActionType.UI_SCROLL_BACKWARD
                         else -> com.localagent.core.action.ActionType.UI_CLICK
                     }
+                    val targetIdStr = when (val selector = command.targetSelector) {
+                        is TargetSelector.ByViewId -> selector.viewIdResourceName
+                        is TargetSelector.ByText -> selector.text
+                        is TargetSelector.ByContentDescription -> selector.contentDescription
+                        is TargetSelector.ByNodeIdentityKey -> selector.nodeIdentityKey
+                        is TargetSelector.ByCoordinates -> "coords:${selector.x},${selector.y}"
+                        TargetSelector.None -> null
+                    }
                     val request = com.localagent.core.action.ActionRequest(
                         actionType = coreActionType,
-                        targetNodeId = command.targetSelector,
+                        targetNodeId = targetIdStr,
                         targetNodeIdentity = command.parameters["targetIdentity"],
                         textInputPayload = command.parameters["text"],
                         sourceChannel = command.source.name
                     )
                     val result = uiExecutor.execute(request)
-                    "Command: ${command.actionType} | Target: ${command.targetSelector ?: "None"} | Status: ${result.verificationResult.resultCode} | Reason: ${result.verificationResult.reason ?: "Executed"}"
+                    "Command: ${command.actionType} | Target: ${targetIdStr ?: "None"} | Status: ${result.verificationResult.resultCode} | Reason: ${result.verificationResult.reason ?: "Executed"}"
                 } else {
                     "Command: ${command.actionType} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility Service unbound (Open Settings to enable)"
                 }
