@@ -94,6 +94,16 @@ class LiveTargetResolver {
             }
         }
 
+        // If matched live node itself is not clickable, search its children for text/content matches that belong to an actionable container
+        if (!isActionable && actionType == TargetActionType.CLICK && liveNode.childCount > 0) {
+            val childCandidate = findActionableChildOrSelf(liveNode, resolvedTarget)
+            if (childCandidate != null) {
+                liveNode.recycle()
+                liveNode = childCandidate
+                isActionable = true
+            }
+        }
+
         if (!isActionable) {
             liveNode.recycle()
             return LiveReacquisitionResult(
@@ -200,6 +210,53 @@ class LiveTargetResolver {
             current.recycle()
         }
 
+        return null
+    }
+
+    private fun findActionableChildOrSelf(
+        parent: AccessibilityNodeInfo,
+        target: ObservationNode
+    ): AccessibilityNodeInfo? {
+        val targetText = target.text?.trim()?.ifBlank { null }
+        val targetDesc = target.contentDescription?.trim()?.ifBlank { null }
+        if (targetText == null && targetDesc == null) return null
+
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(AccessibilityNodeInfo.obtain(parent))
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val currentText = current.text?.toString()?.trim()?.ifBlank { null }
+            val currentDesc = current.contentDescription?.toString()?.trim()?.ifBlank { null }
+
+            var matches = false
+            if (targetText != null && currentText?.equals(targetText, ignoreCase = true) == true) {
+                matches = true
+            } else if (targetDesc != null && currentDesc?.equals(targetDesc, ignoreCase = true) == true) {
+                matches = true
+            }
+
+            if (matches) {
+                // If current or any ancestor up to parent is clickable
+                var node: AccessibilityNodeInfo? = current
+                while (node != null) {
+                    if (node.isClickable) {
+                        while (queue.isNotEmpty()) queue.removeFirst().recycle()
+                        return node
+                    }
+                    if (node == parent) break
+                    val p = node.parent
+                    node.recycle()
+                    node = p
+                }
+            }
+
+            for (i in 0 until current.childCount) {
+                val child = current.getChild(i)
+                if (child != null) queue.add(child)
+            }
+            current.recycle()
+        }
         return null
     }
 }
