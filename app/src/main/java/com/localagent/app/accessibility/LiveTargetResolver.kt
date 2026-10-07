@@ -68,32 +68,34 @@ class LiveTargetResolver {
             )
         }
 
+        var liveNode: AccessibilityNodeInfo = matchedLiveNode
+
         // Verify capability on live node
         var isActionable = when (actionType) {
-            TargetActionType.CLICK -> matchedLiveNode.isClickable
-            TargetActionType.LONG_CLICK -> matchedLiveNode.isLongClickable
-            TargetActionType.SCROLL -> matchedLiveNode.isScrollable
-            TargetActionType.EDITABLE -> matchedLiveNode.isEditable
+            TargetActionType.CLICK -> liveNode.isClickable
+            TargetActionType.LONG_CLICK -> liveNode.isLongClickable
+            TargetActionType.SCROLL -> liveNode.isScrollable
+            TargetActionType.EDITABLE -> liveNode.isEditable
         }
 
         // Ascend to clickable ancestor on live hierarchy if child node is matched (e.g. Calculator TextView inside MaterialButton)
         if (!isActionable && actionType == TargetActionType.CLICK) {
-            var parent = matchedLiveNode.parent
-            while (parent != null) {
-                if (parent.isClickable) {
-                    matchedLiveNode.recycle()
-                    matchedLiveNode = parent
+            var currentParent = liveNode.parent
+            while (currentParent != null) {
+                val p = currentParent
+                if (p.isClickable) {
+                    liveNode.recycle()
+                    liveNode = p
                     isActionable = true
                     break
                 }
-                val prev = parent
-                parent = parent.parent
-                prev.recycle()
+                currentParent = p.parent
+                p.recycle()
             }
         }
 
         if (!isActionable) {
-            matchedLiveNode.recycle()
+            liveNode.recycle()
             return LiveReacquisitionResult(
                 targetResolutionResult = targetResolutionResult.copy(
                     reacquired = false,
@@ -109,12 +111,12 @@ class LiveTargetResolver {
             reacquired = true,
             resolvedNodeId = resolvedTarget.nodeId,
             resolvedNodeIdentity = targetIdentity,
-            resolvedClassName = matchedLiveNode.className?.toString()
+            resolvedClassName = liveNode.className?.toString()
         )
 
         return LiveReacquisitionResult(
             targetResolutionResult = updatedResult,
-            liveNode = matchedLiveNode,
+            liveNode = liveNode,
             reacquired = true,
             failureReason = null
         )

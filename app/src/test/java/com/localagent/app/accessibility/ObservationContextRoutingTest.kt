@@ -455,11 +455,21 @@ class ObservationContextRoutingTest {
 
     @Test
     fun `CC-OBS-015 - semantic target resolution finds actionable Calculator-style node`() {
+        val (computedIdentity, _) = ObservationNode.computeIdentity(
+            packageName = "com.transsion.calculator",
+            className = "com.google.android.material.button.MaterialButton",
+            resourceId = null,
+            text = "7",
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = null
+        )
+
         val parentButtonNode = ObservationNode(
             nodeId = "button_container_42",
             className = "com.google.android.material.button.MaterialButton",
             clickable = true,
-            nodeIdentity = "btn_container_7",
+            nodeIdentity = computedIdentity,
             children = listOf(
                 ObservationNode(
                     nodeId = "child_text_99",
