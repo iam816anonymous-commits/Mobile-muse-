@@ -29,7 +29,7 @@ class UiActionExecutor(
     private val resolutionLogger: TargetResolutionLogger? = null,
     private val liveRootNodeProvider: () -> AccessibilityNodeInfo? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.rootInActiveWindow },
     private val snapshotProvider: () -> ObservationSnapshot? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.getSnapshotForContext(isExternal = true) ?: (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() },
-    private val requireExternalContext: Boolean = false
+    private val requireExternalContext: Boolean = true
 ) {
     fun execute(request: ActionRequest): ActionExecutionResult {
         val startTime = System.currentTimeMillis()
