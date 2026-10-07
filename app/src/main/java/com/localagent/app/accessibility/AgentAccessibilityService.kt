@@ -446,6 +446,14 @@ class AgentAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun getSnapshotForContext(isExternal: Boolean): ObservationSnapshot? {
+        return if (isExternal) {
+            lastExternalObservationSnapshot ?: currentObservationSnapshot?.takeIf { isValidExternalApplicationPackage(it.packageName) }
+        } else {
+            currentObservationSnapshot ?: captureLiveSnapshot()
+        }
+    }
+
     fun isValidExternalApplicationPackage(pkg: String): Boolean {
         if (pkg.isBlank()) return false
         if (pkg == "com.localagent.app") return false

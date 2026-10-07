@@ -28,7 +28,8 @@ class UiActionExecutor(
     private val verificationStrategy: TargetAwareVerificationStrategy = TargetAwareVerificationStrategy(),
     private val resolutionLogger: TargetResolutionLogger? = null,
     private val liveRootNodeProvider: () -> AccessibilityNodeInfo? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.rootInActiveWindow },
-    private val snapshotProvider: () -> ObservationSnapshot = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() ?: ObservationSnapshot() }
+    private val snapshotProvider: () -> ObservationSnapshot? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.getSnapshotForContext(isExternal = true) ?: (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() },
+    private val requireExternalContext: Boolean = false
 ) {
     fun execute(request: ActionRequest): ActionExecutionResult {
         val startTime = System.currentTimeMillis()
@@ -60,7 +61,17 @@ class UiActionExecutor(
         }
 
         // Capture pre-action observation snapshot
-        val preSnapshot = snapshotProvider()
+        val preSnapshot = snapshotProvider() ?: ObservationSnapshot()
+
+        // Package Safety Check: Reject LocalAgent-owned targets when external app action is required
+        if (requireExternalContext && !service.isValidExternalApplicationPackage(preSnapshot.packageName)) {
+            val verResult = VerificationResult(
+                status = VerificationStatus.TARGET_NOT_FOUND,
+                resultCode = ResultCode.TARGET_NOT_FOUND,
+                reason = "Target package '${preSnapshot.packageName}' belongs to LocalAgent itself. UI actions require a valid external application context."
+            )
+            return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+        }
 
         val targetNodeId = request.targetNodeId
         val targetNodeIdentity = request.targetNodeIdentity
@@ -143,7 +154,7 @@ class UiActionExecutor(
         }
 
         // 4. Capture Post-Action Snapshot
-        val postSnapshot = snapshotProvider()
+        val postSnapshot = snapshotProvider() ?: ObservationSnapshot()
 
         // 5. Verify Target-Aware Result
         val verification = if (!dispatchSuccess) {

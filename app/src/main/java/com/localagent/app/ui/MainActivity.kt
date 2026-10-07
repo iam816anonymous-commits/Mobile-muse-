@@ -261,7 +261,11 @@ class MainActivity : AppCompatActivity() {
             }
             ActionType.UI_CLICK, ActionType.UI_LONG_CLICK, ActionType.UI_TEXT_INPUT, ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> {
                 if (isA11yBound) {
-                    val uiExecutor = com.localagent.app.accessibility.UiActionExecutor(accessibilityService = service)
+                    val uiExecutor = com.localagent.app.accessibility.UiActionExecutor(
+                        accessibilityService = service,
+                        snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: service.captureLiveSnapshot() },
+                        requireExternalContext = true
+                    )
                     val coreActionType = when (command.actionType) {
                         ActionType.UI_CLICK -> com.localagent.core.action.ActionType.UI_CLICK
                         ActionType.UI_LONG_CLICK -> com.localagent.core.action.ActionType.UI_LONG_CLICK
