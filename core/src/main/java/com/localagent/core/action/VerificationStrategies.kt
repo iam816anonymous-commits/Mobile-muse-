@@ -19,6 +19,15 @@ class TargetAwareVerificationStrategy(
     private val diffEngine: SnapshotDiffEngine = SnapshotDiffEngine()
 ) : VerificationStrategy {
 
+    fun getSettleMillis(actionType: ActionType): Long {
+        return when (actionType) {
+            ActionType.UI_CLICK, ActionType.UI_LONG_CLICK -> 600L
+            ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> 800L
+            ActionType.UI_TEXT_INPUT -> 400L
+            else -> 300L
+        }
+    }
+
     override fun verify(
         actionType: ActionType,
         targetNodeId: String?,

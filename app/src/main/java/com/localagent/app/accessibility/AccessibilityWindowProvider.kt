@@ -2,13 +2,18 @@ package com.localagent.app.accessibility
 
 import android.view.accessibility.AccessibilityNodeInfo
 
+data class WindowNodeCandidate(
+    val candidate: WindowCandidateInfo,
+    val node: AccessibilityNodeInfo?
+)
+
 interface AccessibilityWindowProvider {
     fun getAvailableWindows(): List<WindowCandidateInfo>
     fun getRootForPackage(packageName: String): AccessibilityNodeInfo?
 }
 
 class DefaultAccessibilityWindowProvider(
-    private val windowCandidatesSupplier: () -> List<InternalCandidate>
+    private val windowCandidatesSupplier: () -> List<WindowNodeCandidate>
 ) : AccessibilityWindowProvider {
 
     override fun getAvailableWindows(): List<WindowCandidateInfo> {

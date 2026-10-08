@@ -165,6 +165,16 @@ class UiActionExecutor(
             }
         }
 
+        // Settle Delay before capturing post-action snapshot (600ms for CLICK, 800ms for SCROLL)
+        val settleMillis = verificationStrategy.getSettleMillis(request.actionType)
+        if (settleMillis > 0) {
+            try {
+                Thread.sleep(settleMillis)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+
         // 4. Capture Post-Action Snapshot
         val postSnapshot = snapshotProvider() ?: ObservationSnapshot()
 
