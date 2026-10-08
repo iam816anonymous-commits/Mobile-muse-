@@ -736,4 +736,93 @@ class ObservationContextRoutingTest {
         assertTrue(result.dispatchSuccess)
         assertEquals("com.transsion.calculator", queriedPackageName)
     }
+
+    @Test
+    fun `PHASE7-WINDOW-002 - LocalAgent window cannot be selected when Calculator is requested`() {
+        val provider = DefaultAccessibilityWindowProvider {
+            listOf(
+                InternalCandidate(
+                    WindowCandidateInfo(1, 1, "TYPE_APPLICATION", "com.localagent.app", true, true, 90),
+                    AccessibilityNodeInfo.obtain().apply { packageName = "com.localagent.app" }
+                )
+            )
+        }
+        val root = provider.getRootForPackage("com.transsion.calculator")
+        assertNull(root)
+    }
+
+    @Test
+    fun `PHASE7-WINDOW-003 - System UI window cannot be selected when Calculator is requested`() {
+        val provider = DefaultAccessibilityWindowProvider {
+            listOf(
+                InternalCandidate(
+                    WindowCandidateInfo(2, 3, "TYPE_SYSTEM", "com.android.systemui", true, false, 50),
+                    AccessibilityNodeInfo.obtain().apply { packageName = "com.android.systemui" }
+                )
+            )
+        }
+        val root = provider.getRootForPackage("com.transsion.calculator")
+        assertNull(root)
+    }
+
+    @Test
+    fun `PHASE7-SEMANTIC-001 - click 7 resolves live node by visible text`() {
+        val liveResolver = LiveTargetResolver()
+        val targetNode = ObservationNode(
+            nodeId = "node_42",
+            className = "android.widget.Button",
+            text = "7",
+            clickable = true
+        )
+        val liveRoot = AccessibilityNodeInfo.obtain().apply {
+            className = "android.widget.Button"
+            text = "7"
+            isClickable = true
+        }
+        val res = liveResolver.reacquireLiveTarget(
+            rootLiveNode = liveRoot,
+            targetResolutionResult = com.localagent.core.resolver.TargetResolutionResult(
+                requestedNodeId = "7",
+                actionType = com.localagent.core.resolver.TargetActionType.CLICK,
+                status = com.localagent.core.resolver.TargetResolutionStatus.RESOLVED,
+                resolvedNode = targetNode
+            ),
+            resolvedTarget = targetNode,
+            actionType = com.localagent.core.resolver.TargetActionType.CLICK,
+            requestedTargetQuery = "7"
+        )
+        assertTrue(res.reacquired)
+        assertNotNull(res.liveNode)
+    }
+
+    @Test
+    fun `PHASE7-SEMANTIC-002 - semantic resolution survives changed internal node identity`() {
+        val liveResolver = LiveTargetResolver()
+        val targetNode = ObservationNode(
+            nodeId = "node_42",
+            className = "android.widget.Button",
+            text = "7",
+            clickable = true,
+            nodeIdentity = "id:digit_7_idx:0"
+        )
+        val liveRoot = AccessibilityNodeInfo.obtain().apply {
+            className = "android.widget.Button"
+            text = "7"
+            isClickable = true
+        }
+        val res = liveResolver.reacquireLiveTarget(
+            rootLiveNode = liveRoot,
+            targetResolutionResult = com.localagent.core.resolver.TargetResolutionResult(
+                requestedNodeId = "7",
+                actionType = com.localagent.core.resolver.TargetActionType.CLICK,
+                status = com.localagent.core.resolver.TargetResolutionStatus.RESOLVED,
+                resolvedNode = targetNode
+            ),
+            resolvedTarget = targetNode,
+            actionType = com.localagent.core.resolver.TargetActionType.CLICK,
+            requestedTargetQuery = "7"
+        )
+        assertTrue(res.reacquired)
+        assertNotNull(res.liveNode)
+    }
 }
