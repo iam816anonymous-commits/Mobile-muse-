@@ -741,7 +741,7 @@ class ObservationContextRoutingTest {
     fun `PHASE7-WINDOW-002 - LocalAgent window cannot be selected when Calculator is requested`() {
         val provider = DefaultAccessibilityWindowProvider {
             listOf(
-                InternalCandidate(
+                WindowNodeCandidate(
                     WindowCandidateInfo(1, 1, "TYPE_APPLICATION", "com.localagent.app", true, true, 90),
                     AccessibilityNodeInfo.obtain().apply { packageName = "com.localagent.app" }
                 )
@@ -755,7 +755,7 @@ class ObservationContextRoutingTest {
     fun `PHASE7-WINDOW-003 - System UI window cannot be selected when Calculator is requested`() {
         val provider = DefaultAccessibilityWindowProvider {
             listOf(
-                InternalCandidate(
+                WindowNodeCandidate(
                     WindowCandidateInfo(2, 3, "TYPE_SYSTEM", "com.android.systemui", true, false, 50),
                     AccessibilityNodeInfo.obtain().apply { packageName = "com.android.systemui" }
                 )

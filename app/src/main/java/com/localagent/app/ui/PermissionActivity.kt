@@ -39,10 +39,14 @@ class PermissionActivity : AppCompatActivity() {
             launchSettingsFlow(PermissionManager.PERABILITY_ACCESSIBILITY, pm)
         }
 
+        val safLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+            refreshPermissionCenterUi()
+        }
+
         binding.btnLaunchSafPicker.setOnClickListener {
             try {
                 val safIntent = pm.getSafDocumentPickerIntent()
-                startActivityForResult(safIntent, REQUEST_CODE_SAF_PICKER)
+                safLauncher.launch(safIntent)
 
                 app?.eventLogger?.logEvent(
                     AgentEvent(

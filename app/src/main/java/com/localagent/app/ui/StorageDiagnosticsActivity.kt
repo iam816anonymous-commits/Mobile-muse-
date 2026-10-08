@@ -76,11 +76,24 @@ class StorageDiagnosticsActivity : AppCompatActivity() {
         refreshStorageDiagnostics()
     }
 
+    private val documentTreeLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: Exception) {}
+            val prefs = getSharedPreferences("agent_storage_prefs", MODE_PRIVATE)
+            prefs.edit().putString("saf_memory_uri", uri.toString()).apply()
+            refreshStorageDiagnostics()
+        }
+    }
+
     private fun requestDurableStorageAccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
             try {
-                startActivityForResult(intent, 1001)
+                documentTreeLauncher.launch(null)
             } catch (e: Exception) {
                 System.err.println("StorageDiagnosticsActivity: SAF intent error: ${e.message}")
             }
@@ -90,24 +103,6 @@ class StorageDiagnosticsActivity : AppCompatActivity() {
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE
             )
             ActivityCompat.requestPermissions(this, permissions, 1002)
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1001 && resultCode == RESULT_OK) {
-            val uri = data?.data
-            if (uri != null) {
-                try {
-                    contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                    )
-                } catch (_: Exception) {}
-                val prefs = getSharedPreferences("agent_storage_prefs", MODE_PRIVATE)
-                prefs.edit().putString("saf_memory_uri", uri.toString()).apply()
-                refreshStorageDiagnostics()
-            }
         }
     }
 
