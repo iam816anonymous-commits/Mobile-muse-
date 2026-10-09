@@ -240,13 +240,17 @@ class LiveTargetResolver {
 
             if (matches) {
                 // If current or any ancestor up to parent is clickable
-                var node: AccessibilityNodeInfo? = current
+                var node: AccessibilityNodeInfo? = AccessibilityNodeInfo.obtain(current)
                 while (node != null) {
                     if (node.isClickable) {
                         while (queue.isNotEmpty()) queue.removeFirst().recycle()
+                        current.recycle()
                         return node
                     }
-                    if (node == parent) break
+                    if (node == parent) {
+                        node.recycle()
+                        break
+                    }
                     val p = node.parent
                     node.recycle()
                     node = p
