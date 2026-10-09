@@ -223,6 +223,7 @@ class ActionExecutionTest {
                     viewIdResourceName = "com.app:id/input_field"
                     text = ""
                     isEditable = true
+                    addAction(AccessibilityNodeInfo.ACTION_SET_TEXT)
                 }
             },
             snapshotProvider = {

@@ -148,6 +148,7 @@ class ObservationContextRoutingTest {
                     className = "android.widget.EditText"
                     viewIdResourceName = "com.android.calculator2:id/formula"
                     isEditable = true
+                    addAction(AccessibilityNodeInfo.ACTION_SET_TEXT)
                 }
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
