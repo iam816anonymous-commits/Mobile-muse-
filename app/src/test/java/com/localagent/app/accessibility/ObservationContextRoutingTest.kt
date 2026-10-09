@@ -10,6 +10,7 @@ import com.localagent.core.action.VerificationStatus
 import com.localagent.core.observation.NodeIdentityConfidence
 import com.localagent.core.observation.ObservationNode
 import com.localagent.core.observation.ObservationSnapshot
+import com.localagent.core.resolver.TargetResolutionStrategy
 import com.localagent.core.result.ResultCode
 import org.junit.After
 import org.junit.Assert.*
@@ -784,6 +785,7 @@ class ObservationContextRoutingTest {
             targetResolutionResult = com.localagent.core.resolver.TargetResolutionResult(
                 requestedNodeId = "7",
                 actionType = com.localagent.core.resolver.TargetActionType.CLICK,
+                strategy = TargetResolutionStrategy.SELF_ACTIONABLE,
                 status = com.localagent.core.resolver.TargetResolutionStatus.RESOLVED,
                 resolvedNode = targetNode
             ),
@@ -815,6 +817,7 @@ class ObservationContextRoutingTest {
             targetResolutionResult = com.localagent.core.resolver.TargetResolutionResult(
                 requestedNodeId = "7",
                 actionType = com.localagent.core.resolver.TargetActionType.CLICK,
+                strategy = TargetResolutionStrategy.SELF_ACTIONABLE,
                 status = com.localagent.core.resolver.TargetResolutionStatus.RESOLVED,
                 resolvedNode = targetNode
             ),
