@@ -105,10 +105,10 @@ class ObservationActivity : AppCompatActivity() {
 
         if (snap != null) {
             val dateStr = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date(snap.timestamp))
-            binding.tvSnapshotMeta.text = "Package: ${snap.packageName} | Nodes: ${snap.nodeCount} | Depth: ${snap.truncationInfo.maxDepthReached} | Truncated: ${snap.truncationInfo.isTruncated} | Time: $dateStr"
+            binding.tvSnapshotMeta.text = "Gen: ${snap.generation} | Package: ${snap.packageName} | Nodes: ${snap.nodeCount} | Depth: ${snap.truncationInfo.maxDepthReached} | Truncated: ${snap.truncationInfo.isTruncated} | Time: $dateStr"
             binding.tvNodeTree.text = NodeTreeRenderer.renderSnapshotTree(snap)
         } else {
-            binding.tvSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false | Timestamp: None"
+            binding.tvSnapshotMeta.text = "Gen: 0 | Package: None | Nodes: 0 | Depth: 0 | Truncated: false | Timestamp: None"
             binding.tvNodeTree.text = if (a11yBound) "No observation captured yet. Tap Refresh Observation." else "Accessibility Service unbound. Open A11y Settings to enable service."
         }
     }

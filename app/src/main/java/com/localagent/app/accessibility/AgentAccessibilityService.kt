@@ -156,6 +156,12 @@ class AgentAccessibilityService : AccessibilityService() {
         )
     }
 
+    @Volatile
+    var snapshotGenerationCounter: Long = 0L
+
+    @Volatile
+    private var lastObservationRefreshTime: Long = 0L
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
@@ -183,18 +189,21 @@ class AgentAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Evaluate external application windows on window state, window list, or window content changes
+        // Evaluate external application windows on window state, window list, content, or scroll changes
         val isRelevantEvent = when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_SCROLLED,
             AccessibilityEvent.TYPE_VIEW_CLICKED,
             AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
             AccessibilityEvent.TYPE_VIEW_FOCUSED -> true
             else -> false
         }
 
-        if (isRelevantEvent && isValidExternalApplicationPackage(pkg)) {
+        val now = System.currentTimeMillis()
+        if (isRelevantEvent && isValidExternalApplicationPackage(pkg) && (now - lastObservationRefreshTime >= 150L)) {
+            lastObservationRefreshTime = now
             evaluateExternalApplicationWindows()
         }
     }
@@ -275,6 +284,8 @@ class AgentAccessibilityService : AccessibilityService() {
             selectedWindowType = 0
         }
 
+        val nextGeneration = ++snapshotGenerationCounter
+
         val primarySnapshot = if (selectedNode != null) {
             try {
                 extractor.extractSnapshot(
@@ -282,13 +293,14 @@ class AgentAccessibilityService : AccessibilityService() {
                     packageName = selectedPkg,
                     activityName = activeActivityName,
                     windowId = selectedWindowId
-                )
+                ).copy(generation = nextGeneration)
             } finally {
                 selectedNode.recycle()
                 recycledNodes.add(selectedNode)
             }
         } else {
             ObservationSnapshot(
+                generation = nextGeneration,
                 packageName = selectedPkg,
                 activityName = activeActivityName,
                 windowId = selectedWindowId,
@@ -322,7 +334,7 @@ class AgentAccessibilityService : AccessibilityService() {
                         packageName = extPkg,
                         activityName = lastExternalActivityName,
                         windowId = bestExternal.candidate.windowId
-                    )
+                    ).copy(generation = ++snapshotGenerationCounter)
                     lastExternalPackageName = extPkg
                     lastExternalWindowId = bestExternal.candidate.windowId
                     lastExternalWindowType = bestExternal.candidate.windowType
@@ -425,7 +437,7 @@ class AgentAccessibilityService : AccessibilityService() {
                             packageName = extPkg,
                             activityName = lastExternalActivityName,
                             windowId = bestExternal.candidate.windowId
-                        )
+                        ).copy(generation = ++snapshotGenerationCounter)
                         lastExternalPackageName = extPkg
                         lastExternalWindowId = bestExternal.candidate.windowId
                         lastExternalWindowType = bestExternal.candidate.windowType

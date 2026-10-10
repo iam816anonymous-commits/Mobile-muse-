@@ -52,6 +52,16 @@ class ObservationContextRoutingTest {
     }
 
     @Test
+    fun `OBSERVATION-GEN-001 - ObservationSnapshot generation increments on live capture`() {
+        val snap1 = ObservationSnapshot(generation = service.snapshotGenerationCounter)
+        service.captureLiveSnapshot()
+        val snap2 = service.currentObservationSnapshot
+
+        assertNotNull(snap2)
+        assertTrue((snap2?.generation ?: 0) > snap1.generation)
+    }
+
+    @Test
     fun `CC-OBS-001 - UI_CLICK uses ExternalObservation`() {
         val extSnapshot = ObservationSnapshot(
             packageName = "com.android.calculator2",

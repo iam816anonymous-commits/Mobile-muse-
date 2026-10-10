@@ -107,7 +107,12 @@ class UiActionExecutor(
                         when (val verifyRes = verifier.verifyForeground(targetPkg, timeoutMs = 3000L)) {
                             is com.localagent.app.system.LaunchVerificationResult.Success -> {
                                 // Target application verified in foreground; obtain fresh pre-action snapshot
+                            val preLaunchGen = preSnapshot.generation
                                 preSnapshot = snapshotProvider() ?: preSnapshot
+                            if (preSnapshot.generation <= preLaunchGen && service != null) {
+                                service.captureLiveSnapshot()
+                                preSnapshot = snapshotProvider() ?: preSnapshot
+                            }
                             }
                             is com.localagent.app.system.LaunchVerificationResult.Timeout -> {
                                 val verResult = VerificationResult(
