@@ -71,7 +71,6 @@ class AppControlEngineTest {
         val service = serviceController.get()
         service.onServiceConnectedForTest()
 
-        // Set active package
         val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         event.packageName = "com.android.calculator2"
         service.onAccessibilityEvent(event)
@@ -93,6 +92,30 @@ class AppControlEngineTest {
         val result = verifier.verifyForeground("com.android.settings", timeoutMs = 200)
 
         assertTrue(result is LaunchVerificationResult.Timeout)
+    }
+
+    @Test
+    fun `PHASE8-VERIFY-004 - LaunchVerifier ignores transient SystemUI event when target package matches last external`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        // Calculator set as last external
+        service.lastExternalObservationSnapshot = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1
+        )
+
+        // SystemUI emits a transient event
+        val sysUiEvent = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        sysUiEvent.packageName = "com.android.systemui"
+        service.onAccessibilityEvent(sysUiEvent)
+
+        val verifier = LaunchVerifier { service }
+        val result = verifier.verifyForeground("com.android.calculator2", timeoutMs = 300)
+
+        assertTrue(result is LaunchVerificationResult.Success)
+        assertEquals("com.android.calculator2", (result as LaunchVerificationResult.Success).packageName)
     }
 
     @Test
@@ -126,7 +149,6 @@ class AppControlEngineTest {
         )
         service.lastExternalObservationSnapshot = extSnapshot
 
-        // Simulate active foreground package
         val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         event.packageName = "com.android.calculator2"
         service.onAccessibilityEvent(event)
@@ -149,5 +171,67 @@ class AppControlEngineTest {
 
         assertTrue(result.dispatchSuccess)
         assertEquals("com.android.calculator2", result.preSnapshot?.packageName)
+    }
+
+    @Test
+    fun `PHASE8-E2E-001 - Sequential APP_LAUNCH then UI_CLICK command execution`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        // 1. Launch verification
+        val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        event.packageName = "com.android.calculator2"
+        service.onAccessibilityEvent(event)
+
+        val verifier = LaunchVerifier { service }
+        val launchVerifyRes = verifier.verifyForeground("com.android.calculator2", timeoutMs = 300)
+        assertTrue(launchVerifyRes is LaunchVerificationResult.Success)
+
+        // 2. Fresh snapshot observation setup
+        val (computedIdentity, confidence) = ObservationNode.computeIdentity(
+            packageName = "com.android.calculator2",
+            className = "android.widget.Button",
+            resourceId = "com.android.calculator2:id/digit_7",
+            text = "7",
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = null
+        )
+
+        val freshSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = ObservationNode(
+                nodeId = "digit_7",
+                className = "android.widget.Button",
+                resourceId = "com.android.calculator2:id/digit_7",
+                text = "7",
+                clickable = true,
+                nodeIdentity = computedIdentity,
+                identityConfidence = confidence
+            )
+        )
+        service.lastExternalObservationSnapshot = freshSnap
+
+        // 3. UI Click dispatch
+        val uiExecutor = com.localagent.app.accessibility.UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
+                    text = "7"
+                )
+            },
+            snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
+        )
+
+        val clickReq = ActionRequest(actionType = ActionType.UI_CLICK, targetNodeId = "digit_7")
+        val clickRes = uiExecutor.execute(clickReq)
+
+        assertTrue(clickRes.dispatchSuccess)
+        assertEquals("com.android.calculator2", clickRes.preSnapshot?.packageName)
     }
 }

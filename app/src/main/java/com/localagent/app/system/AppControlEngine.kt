@@ -124,7 +124,23 @@ class LaunchVerifier(
             val currentFg = service.activePackageName
             val lastExt = service.lastExternalPackageName
 
+            // 1. Direct package match on active or last external package
             if (currentFg == targetPackageName || lastExt == targetPackageName) {
+                val elapsed = System.currentTimeMillis() - startTime
+                return LaunchVerificationResult.Success(targetPackageName, elapsed)
+            }
+
+            // 2. Query live interactive windows for direct target package root node
+            val targetRoot = service.getLiveExternalRootNode(targetPackageName)
+            if (targetRoot != null) {
+                val elapsed = System.currentTimeMillis() - startTime
+                targetRoot.recycle()
+                return LaunchVerificationResult.Success(targetPackageName, elapsed)
+            }
+
+            // 3. Inspect available window candidates for matching active application window
+            val windows = service.latestDiagnostics.availableWindows
+            if (windows.any { it.packageName == targetPackageName && (it.isActive || it.score >= 50) }) {
                 val elapsed = System.currentTimeMillis() - startTime
                 return LaunchVerificationResult.Success(targetPackageName, elapsed)
             }
@@ -137,8 +153,16 @@ class LaunchVerifier(
             }
         }
 
+        // Final check before returning failure
+        val finalRoot = service.getLiveExternalRootNode(targetPackageName)
+        if (finalRoot != null) {
+            finalRoot.recycle()
+            val elapsed = System.currentTimeMillis() - startTime
+            return LaunchVerificationResult.Success(targetPackageName, elapsed)
+        }
+
         val finalFg = service.activePackageName
-        return if (finalFg.isNotBlank() && finalFg != targetPackageName && finalFg != "com.localagent.app") {
+        return if (finalFg.isNotBlank() && finalFg != targetPackageName && finalFg != "com.localagent.app" && finalFg != "com.android.systemui") {
             LaunchVerificationResult.PackageMismatch(expectedPackageName = targetPackageName, actualPackageName = finalFg)
         } else {
             LaunchVerificationResult.Timeout(targetPackageName = targetPackageName, currentForegroundPackage = finalFg)
