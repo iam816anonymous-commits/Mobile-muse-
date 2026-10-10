@@ -94,59 +94,28 @@ class UiActionExecutor(
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
         }
 
-        // Phase 8 Foreground-First Pipeline Step: Ensure target application is in the foreground
-        if (requireExternalContext && service.isValidExternalApplicationPackage(preSnapshot.packageName)) {
-            val targetPkg = preSnapshot.packageName
-            val currentFg = service.activePackageName
-            if (currentFg.isNotBlank() && currentFg != targetPkg) {
-                val launcher = com.localagent.app.system.AppLauncher(service.applicationContext)
-                val verifier = com.localagent.app.system.LaunchVerifier { service }
+        // Expected Package Window Await & Generation Verification Step
+        val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
+        if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {
+            val verifier = com.localagent.app.system.LaunchVerifier { service }
+            val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
+            val freshSnap = verifier.awaitUsableWindowAndSnapshot(
+                targetPackageName = expectedPkg,
+                minGeneration = minGen,
+                timeoutMs = 5000L,
+                settleDelayMs = 150L
+            )
 
-                when (val launchRes = launcher.launchApp(targetPkg)) {
-                    is com.localagent.app.system.AppLaunchResult.Dispatched -> {
-                        when (val verifyRes = verifier.verifyForeground(targetPkg, timeoutMs = 3000L)) {
-                            is com.localagent.app.system.LaunchVerificationResult.Success -> {
-                                // Target application verified in foreground; obtain fresh pre-action snapshot
-                            val preLaunchGen = preSnapshot.generation
-                                preSnapshot = snapshotProvider() ?: preSnapshot
-                            if (preSnapshot.generation <= preLaunchGen && service != null) {
-                                service.captureLiveSnapshot()
-                                preSnapshot = snapshotProvider() ?: preSnapshot
-                            }
-                            }
-                            is com.localagent.app.system.LaunchVerificationResult.Timeout -> {
-                                val verResult = VerificationResult(
-                                    status = VerificationStatus.EXECUTION_FAILED,
-                                    resultCode = ResultCode.TARGET_NOT_FOUND,
-                                    reason = "Foreground verification timed out for target package '$targetPkg' (current foreground: '${verifyRes.currentForegroundPackage}')"
-                                )
-                                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
-                            }
-                            is com.localagent.app.system.LaunchVerificationResult.PackageMismatch -> {
-                                val verResult = VerificationResult(
-                                    status = VerificationStatus.EXECUTION_FAILED,
-                                    resultCode = ResultCode.TARGET_NOT_FOUND,
-                                    reason = "Foreground package mismatch: expected '$targetPkg', found '${verifyRes.actualPackageName}'"
-                                )
-                                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
-                            }
-                            is com.localagent.app.system.LaunchVerificationResult.AccessibilityUnavailable -> {
-                                val verResult = VerificationResult(
-                                    status = VerificationStatus.EXECUTION_FAILED,
-                                    resultCode = ResultCode.ACCESSIBILITY_UNAVAILABLE,
-                                    reason = verifyRes.reason
-                                )
-                                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
-                            }
-                        }
-                    }
-                    is com.localagent.app.system.AppLaunchResult.LaunchFailed -> {
-                        // Synthetic test package without launcher intent; proceed with provided snapshot
-                    }
-                    is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
-                        // App is already in foreground; proceed
-                    }
-                }
+            if (freshSnap != null) {
+                preSnapshot = freshSnap
+            } else if (request.expectedPackageName != null) {
+                // Explicit target package requested but usable interactive window was not observed before timeout
+                val verResult = VerificationResult(
+                    status = VerificationStatus.EXECUTION_FAILED,
+                    resultCode = ResultCode.TIMEOUT,
+                    reason = "Target window timeout waiting for usable interactive window and root node for package '$expectedPkg'"
+                )
+                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
             }
         }
 

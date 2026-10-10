@@ -33,9 +33,31 @@ class ObservationActivity : AppCompatActivity() {
         updateObservationUi()
     }
 
+    private var lastObservedGen: Long = -1L
+    private val uiUpdateHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val pollRunnable = object : Runnable {
+        override fun run() {
+            val service = AgentAccessibilityService.INSTANCE
+            if (service != null) {
+                val currentGen = service.snapshotGenerationCounter
+                if (currentGen != lastObservedGen) {
+                    lastObservedGen = currentGen
+                    updateObservationUi()
+                }
+            }
+            uiUpdateHandler.postDelayed(this, 500L)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         updateObservationUi()
+        uiUpdateHandler.post(pollRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        uiUpdateHandler.removeCallbacks(pollRunnable)
     }
 
     private fun setupListeners() {

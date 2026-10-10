@@ -111,6 +111,68 @@ class LaunchVerifier(
     private val accessibilityServiceSupplier: () -> AgentAccessibilityService? = { AgentAccessibilityService.INSTANCE }
 ) {
 
+    fun awaitUsableWindowAndSnapshot(
+        targetPackageName: String,
+        minGeneration: Long = 0L,
+        timeoutMs: Long = 5000L,
+        settleDelayMs: Long = 150L
+    ): com.localagent.core.observation.ObservationSnapshot? {
+        val service = accessibilityServiceSupplier() ?: return null
+        if (!AgentAccessibilityService.isBound) return null
+
+        val startTime = System.currentTimeMillis()
+        val pollIntervalMs = 100L
+
+        while (System.currentTimeMillis() - startTime <= timeoutMs) {
+            val root = service.getLiveExternalRootNode(targetPackageName)
+            if (root != null) {
+                // Verify matching package and usable non-null node
+                val rootPkg = root.packageName?.toString() ?: ""
+                root.recycle()
+
+                if (rootPkg == targetPackageName) {
+                    // Small controlled settling interval to allow hierarchy stabilization
+                    if (settleDelayMs > 0) {
+                        try {
+                            Thread.sleep(settleDelayMs)
+                        } catch (_: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                        }
+                    }
+
+                    // Re-verify root availability after settling
+                    val settledRoot = service.getLiveExternalRootNode(targetPackageName)
+                    if (settledRoot != null) {
+                        settledRoot.recycle()
+                        val freshSnapshot = service.captureLiveSnapshot()
+                        if (freshSnapshot.packageName == targetPackageName && freshSnapshot.generation > minGeneration && freshSnapshot.nodeCount > 0) {
+                            return freshSnapshot
+                        }
+                    }
+                }
+            }
+
+            try {
+                Thread.sleep(pollIntervalMs)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                break
+            }
+        }
+
+        // Final attempt
+        val finalRoot = service.getLiveExternalRootNode(targetPackageName)
+        if (finalRoot != null) {
+            finalRoot.recycle()
+            val freshSnapshot = service.captureLiveSnapshot()
+            if (freshSnapshot.packageName == targetPackageName && freshSnapshot.generation > minGeneration && freshSnapshot.nodeCount > 0) {
+                return freshSnapshot
+            }
+        }
+
+        return null
+    }
+
     fun verifyForeground(targetPackageName: String, timeoutMs: Long = 3000L): LaunchVerificationResult {
         val service = accessibilityServiceSupplier()
         if (service == null || !AgentAccessibilityService.isBound) {

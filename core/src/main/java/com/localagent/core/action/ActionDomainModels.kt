@@ -36,6 +36,8 @@ data class ActionRequest(
     val targetNodeId: String? = null,
     val targetNodeIdentity: String? = null,
     val textInputPayload: String? = null,
+    val expectedPackageName: String? = null,
+    val preActionMinGeneration: Long = 0L,
     val sourceChannel: String = "CORE",
     val timestamp: Long = System.currentTimeMillis()
 ) {

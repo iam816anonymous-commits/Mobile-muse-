@@ -91,7 +91,7 @@ class AgentAccessibilityService : AccessibilityService() {
         private set
 
     @Volatile
-    var externalObservationState: ObservationEngineState = ObservationEngineState.IDLE
+    var externalObservationState: ObservationEngineState = ObservationEngineState.OBSERVING
 
     val currentEvidence: ObservationEvidence?
         get() {
