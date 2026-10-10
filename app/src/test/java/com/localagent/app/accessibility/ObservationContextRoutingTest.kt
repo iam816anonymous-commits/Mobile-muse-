@@ -71,12 +71,12 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
-                    viewIdResourceName = "com.android.calculator2:id/digit_7"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -108,12 +108,12 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
-                    viewIdResourceName = "com.android.calculator2:id/digit_7"
+                AccessibilityTestFixtures.createLongClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
                     text = "7"
-                    isLongClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -127,6 +127,16 @@ class ObservationContextRoutingTest {
 
     @Test
     fun `CC-OBS-003 - UI_TEXT_INPUT uses ExternalObservation`() {
+        val (computedIdentity, confidence) = ObservationNode.computeIdentity(
+            packageName = "com.android.calculator2",
+            className = "android.widget.EditText",
+            resourceId = "com.android.calculator2:id/formula",
+            text = null,
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = null
+        )
+
         val extSnapshot = ObservationSnapshot(
             packageName = "com.android.calculator2",
             nodeCount = 1,
@@ -135,8 +145,8 @@ class ObservationContextRoutingTest {
                 className = "android.widget.EditText",
                 resourceId = "com.android.calculator2:id/formula",
                 editable = true,
-                nodeIdentity = "id:formula_text:",
-                identityConfidence = NodeIdentityConfidence.EXACT
+                nodeIdentity = computedIdentity,
+                identityConfidence = confidence
             )
         )
         service.lastExternalObservationSnapshot = extSnapshot
@@ -144,12 +154,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.EditText"
+                AccessibilityTestFixtures.createEditableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.EditText",
                     viewIdResourceName = "com.android.calculator2:id/formula"
-                    isEditable = true
-                    addAction(AccessibilityNodeInfo.ACTION_SET_TEXT)
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -180,11 +189,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "androidx.recyclerview.widget.RecyclerView"
+                AccessibilityTestFixtures.createScrollableNode(
+                    packageName = "com.android.settings",
+                    className = "androidx.recyclerview.widget.RecyclerView",
                     viewIdResourceName = "com.android.settings:id/recycler"
-                    isScrollable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -215,11 +224,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "androidx.recyclerview.widget.RecyclerView"
+                AccessibilityTestFixtures.createScrollableNode(
+                    packageName = "com.android.settings",
+                    className = "androidx.recyclerview.widget.RecyclerView",
                     viewIdResourceName = "com.android.settings:id/recycler"
-                    isScrollable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -276,12 +285,12 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
-                    viewIdResourceName = "com.android.calculator2:id/btn_equals"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/btn_equals",
                     text = "="
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -384,12 +393,12 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
-                    viewIdResourceName = "com.android.calculator2:id/digit_7"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = {
                 snapCalls++
@@ -438,11 +447,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.calculator",
+                    className = "android.widget.Button",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -493,11 +502,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "com.google.android.material.button.MaterialButton"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.calculator",
+                    className = "com.google.android.material.button.MaterialButton",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -526,11 +535,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.calculator",
+                    className = "android.widget.Button",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -587,11 +596,11 @@ class ObservationContextRoutingTest {
             accessibilityService = service,
             liveRootNodeProvider = {
                 reacquired = true
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.calculator",
+                    className = "android.widget.Button",
                     text = "9"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -670,11 +679,11 @@ class ObservationContextRoutingTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.calculator",
+                    className = "android.widget.Button",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -722,12 +731,11 @@ class ObservationContextRoutingTest {
             accessibilityService = service,
             liveRootNodeProvider = { targetPkg ->
                 queriedPackageName = targetPkg
-                AccessibilityNodeInfo.obtain().apply {
-                    packageName = targetPkg ?: "com.transsion.calculator"
-                    className = "android.widget.Button"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = targetPkg ?: "com.transsion.calculator",
+                    className = "android.widget.Button",
                     text = "7"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = { service.getSnapshotForContext(isExternal = true) ?: ObservationSnapshot() }
         )
@@ -776,11 +784,11 @@ class ObservationContextRoutingTest {
             text = "7",
             clickable = true
         )
-        val liveRoot = AccessibilityNodeInfo.obtain().apply {
-            className = "android.widget.Button"
+        val liveRoot = AccessibilityTestFixtures.createClickableNode(
+            packageName = "com.app",
+            className = "android.widget.Button",
             text = "7"
-            isClickable = true
-        }
+        )
         val res = liveResolver.reacquireLiveTarget(
             rootLiveNode = liveRoot,
             targetResolutionResult = com.localagent.core.resolver.TargetResolutionResult(
@@ -808,11 +816,11 @@ class ObservationContextRoutingTest {
             clickable = true,
             nodeIdentity = "id:digit_7_idx:0"
         )
-        val liveRoot = AccessibilityNodeInfo.obtain().apply {
-            className = "android.widget.Button"
+        val liveRoot = AccessibilityTestFixtures.createClickableNode(
+            packageName = "com.app",
+            className = "android.widget.Button",
             text = "7"
-            isClickable = true
-        }
+        )
         val res = liveResolver.reacquireLiveTarget(
             rootLiveNode = liveRoot,
             targetResolutionResult = com.localagent.core.resolver.TargetResolutionResult(

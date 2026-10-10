@@ -105,12 +105,12 @@ class ActionExecutionTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.Button"
-                    viewIdResourceName = "com.app:id/submit"
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.app",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.app:id/submit",
                     text = "Submit"
-                    isClickable = true
-                }
+                )
             },
             snapshotProvider = {
                 snapshotCallCount++
@@ -162,12 +162,12 @@ class ActionExecutionTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "androidx.cardview.widget.CardView"
-                    viewIdResourceName = "com.app:id/card"
+                AccessibilityTestFixtures.createLongClickableNode(
+                    packageName = "com.app",
+                    className = "androidx.cardview.widget.CardView",
+                    viewIdResourceName = "com.app:id/card",
                     text = "Card Item"
-                    isLongClickable = true
-                }
+                )
             },
             snapshotProvider = {
                 snapshotCallCount++
@@ -192,14 +192,24 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-ACTION-006 - UI_TEXT_INPUT contract execution against live editable target`() {
+        val (computedIdentity, confidence) = ObservationNode.computeIdentity(
+            packageName = "com.app",
+            className = "android.widget.EditText",
+            resourceId = "com.app:id/input_field",
+            text = "",
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = null
+        )
+
         val obsNode = ObservationNode(
             nodeId = "input_field",
             className = "android.widget.EditText",
             resourceId = "com.app:id/input_field",
             text = "",
             editable = true,
-            nodeIdentity = "id:input_field_text:",
-            identityConfidence = NodeIdentityConfidence.EXACT
+            nodeIdentity = computedIdentity,
+            identityConfidence = confidence
         )
 
         val preSnap = ObservationSnapshot(
@@ -218,13 +228,12 @@ class ActionExecutionTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "android.widget.EditText"
-                    viewIdResourceName = "com.app:id/input_field"
+                AccessibilityTestFixtures.createEditableNode(
+                    packageName = "com.app",
+                    className = "android.widget.EditText",
+                    viewIdResourceName = "com.app:id/input_field",
                     text = ""
-                    isEditable = true
-                    addAction(AccessibilityNodeInfo.ACTION_SET_TEXT)
-                }
+                )
             },
             snapshotProvider = {
                 snapshotCallCount++
@@ -276,11 +285,12 @@ class ActionExecutionTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "androidx.recyclerview.widget.RecyclerView"
-                    viewIdResourceName = "com.app:id/recycler_view"
-                    isScrollable = true
-                }
+                AccessibilityTestFixtures.createScrollableNode(
+                    packageName = "com.app",
+                    className = "androidx.recyclerview.widget.RecyclerView",
+                    viewIdResourceName = "com.app:id/recycler_view",
+                    text = "Item 0"
+                )
             },
             snapshotProvider = {
                 snapshotCallCount++
@@ -331,11 +341,12 @@ class ActionExecutionTest {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = {
-                AccessibilityNodeInfo.obtain().apply {
-                    className = "androidx.recyclerview.widget.RecyclerView"
-                    viewIdResourceName = "com.app:id/recycler_view"
-                    isScrollable = true
-                }
+                AccessibilityTestFixtures.createScrollableNode(
+                    packageName = "com.app",
+                    className = "androidx.recyclerview.widget.RecyclerView",
+                    viewIdResourceName = "com.app:id/recycler_view",
+                    text = "Item 10"
+                )
             },
             snapshotProvider = {
                 snapshotCallCount++
@@ -362,7 +373,6 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-001 - Stale target yields zero framework action dispatch`() {
-        // Target present in pre-snapshot but missing from live root node
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,
             liveRootNodeProvider = { null },
@@ -403,7 +413,6 @@ class ActionExecutionTest {
 
     @Test
     fun `P7-SAFE-003 - Target not actionable yields zero framework action dispatch`() {
-        // Explicitly construct non-actionable target node in pre-snapshot
         val nonActionableSnapshot = ObservationSnapshot(
             packageName = "com.app",
             nodeCount = 1,
@@ -423,6 +432,7 @@ class ActionExecutionTest {
             accessibilityService = service,
             liveRootNodeProvider = {
                 AccessibilityNodeInfo.obtain().apply {
+                    packageName = "com.app"
                     className = "android.widget.TextView"
                     text = "Static Label"
                     isClickable = false
@@ -476,7 +486,6 @@ class ActionExecutionTest {
         )
         val request = ActionRequest(actionType = ActionType.GLOBAL_BACK)
 
-        // 1. UiActionExecutor must reject global action without dispatching
         val uiResult = uiExecutor.execute(request)
 
         assertFalse(uiResult.dispatchSuccess)
@@ -484,7 +493,6 @@ class ActionExecutionTest {
         assertEquals(ResultCode.CAPABILITY_UNAVAILABLE, uiResult.verificationResult.resultCode)
         assertEquals(0, shadowService.globalActionsPerformed.size)
 
-        // 2. GlobalActionExecutor must be the ONLY executor that dispatches global actions
         val globalResult = globalExecutor.execute(request)
 
         assertTrue(globalResult.dispatchSuccess)
