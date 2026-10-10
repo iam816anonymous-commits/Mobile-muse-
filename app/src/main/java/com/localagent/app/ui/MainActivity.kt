@@ -6,7 +6,16 @@ import androidx.appcompat.app.AppCompatActivity
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.accessibility.AgentAccessibilityService
 import com.localagent.app.databinding.ActivityMainBinding
-import com.localagent.core.command.*
+import com.localagent.app.system.AppLauncher
+import com.localagent.app.system.AppResolver
+import com.localagent.app.system.LaunchVerificationResult
+import com.localagent.app.system.LaunchVerifier
+import com.localagent.core.command.ActionType
+import com.localagent.core.command.CommandNormalizer
+import com.localagent.core.command.CommandParseResult
+import com.localagent.core.command.CommandSource
+import com.localagent.core.command.NormalizedCommand
+import com.localagent.core.command.TargetSelector
 import com.localagent.core.logging.AgentEvent
 import com.localagent.core.logging.EventSeverity
 import com.localagent.core.logging.EventSubsystem
@@ -132,65 +141,60 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             is CommandParseResult.Success -> {
-                val normalizedCmd = parseResult.command
+                val sequence = parseResult.sequence
+                val resultsList = mutableListOf<String>()
+                var sequenceHalted = false
 
-                app.eventLogger.logEvent(
-                    AgentEvent(
-                        eventId = UUID.randomUUID().toString(),
-                        sessionId = activeSessionId,
-                        correlationId = correlationId,
-                        subsystem = EventSubsystem.COMMAND,
-                        eventType = "COMMAND_PARSED",
-                        actionType = normalizedCmd.actionType.name,
-                        sourceChannel = normalizedCmd.source.name,
-                        metadataJson = "{\"target\":\"${normalizedCmd.targetSelector}\"}"
-                    )
-                )
+                for ((index, normalizedCmd) in sequence.withIndex()) {
+                    val stepNumber = index + 1
+                    val totalSteps = sequence.size
+                    val stepPrefix = if (totalSteps > 1) "Step $stepNumber/$totalSteps — " else ""
 
-                // Policy Evaluation
-                val policyResult = app.policyEngine.evaluateCommand(normalizedCmd)
-                if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
-                    val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
-                    binding.tvLatestResult.text = resultText
+                    if (sequenceHalted) {
+                        resultsList.add("${stepPrefix}${normalizedCmd.actionType}: SKIPPED (Prior step failed)")
+                        continue
+                    }
 
                     app.eventLogger.logEvent(
                         AgentEvent(
                             eventId = UUID.randomUUID().toString(),
                             sessionId = activeSessionId,
                             correlationId = correlationId,
-                            subsystem = EventSubsystem.POLICY,
-                            eventType = "POLICY_BLOCKED",
+                            subsystem = EventSubsystem.COMMAND,
+                            eventType = "COMMAND_PARSED",
                             actionType = normalizedCmd.actionType.name,
                             sourceChannel = normalizedCmd.source.name,
-                            resultCode = ResultCode.POLICY_BLOCKED,
-                            severity = EventSeverity.WARNING,
-                            metadataJson = "{\"explanation\":\"${policyResult.explanation}\"}"
+                            metadataJson = "{\"target\":\"${normalizedCmd.targetSelector}\"}"
                         )
                     )
-                    updateSystemStatusSummary()
-                    return
-                }
 
-                // Dispatch through Universal Production Pipeline
-                app.goalDispatcher.enqueueCommand(normalizedCmd, priority = 1)
+                    // Policy Evaluation
+                    val policyResult = app.policyEngine.evaluateCommand(normalizedCmd)
+                    if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
+                        val resultText = "${stepPrefix}Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
+                        resultsList.add(resultText)
+                        sequenceHalted = true
 
-                app.eventLogger.logEvent(
-                    AgentEvent(
-                        eventId = UUID.randomUUID().toString(),
-                        sessionId = activeSessionId,
-                        correlationId = correlationId,
-                        subsystem = EventSubsystem.ACTION,
-                        eventType = "GOAL_QUEUED",
-                        actionType = normalizedCmd.actionType.name,
-                        sourceChannel = normalizedCmd.source.name
-                    )
-                )
+                        app.eventLogger.logEvent(
+                            AgentEvent(
+                                eventId = UUID.randomUUID().toString(),
+                                sessionId = activeSessionId,
+                                correlationId = correlationId,
+                                subsystem = EventSubsystem.POLICY,
+                                eventType = "POLICY_BLOCKED",
+                                actionType = normalizedCmd.actionType.name,
+                                sourceChannel = normalizedCmd.source.name,
+                                resultCode = ResultCode.POLICY_BLOCKED,
+                                severity = EventSeverity.WARNING,
+                                metadataJson = "{\"explanation\":\"${policyResult.explanation}\"}"
+                            )
+                        )
+                        continue
+                    }
 
-                val polled = app.goalDispatcher.pollNextCommandForExecution()
-
-                if (polled != null) {
-                    val executionResult = executeNormalizedCommand(polled.command)
-                    binding.tvLatestResult.text = executionResult
+                    val executionResultText = kotlinx.coroutines.runBlocking { executeNormalizedCommand(normalizedCmd) }
+                    val fullStepResult = "${stepPrefix}$executionResultText"
+                    resultsList.add(fullStepResult)
 
                     app.eventLogger.logEvent(
                         AgentEvent(
@@ -199,36 +203,28 @@ class MainActivity : AppCompatActivity() {
                             correlationId = correlationId,
                             subsystem = EventSubsystem.ACTION,
                             eventType = "ACTION_RESULT",
-                            actionType = polled.command.actionType.name,
-                            sourceChannel = polled.command.source.name,
-                            metadataJson = "{\"resultText\":\"$executionResult\"}"
-                        )
-                    )
-
-                    app.goalDispatcher.completeExecution()
-                } else {
-                    val busyText = "Result: ${ResultCode.TIMEOUT} | Execution channel locked by concurrent transaction"
-                    binding.tvLatestResult.text = busyText
-
-                    app.eventLogger.logEvent(
-                        AgentEvent(
-                            eventId = UUID.randomUUID().toString(),
-                            sessionId = activeSessionId,
-                            correlationId = correlationId,
-                            subsystem = EventSubsystem.ACTION,
-                            eventType = "EXECUTION_LOCKED",
                             actionType = normalizedCmd.actionType.name,
-                            resultCode = ResultCode.TIMEOUT,
-                            severity = EventSeverity.WARNING
+                            sourceChannel = normalizedCmd.source.name,
+                            metadataJson = "{\"resultText\":\"$executionResultText\"}"
                         )
                     )
+
+                    if (executionResultText.contains("TIMEOUT") ||
+                        executionResultText.contains("ACTION_FAILED") ||
+                        executionResultText.contains("ACCESSIBILITY_UNAVAILABLE") ||
+                        executionResultText.contains("TARGET_NOT_FOUND") ||
+                        executionResultText.contains("CAPABILITY_UNAVAILABLE")) {
+                        sequenceHalted = true
+                    }
                 }
+
+                binding.tvLatestResult.text = resultsList.joinToString("\n")
                 updateSystemStatusSummary()
             }
         }
     }
 
-    private fun executeNormalizedCommand(command: NormalizedCommand): String {
+    private suspend fun executeNormalizedCommand(command: NormalizedCommand): String {
         val service = AgentAccessibilityService.INSTANCE
         val isA11yBound = AgentAccessibilityService.isBound && service != null
 
@@ -302,7 +298,34 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y ${if (isA11yBound) "BOUND" else "DISCONNECTED"}, Core Ready"
-            ActionType.APP_LAUNCH -> "Command: APP_LAUNCH | Target: ${command.parameters["appLabel"]} | Status: ${ResultCode.DISPATCHED_BUT_NOT_VERIFIED} | Reason: App launch dispatched without foreground verification"
+            ActionType.APP_LAUNCH -> {
+                val appLabel = command.parameters["appLabel"] ?: ""
+                val resolver = com.localagent.app.system.AppResolver(this)
+                val targetPkg = resolver.resolvePackageName(appLabel)
+
+                if (targetPkg == null) {
+                    "Command: APP_LAUNCH | Target: $appLabel | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: App '$appLabel' not found on device"
+                } else {
+                    val launcher = com.localagent.app.system.AppLauncher(this)
+                    val preGen = service?.currentGeneration ?: 0L
+                    val launchSuccess = launcher.launchApp(targetPkg)
+
+                    if (!launchSuccess) {
+                        "Command: APP_LAUNCH | Target: $appLabel ($targetPkg) | Status: ${ResultCode.ACTION_FAILED} | Reason: Failed to dispatch launch intent"
+                    } else {
+                        val verifier = com.localagent.app.system.LaunchVerifier()
+                        when (val verification = verifier.awaitUsableWindowAndSnapshot(targetPkg, preGen)) {
+                            is com.localagent.app.system.LaunchVerificationResult.Success -> {
+                                verification.rootNode.recycle()
+                                "Command: APP_LAUNCH | Target: $appLabel ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Reason: Usable interactive window and root node acquired"
+                            }
+                            is com.localagent.app.system.LaunchVerificationResult.Timeout -> {
+                                "Command: APP_LAUNCH | Target: $appLabel ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: ${verification.reason}"
+                            }
+                        }
+                    }
+                }
+            }
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }
     }

@@ -16,6 +16,7 @@ import com.localagent.core.observation.ObservationSnapshot
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 data class WindowCandidateInfo(
     val windowId: Int,
@@ -24,10 +25,23 @@ data class WindowCandidateInfo(
     val packageName: String,
     val isActive: Boolean,
     val isFocused: Boolean,
-    val score: Int
-)
+    val score: Int,
+    val rootObtained: Boolean = false,
+    val rejectionReason: String? = null
+) {
+    constructor(
+        windowId: Int,
+        windowType: Int,
+        windowTypeName: String,
+        packageName: String,
+        isActive: Boolean,
+        isFocused: Boolean,
+        score: Int
+    ) : this(windowId, windowType, windowTypeName, packageName, isActive, isFocused, score, false, null)
+}
 
 data class ObservationWindowDiagnostics(
+    val expectedPackage: String = "None",
     val foregroundPackage: String = "None",
     val foregroundWindowId: Int = -1,
     val foregroundWindowType: Int = 0,
@@ -40,10 +54,20 @@ data class ObservationWindowDiagnostics(
     val lastExternalPackage: String = "None",
     val lastExternalWindowId: Int = -1,
     val lastExternalWindowType: Int = 0,
-    val lastExternalTimestamp: Long = 0L
+    val lastExternalTimestamp: Long = 0L,
+    val snapshotGeneration: Long = 0L,
+    val refreshAttempts: Int = 0,
+    val elapsedTimeMs: Long = 0L,
+    val rejectionReason: String = "None",
+    val rootAcquisitionSuccess: Boolean = false
 )
 
 class AgentAccessibilityService : AccessibilityService() {
+
+    private val generationCounter = AtomicLong(0L)
+
+    val currentGeneration: Long
+        get() = generationCounter.get()
 
     @Volatile
     var activePackageName: String = ""
@@ -275,20 +299,24 @@ class AgentAccessibilityService : AccessibilityService() {
             selectedWindowType = 0
         }
 
+        val currentGen = generationCounter.incrementAndGet()
+
         val primarySnapshot = if (selectedNode != null) {
             try {
-                extractor.extractSnapshot(
+                val extracted = extractor.extractSnapshot(
                     rootNodeInfo = selectedNode,
                     packageName = selectedPkg,
                     activityName = activeActivityName,
                     windowId = selectedWindowId
                 )
+                extracted.copy(generation = currentGen)
             } finally {
                 selectedNode.recycle()
                 recycledNodes.add(selectedNode)
             }
         } else {
             ObservationSnapshot(
+                generation = currentGen,
                 packageName = selectedPkg,
                 activityName = activeActivityName,
                 windowId = selectedWindowId,
@@ -322,7 +350,7 @@ class AgentAccessibilityService : AccessibilityService() {
                         packageName = extPkg,
                         activityName = lastExternalActivityName,
                         windowId = bestExternal.candidate.windowId
-                    )
+                    ).copy(generation = currentGen)
                     lastExternalPackageName = extPkg
                     lastExternalWindowId = bestExternal.candidate.windowId
                     lastExternalWindowType = bestExternal.candidate.windowType
@@ -351,6 +379,7 @@ class AgentAccessibilityService : AccessibilityService() {
             ?: windowCandidates.firstOrNull()
 
         latestDiagnostics = ObservationWindowDiagnostics(
+            expectedPackage = "None",
             foregroundPackage = fgCandidate?.candidate?.packageName ?: activePackageName,
             foregroundWindowId = fgCandidate?.candidate?.windowId ?: -1,
             foregroundWindowType = fgCandidate?.candidate?.windowType ?: 0,
@@ -363,7 +392,9 @@ class AgentAccessibilityService : AccessibilityService() {
             lastExternalPackage = lastExternalPackageName,
             lastExternalWindowId = lastExternalWindowId,
             lastExternalWindowType = lastExternalWindowType,
-            lastExternalTimestamp = lastExternalObservationTimestamp
+            lastExternalTimestamp = lastExternalObservationTimestamp,
+            snapshotGeneration = currentGen,
+            rootAcquisitionSuccess = selectedNode != null
         )
 
         // Log window selection diagnostics
@@ -547,6 +578,11 @@ class AgentAccessibilityService : AccessibilityService() {
                         val active = window.isActive
                         val focused = window.isFocused
                         val score = calculateWindowScore(type, pkg, active, focused)
+                        val obtainedNode = if (root != null) {
+                            val copy = AccessibilityNodeInfo.obtain(root)
+                            root.recycle()
+                            copy
+                        } else null
 
                         list.add(
                             InternalCandidate(
@@ -557,9 +593,11 @@ class AgentAccessibilityService : AccessibilityService() {
                                     packageName = pkg,
                                     isActive = active,
                                     isFocused = focused,
-                                    score = score
+                                    score = score,
+                                    rootObtained = obtainedNode != null,
+                                    rejectionReason = if (isValidExternalApplicationPackage(pkg)) null else getCandidateRejectionReason(pkg)
                                 ),
-                                node = if (root != null) AccessibilityNodeInfo.obtain(root) else null
+                                node = obtainedNode
                             )
                         )
                     }
