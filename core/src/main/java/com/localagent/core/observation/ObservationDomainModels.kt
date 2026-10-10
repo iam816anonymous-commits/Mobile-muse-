@@ -217,6 +217,7 @@ data class ObservationTruncationInfo(
 data class ObservationSnapshot(
     val snapshotId: String = UUID.randomUUID().toString(),
     val timestamp: Long = System.currentTimeMillis(),
+    val generation: Long = 0L,
     val packageName: String = "",
     val activityName: String? = null,
     val windowId: Int = 0,
@@ -229,6 +230,7 @@ data class ObservationSnapshot(
         return JSONObject().apply {
             put("snapshotId", snapshotId)
             put("timestamp", timestamp)
+            put("generation", generation)
             put("packageName", packageName)
             activityName?.let { put("activityName", it) }
             put("windowId", windowId)
@@ -248,6 +250,7 @@ data class ObservationSnapshot(
             return ObservationSnapshot(
                 snapshotId = json.optString("snapshotId", UUID.randomUUID().toString()),
                 timestamp = json.optLong("timestamp", System.currentTimeMillis()),
+                generation = json.optLong("generation", 0L),
                 packageName = json.optString("packageName", ""),
                 activityName = if (json.has("activityName")) json.optString("activityName") else null,
                 windowId = json.optInt("windowId", 0),

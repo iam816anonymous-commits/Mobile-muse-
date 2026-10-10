@@ -1,7 +1,10 @@
 package com.localagent.core.command
 
 sealed class CommandParseResult {
-    data class Success(val command: NormalizedCommand) : CommandParseResult()
+    data class Success(
+        val command: NormalizedCommand,
+        val sequence: List<NormalizedCommand> = listOf(command)
+    ) : CommandParseResult()
     data class UnknownCommand(val rawInput: String, val reason: String = "Unrecognized command syntax") : CommandParseResult()
     data class InvalidInput(val reason: String = "Command input cannot be empty") : CommandParseResult()
 }
@@ -9,6 +12,52 @@ sealed class CommandParseResult {
 class CommandNormalizer {
 
     fun parseInput(input: String, source: CommandSource): CommandParseResult {
+        val trimmed = input.trim().replace(Regex("\\s+"), " ")
+        if (trimmed.isEmpty()) {
+            return CommandParseResult.InvalidInput()
+        }
+
+        val segments = splitCompoundSegments(trimmed)
+        if (segments.size > 1) {
+            val sequence = mutableListOf<NormalizedCommand>()
+            var allSuccessful = true
+            for (segment in segments) {
+                when (val result = parseSingleCommand(segment, source)) {
+                    is CommandParseResult.Success -> sequence.add(result.command)
+                    else -> {
+                        allSuccessful = false
+                        break
+                    }
+                }
+            }
+            if (allSuccessful && sequence.isNotEmpty()) {
+                return CommandParseResult.Success(command = sequence.first(), sequence = sequence)
+            }
+        }
+
+        return parseSingleCommand(trimmed, source)
+    }
+
+    private fun splitCompoundSegments(input: String): List<String> {
+        val delimiters = listOf(" and then ", " then ", " and ", ";", ",")
+        var segments = listOf(input)
+        for (delim in delimiters) {
+            val nextSegments = mutableListOf<String>()
+            for (seg in segments) {
+                if (seg.contains(delim, ignoreCase = true)) {
+                    seg.split(Regex(delim, RegexOption.IGNORE_CASE)).forEach { s ->
+                        if (s.isNotBlank()) nextSegments.add(s.trim())
+                    }
+                } else {
+                    nextSegments.add(seg)
+                }
+            }
+            segments = nextSegments
+        }
+        return segments
+    }
+
+    fun parseSingleCommand(input: String, source: CommandSource): CommandParseResult {
         val trimmed = input.trim().replace(Regex("\\s+"), " ")
         if (trimmed.isEmpty()) {
             return CommandParseResult.InvalidInput()
