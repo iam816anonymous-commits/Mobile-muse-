@@ -144,14 +144,41 @@ class UiActionExecutor(
         // 3. Dispatch Action against Live Node
         try {
             dispatchSuccess = when (request.actionType) {
-                ActionType.UI_CLICK -> liveNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                ActionType.UI_CLICK -> {
+                    var success = liveNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    if (!success) {
+                        var currentParent = liveNode.parent
+                        while (currentParent != null) {
+                            val p = currentParent
+                            if (p.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                                success = true
+                                p.recycle()
+                                break
+                            }
+                            currentParent = p.parent
+                            p.recycle()
+                        }
+                    }
+                    success
+                }
                 ActionType.UI_LONG_CLICK -> liveNode.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
                 ActionType.UI_TEXT_INPUT -> {
                     val payload = request.textInputPayload ?: ""
                     val args = Bundle().apply {
                         putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, payload)
                     }
-                    liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                    var success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                    if (!success) {
+                        if (liveNode.isFocusable && liveNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {
+                            success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                        }
+                    }
+                    if (!success) {
+                        if (liveNode.isClickable && liveNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                        }
+                    }
+                    success
                 }
                 ActionType.UI_SCROLL_FORWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                 ActionType.UI_SCROLL_BACKWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)

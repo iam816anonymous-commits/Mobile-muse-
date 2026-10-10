@@ -454,15 +454,37 @@ class AgentAccessibilityService : AccessibilityService() {
     fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
         val windowCandidates = collectWindowCandidates()
 
-        // Match targetPackageName directly if provided, without falling back to arbitrary external windows
+        // Match targetPackageName directly if provided
         if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
             val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
             if (directMatch?.node != null) {
                 val matchedNode = AccessibilityNodeInfo.obtain(directMatch.node)
-                // Clean up candidate nodes
                 windowCandidates.forEach { it.node?.recycle() }
                 return matchedNode
             }
+        }
+
+        // Fallback 1: Check rootInActiveWindow if its package matches targetPackageName or is a valid external package
+        val activeRoot = rootInActiveWindow
+        if (activeRoot != null) {
+            val activePkg = activeRoot.packageName?.toString() ?: ""
+            if (!targetPackageName.isNullOrBlank() && activePkg == targetPackageName) {
+                windowCandidates.forEach { it.node?.recycle() }
+                return activeRoot
+            }
+            if (targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(activePkg)) {
+                windowCandidates.forEach { it.node?.recycle() }
+                return activeRoot
+            }
+            activeRoot.recycle()
+        }
+
+        // Fallback 2: Select best valid external window candidate
+        val bestExternal = selectBestExternalWindow(windowCandidates, "", mutableSetOf())
+        if (bestExternal?.node != null) {
+            val matchedNode = AccessibilityNodeInfo.obtain(bestExternal.node)
+            windowCandidates.forEach { it.node?.recycle() }
+            return matchedNode
         }
 
         // Clean up candidate nodes
