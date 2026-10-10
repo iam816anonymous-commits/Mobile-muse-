@@ -143,9 +143,28 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
 
-                // Policy Evaluation
-                val policyResult = app.policyEngine.evaluateCommand(normalizedCmd)
-                if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
+                // Policy Evaluation (User explicit submission via Console UI)
+                val policyResult = app.policyEngine.evaluateCommand(normalizedCmd, isUserConfirmed = true)
+                if (policyResult is PolicyEvaluationResult.Blocked) {
+                    val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.reason}"
+                    binding.tvLatestResult.text = resultText
+                    app.eventLogger.logEvent(
+                        AgentEvent(
+                            eventId = UUID.randomUUID().toString(),
+                            sessionId = activeSessionId,
+                            correlationId = correlationId,
+                            subsystem = EventSubsystem.POLICY,
+                            eventType = "POLICY_BLOCKED",
+                            actionType = normalizedCmd.actionType.name,
+                            sourceChannel = normalizedCmd.source.name,
+                            resultCode = ResultCode.POLICY_BLOCKED,
+                            severity = EventSeverity.WARNING,
+                            metadataJson = "{\"reason\":\"${policyResult.reason}\"}"
+                        )
+                    )
+                    updateSystemStatusSummary()
+                    return
+                } else if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
                     val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
                     binding.tvLatestResult.text = resultText
 
