@@ -16,7 +16,7 @@ object AccessibilityTestFixtures {
             this.viewIdResourceName = viewIdResourceName
             this.text = text
             this.isClickable = true
-            this.addAction(AccessibilityNodeInfo.ACTION_CLICK)
+            this.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK)
         }
     }
 
@@ -32,7 +32,7 @@ object AccessibilityTestFixtures {
             this.viewIdResourceName = viewIdResourceName
             this.text = text
             this.isLongClickable = true
-            this.addAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
+            this.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_LONG_CLICK)
         }
     }
 
@@ -48,7 +48,7 @@ object AccessibilityTestFixtures {
             this.viewIdResourceName = viewIdResourceName
             this.text = text
             this.isEditable = true
-            this.addAction(AccessibilityNodeInfo.ACTION_SET_TEXT)
+            this.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT)
         }
     }
 
@@ -64,8 +64,8 @@ object AccessibilityTestFixtures {
             this.viewIdResourceName = viewIdResourceName
             this.text = text
             this.isScrollable = true
-            this.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-            this.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+            this.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+            this.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
         }
     }
 }
