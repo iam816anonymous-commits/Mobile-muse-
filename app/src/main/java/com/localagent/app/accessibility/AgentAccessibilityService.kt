@@ -454,7 +454,7 @@ class AgentAccessibilityService : AccessibilityService() {
     fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
         val windowCandidates = collectWindowCandidates()
 
-        // Match targetPackageName directly if provided
+        // 1. Direct match for requested targetPackageName
         if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
             val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
             if (directMatch?.node != null) {
@@ -462,24 +462,35 @@ class AgentAccessibilityService : AccessibilityService() {
                 windowCandidates.forEach { it.node?.recycle() }
                 return matchedNode
             }
+
+            // Fallback for explicit targetPackageName: check rootInActiveWindow ONLY IF package matches targetPackageName
+            val activeRoot = rootInActiveWindow
+            if (activeRoot != null) {
+                val activePkg = activeRoot.packageName?.toString() ?: ""
+                if (activePkg == targetPackageName) {
+                    windowCandidates.forEach { it.node?.recycle() }
+                    return activeRoot
+                }
+                activeRoot.recycle()
+            }
+
+            // Target package requested but not found in any external application window
+            windowCandidates.forEach { it.node?.recycle() }
+            return null
         }
 
-        // Fallback 1: Check rootInActiveWindow if its package matches targetPackageName or is a valid external package
+        // 2. Unspecified target package: check rootInActiveWindow if valid external application
         val activeRoot = rootInActiveWindow
         if (activeRoot != null) {
             val activePkg = activeRoot.packageName?.toString() ?: ""
-            if (!targetPackageName.isNullOrBlank() && activePkg == targetPackageName) {
-                windowCandidates.forEach { it.node?.recycle() }
-                return activeRoot
-            }
-            if (targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(activePkg)) {
+            if (isValidExternalApplicationPackage(activePkg)) {
                 windowCandidates.forEach { it.node?.recycle() }
                 return activeRoot
             }
             activeRoot.recycle()
         }
 
-        // Fallback 2: Select best valid external window candidate
+        // 3. Fallback: Select highest scoring valid external window candidate
         val bestExternal = selectBestExternalWindow(windowCandidates, "", mutableSetOf())
         if (bestExternal?.node != null) {
             val matchedNode = AccessibilityNodeInfo.obtain(bestExternal.node)

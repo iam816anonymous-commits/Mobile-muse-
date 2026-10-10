@@ -29,7 +29,25 @@ class UiActionExecutor(
     private val resolutionLogger: TargetResolutionLogger? = null,
     private val liveRootNodeProvider: (targetPackageName: String?) -> AccessibilityNodeInfo? = { targetPkg ->
         val service = accessibilityService ?: AgentAccessibilityService.INSTANCE
-        service?.getLiveExternalRootNode(targetPkg) ?: service?.rootInActiveWindow
+        val externalRoot = service?.getLiveExternalRootNode(targetPkg)
+        if (externalRoot != null) {
+            externalRoot
+        } else {
+            val activeRoot = service?.rootInActiveWindow
+            if (activeRoot != null) {
+                val activePkg = activeRoot.packageName?.toString() ?: ""
+                if (!targetPkg.isNullOrBlank() && activePkg == targetPkg) {
+                    activeRoot
+                } else if (targetPkg.isNullOrBlank() && service?.isValidExternalApplicationPackage(activePkg) == true) {
+                    activeRoot
+                } else {
+                    activeRoot.recycle()
+                    null
+                }
+            } else {
+                null
+            }
+        }
     },
     private val snapshotProvider: () -> ObservationSnapshot? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.getSnapshotForContext(isExternal = true) ?: (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() },
     private val requireExternalContext: Boolean = true
@@ -150,7 +168,7 @@ class UiActionExecutor(
                         var currentParent = liveNode.parent
                         while (currentParent != null) {
                             val p = currentParent
-                            if (p.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            if (p.isClickable && p.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                                 success = true
                                 p.recycle()
                                 break
