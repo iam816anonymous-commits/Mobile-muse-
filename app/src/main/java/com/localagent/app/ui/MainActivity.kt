@@ -128,116 +128,63 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             is CommandParseResult.Success -> {
-                val normalizedCmd = parseResult.command
+                val sequence = parseResult.sequence
+                val summaryResults = mutableListOf<String>()
+                var sequenceHalted = false
 
-                app.eventLogger.logEvent(
-                    AgentEvent(
-                        eventId = UUID.randomUUID().toString(),
-                        sessionId = activeSessionId,
-                        correlationId = correlationId,
-                        subsystem = EventSubsystem.COMMAND,
-                        eventType = "COMMAND_PARSED",
-                        actionType = normalizedCmd.actionType.name,
-                        sourceChannel = normalizedCmd.source.name,
-                        metadataJson = "{\"target\":\"${normalizedCmd.targetSelector}\"}"
-                    )
-                )
+                for ((idx, normalizedCmd) in sequence.withIndex()) {
+                    if (sequenceHalted) {
+                        summaryResults.add("[Step ${idx + 1}/${sequence.size}] ${normalizedCmd.actionType}: SKIPPED (Prior step failed)")
+                        continue
+                    }
 
-                // Policy Evaluation (User explicit submission via Console UI)
-                val policyResult = app.policyEngine.evaluateCommand(normalizedCmd, isUserConfirmed = true)
-                if (policyResult is PolicyEvaluationResult.Blocked) {
-                    val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.reason}"
-                    binding.tvLatestResult.text = resultText
                     app.eventLogger.logEvent(
                         AgentEvent(
                             eventId = UUID.randomUUID().toString(),
                             sessionId = activeSessionId,
                             correlationId = correlationId,
-                            subsystem = EventSubsystem.POLICY,
-                            eventType = "POLICY_BLOCKED",
+                            subsystem = EventSubsystem.COMMAND,
+                            eventType = "COMMAND_PARSED",
                             actionType = normalizedCmd.actionType.name,
                             sourceChannel = normalizedCmd.source.name,
-                            resultCode = ResultCode.POLICY_BLOCKED,
-                            severity = EventSeverity.WARNING,
-                            metadataJson = "{\"reason\":\"${policyResult.reason}\"}"
+                            metadataJson = "{\"step\":${idx + 1},\"total\":${sequence.size},\"target\":\"${normalizedCmd.targetSelector}\"}"
                         )
                     )
-                    updateSystemStatusSummary()
-                    return
-                } else if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
-                    val resultText = "Result: ${ResultCode.POLICY_BLOCKED} | ${policyResult.explanation}"
-                    binding.tvLatestResult.text = resultText
 
-                    app.eventLogger.logEvent(
-                        AgentEvent(
-                            eventId = UUID.randomUUID().toString(),
-                            sessionId = activeSessionId,
-                            correlationId = correlationId,
-                            subsystem = EventSubsystem.POLICY,
-                            eventType = "POLICY_BLOCKED",
-                            actionType = normalizedCmd.actionType.name,
-                            sourceChannel = normalizedCmd.source.name,
-                            resultCode = ResultCode.POLICY_BLOCKED,
-                            severity = EventSeverity.WARNING,
-                            metadataJson = "{\"explanation\":\"${policyResult.explanation}\"}"
-                        )
-                    )
-                    updateSystemStatusSummary()
-                    return
+                    // Policy Evaluation
+                    val policyResult = app.policyEngine.evaluateCommand(normalizedCmd, isUserConfirmed = true)
+                    if (policyResult is PolicyEvaluationResult.Blocked) {
+                        summaryResults.add("[Step ${idx + 1}/${sequence.size}] ${normalizedCmd.actionType}: POLICY_BLOCKED (${policyResult.reason})")
+                        sequenceHalted = true
+                        continue
+                    } else if (policyResult is PolicyEvaluationResult.UserConfirmationRequired) {
+                        summaryResults.add("[Step ${idx + 1}/${sequence.size}] ${normalizedCmd.actionType}: POLICY_BLOCKED (${policyResult.explanation})")
+                        sequenceHalted = true
+                        continue
+                    }
+
+                    // Dispatch through Universal Production Pipeline
+                    app.goalDispatcher.enqueueCommand(normalizedCmd, priority = 1)
+                    val polled = app.goalDispatcher.pollNextCommandForExecution()
+
+                    if (polled != null) {
+                        val executionResult = executeNormalizedCommand(polled.command)
+                        summaryResults.add("[Step ${idx + 1}/${sequence.size}] $executionResult")
+
+                        if (executionResult.contains(ResultCode.TARGET_NOT_FOUND.name) ||
+                            executionResult.contains(ResultCode.ACTION_FAILED.name) ||
+                            executionResult.contains(ResultCode.ACCESSIBILITY_UNAVAILABLE.name)) {
+                            sequenceHalted = true
+                        }
+
+                        app.goalDispatcher.completeExecution()
+                    } else {
+                        summaryResults.add("[Step ${idx + 1}/${sequence.size}] ${normalizedCmd.actionType}: EXECUTION_LOCKED")
+                        sequenceHalted = true
+                    }
                 }
 
-                // Dispatch through Universal Production Pipeline
-                app.goalDispatcher.enqueueCommand(normalizedCmd, priority = 1)
-
-                app.eventLogger.logEvent(
-                    AgentEvent(
-                        eventId = UUID.randomUUID().toString(),
-                        sessionId = activeSessionId,
-                        correlationId = correlationId,
-                        subsystem = EventSubsystem.ACTION,
-                        eventType = "GOAL_QUEUED",
-                        actionType = normalizedCmd.actionType.name,
-                        sourceChannel = normalizedCmd.source.name
-                    )
-                )
-
-                val polled = app.goalDispatcher.pollNextCommandForExecution()
-
-                if (polled != null) {
-                    val executionResult = executeNormalizedCommand(polled.command)
-                    binding.tvLatestResult.text = executionResult
-
-                    app.eventLogger.logEvent(
-                        AgentEvent(
-                            eventId = UUID.randomUUID().toString(),
-                            sessionId = activeSessionId,
-                            correlationId = correlationId,
-                            subsystem = EventSubsystem.ACTION,
-                            eventType = "ACTION_RESULT",
-                            actionType = polled.command.actionType.name,
-                            sourceChannel = polled.command.source.name,
-                            metadataJson = "{\"resultText\":\"$executionResult\"}"
-                        )
-                    )
-
-                    app.goalDispatcher.completeExecution()
-                } else {
-                    val busyText = "Result: ${ResultCode.TIMEOUT} | Execution channel locked by concurrent transaction"
-                    binding.tvLatestResult.text = busyText
-
-                    app.eventLogger.logEvent(
-                        AgentEvent(
-                            eventId = UUID.randomUUID().toString(),
-                            sessionId = activeSessionId,
-                            correlationId = correlationId,
-                            subsystem = EventSubsystem.ACTION,
-                            eventType = "EXECUTION_LOCKED",
-                            actionType = normalizedCmd.actionType.name,
-                            resultCode = ResultCode.TIMEOUT,
-                            severity = EventSeverity.WARNING
-                        )
-                    )
-                }
+                binding.tvLatestResult.text = summaryResults.joinToString("\n")
                 updateSystemStatusSummary()
             }
         }

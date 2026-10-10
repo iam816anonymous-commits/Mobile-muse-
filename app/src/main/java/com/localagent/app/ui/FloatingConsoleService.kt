@@ -158,8 +158,27 @@ class FloatingConsoleService : Service() {
             is CommandParseResult.InvalidInput -> "Result: ${ResultCode.INVALID_INPUT} | Reason: ${parseResult.reason}"
             is CommandParseResult.UnknownCommand -> "Result: ${ResultCode.UNKNOWN_COMMAND} | Reason: Unrecognized syntax '$input'"
             is CommandParseResult.Success -> {
-                val command = parseResult.command
-                executeNormalizedCommand(command, service)
+                val sequence = parseResult.sequence
+                val stepResults = mutableListOf<String>()
+                var sequenceHalted = false
+
+                for ((idx, command) in sequence.withIndex()) {
+                    if (sequenceHalted) {
+                        stepResults.add("[Step ${idx + 1}/${sequence.size}] ${command.actionType}: SKIPPED")
+                        continue
+                    }
+
+                    val stepResult = executeNormalizedCommand(command, service)
+                    stepResults.add("[Step ${idx + 1}/${sequence.size}] $stepResult")
+
+                    if (stepResult.contains(ResultCode.TARGET_NOT_FOUND.name) ||
+                        stepResult.contains(ResultCode.ACTION_FAILED.name) ||
+                        stepResult.contains(ResultCode.ACCESSIBILITY_UNAVAILABLE.name)) {
+                        sequenceHalted = true
+                    }
+                }
+
+                stepResults.joinToString("\n")
             }
         }
     }
