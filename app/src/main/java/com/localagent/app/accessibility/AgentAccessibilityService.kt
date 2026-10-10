@@ -486,6 +486,20 @@ class AgentAccessibilityService : AccessibilityService() {
                 activeRoot.recycle()
             }
 
+            // Fallback for launch transitions where window package name in CandidateInfo is empty or System UI overlay:
+            // Check all available candidate windows' root nodes directly for targetPackageName
+            for (candidate in windowCandidates) {
+                val node = candidate.node
+                if (node != null) {
+                    val nodePkg = node.packageName?.toString() ?: ""
+                    if (nodePkg == targetPackageName) {
+                        val matchedNode = AccessibilityNodeInfo.obtain(node)
+                        windowCandidates.forEach { it.node?.recycle() }
+                        return matchedNode
+                    }
+                }
+            }
+
             // Target package requested but not found in any external application window
             windowCandidates.forEach { it.node?.recycle() }
             return null
