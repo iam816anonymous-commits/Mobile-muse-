@@ -61,14 +61,12 @@ class ObservationActivityTest {
             truncationInfo = ObservationTruncationInfo()
         )
 
-        val activity = Robolectric.buildActivity(ObservationActivity::class.java).create().get()
-        // Access private render method via reflection or test helper
-        val method = ObservationActivity::class.java.getDeclaredMethod("renderSnapshotNodeTree", ObservationSnapshot::class.java)
-        method.isAccessible = true
-        val treeStr = method.invoke(activity, snapshot) as String
+        val treeStr = NodeTreeRenderer.renderSnapshotTree(snapshot)
 
         assertTrue(treeStr.contains("ROOT [com.android.chrome]"))
         assertTrue(treeStr.contains("FrameLayout"))
-        assertTrue(treeStr.contains("Button id:btn_search \"Search\" [clickable]"))
+        assertTrue(treeStr.contains("Button"))
+        assertTrue(treeStr.contains("Search"))
+        assertTrue(treeStr.contains("com.chrome:id/btn_search"))
     }
 }

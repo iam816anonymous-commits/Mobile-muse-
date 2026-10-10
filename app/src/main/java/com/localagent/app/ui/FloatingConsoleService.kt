@@ -219,6 +219,37 @@ class FloatingConsoleService : Service() {
                 val result = globalExecutor.execute(request)
                 "Command: ${command.actionType} | Status: ${result.verificationResult.resultCode} | Reason: ${result.verificationResult.reason ?: "Executed"}"
             }
+            com.localagent.core.command.ActionType.APP_LAUNCH -> {
+                val appQuery = command.parameters["appLabel"] ?: ""
+                val resolver = com.localagent.app.system.AppResolver(this)
+                when (val resolveRes = resolver.resolvePackage(appQuery)) {
+                    is com.localagent.app.system.AppResolutionResult.Success -> {
+                        val launcher = com.localagent.app.system.AppLauncher(this)
+                        val verifier = com.localagent.app.system.LaunchVerifier()
+                        when (val launchRes = launcher.launchApp(resolveRes.packageName)) {
+                            is com.localagent.app.system.AppLaunchResult.Dispatched,
+                            is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
+                                when (val verifyRes = verifier.verifyForeground(resolveRes.packageName, timeoutMs = 3000L)) {
+                                    is com.localagent.app.system.LaunchVerificationResult.Success ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} (${resolveRes.packageName}) | Status: ${ResultCode.SUCCESS_VERIFIED} | Duration: ${verifyRes.durationMs}ms"
+                                    is com.localagent.app.system.LaunchVerificationResult.Timeout ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Foreground verification timed out"
+                                    is com.localagent.app.system.LaunchVerificationResult.PackageMismatch ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Package mismatch '${verifyRes.actualPackageName}'"
+                                    is com.localagent.app.system.LaunchVerificationResult.AccessibilityUnavailable ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility unbound"
+                                }
+                            }
+                            is com.localagent.app.system.AppLaunchResult.LaunchFailed ->
+                                "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACTION_FAILED} | Reason: ${launchRes.reason}"
+                        }
+                    }
+                    is com.localagent.app.system.AppResolutionResult.PackageNotInstalled ->
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: App not installed"
+                    is com.localagent.app.system.AppResolutionResult.NotLaunchable ->
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
+                }
+            }
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }
     }

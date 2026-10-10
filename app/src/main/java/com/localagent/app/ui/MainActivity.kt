@@ -48,12 +48,8 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, PermissionActivity::class.java))
         }
 
-        binding.btnOpenCurrentObservationScreen.setOnClickListener {
-            startActivity(Intent(this, CurrentObservationActivity::class.java))
-        }
-
-        binding.btnOpenExternalObservationScreen.setOnClickListener {
-            startActivity(Intent(this, ExternalObservationActivity::class.java))
+        binding.btnOpenObservationScreen.setOnClickListener {
+            startActivity(Intent(this, ObservationActivity::class.java))
         }
 
         binding.btnOpenEvidenceScreen.setOnClickListener {
@@ -302,7 +298,37 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             ActionType.AGENT_STATUS -> "Command: AGENT_STATUS | Status: ${ResultCode.NO_EFFECT_EXPECTED} | Info: Agent ACTIVE, A11y ${if (isA11yBound) "BOUND" else "DISCONNECTED"}, Core Ready"
-            ActionType.APP_LAUNCH -> "Command: APP_LAUNCH | Target: ${command.parameters["appLabel"]} | Status: ${ResultCode.DISPATCHED_BUT_NOT_VERIFIED} | Reason: App launch dispatched without foreground verification"
+            ActionType.APP_LAUNCH -> {
+                val appQuery = command.parameters["appLabel"] ?: ""
+                val resolver = com.localagent.app.system.AppResolver(this)
+                when (val resolveRes = resolver.resolvePackage(appQuery)) {
+                    is com.localagent.app.system.AppResolutionResult.Success -> {
+                        val launcher = com.localagent.app.system.AppLauncher(this)
+                        val verifier = com.localagent.app.system.LaunchVerifier()
+                        when (val launchRes = launcher.launchApp(resolveRes.packageName)) {
+                            is com.localagent.app.system.AppLaunchResult.Dispatched,
+                            is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
+                                when (val verifyRes = verifier.verifyForeground(resolveRes.packageName, timeoutMs = 3000L)) {
+                                    is com.localagent.app.system.LaunchVerificationResult.Success ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} (${resolveRes.packageName}) | Status: ${ResultCode.SUCCESS_VERIFIED} | Duration: ${verifyRes.durationMs}ms"
+                                    is com.localagent.app.system.LaunchVerificationResult.Timeout ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Foreground verification timed out"
+                                    is com.localagent.app.system.LaunchVerificationResult.PackageMismatch ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Package mismatch '${verifyRes.actualPackageName}'"
+                                    is com.localagent.app.system.LaunchVerificationResult.AccessibilityUnavailable ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility unbound"
+                                }
+                            }
+                            is com.localagent.app.system.AppLaunchResult.LaunchFailed ->
+                                "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACTION_FAILED} | Reason: ${launchRes.reason}"
+                        }
+                    }
+                    is com.localagent.app.system.AppResolutionResult.PackageNotInstalled ->
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: App not installed"
+                    is com.localagent.app.system.AppResolutionResult.NotLaunchable ->
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
+                }
+            }
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }
     }
