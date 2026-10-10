@@ -39,6 +39,11 @@ class MainActivity : AppCompatActivity() {
             executeCommandFromInput(input)
         }
 
+        binding.btnToggleFloatingConsole.setOnClickListener {
+            val intent = Intent(this, FloatingConsoleService::class.java)
+            startService(intent)
+        }
+
         binding.btnOpenPermissionCenterScreen.setOnClickListener {
             startActivity(Intent(this, PermissionActivity::class.java))
         }

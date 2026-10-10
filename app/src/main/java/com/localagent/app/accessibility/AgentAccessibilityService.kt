@@ -454,15 +454,48 @@ class AgentAccessibilityService : AccessibilityService() {
     fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
         val windowCandidates = collectWindowCandidates()
 
-        // Match targetPackageName directly if provided, without falling back to arbitrary external windows
+        // 1. Direct match for requested targetPackageName
         if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
             val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
             if (directMatch?.node != null) {
                 val matchedNode = AccessibilityNodeInfo.obtain(directMatch.node)
-                // Clean up candidate nodes
                 windowCandidates.forEach { it.node?.recycle() }
                 return matchedNode
             }
+
+            // Fallback for explicit targetPackageName: check rootInActiveWindow ONLY IF package matches targetPackageName
+            val activeRoot = rootInActiveWindow
+            if (activeRoot != null) {
+                val activePkg = activeRoot.packageName?.toString() ?: ""
+                if (activePkg == targetPackageName) {
+                    windowCandidates.forEach { it.node?.recycle() }
+                    return activeRoot
+                }
+                activeRoot.recycle()
+            }
+
+            // Target package requested but not found in any external application window
+            windowCandidates.forEach { it.node?.recycle() }
+            return null
+        }
+
+        // 2. Unspecified target package: check rootInActiveWindow if valid external application
+        val activeRoot = rootInActiveWindow
+        if (activeRoot != null) {
+            val activePkg = activeRoot.packageName?.toString() ?: ""
+            if (isValidExternalApplicationPackage(activePkg)) {
+                windowCandidates.forEach { it.node?.recycle() }
+                return activeRoot
+            }
+            activeRoot.recycle()
+        }
+
+        // 3. Fallback: Select highest scoring valid external window candidate
+        val bestExternal = selectBestExternalWindow(windowCandidates, "", mutableSetOf())
+        if (bestExternal?.node != null) {
+            val matchedNode = AccessibilityNodeInfo.obtain(bestExternal.node)
+            windowCandidates.forEach { it.node?.recycle() }
+            return matchedNode
         }
 
         // Clean up candidate nodes

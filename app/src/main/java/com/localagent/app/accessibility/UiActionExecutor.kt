@@ -29,7 +29,25 @@ class UiActionExecutor(
     private val resolutionLogger: TargetResolutionLogger? = null,
     private val liveRootNodeProvider: (targetPackageName: String?) -> AccessibilityNodeInfo? = { targetPkg ->
         val service = accessibilityService ?: AgentAccessibilityService.INSTANCE
-        service?.getLiveExternalRootNode(targetPkg) ?: service?.rootInActiveWindow
+        val externalRoot = service?.getLiveExternalRootNode(targetPkg)
+        if (externalRoot != null) {
+            externalRoot
+        } else {
+            val activeRoot = service?.rootInActiveWindow
+            if (activeRoot != null) {
+                val activePkg = activeRoot.packageName?.toString() ?: ""
+                if (!targetPkg.isNullOrBlank() && activePkg == targetPkg) {
+                    activeRoot
+                } else if (targetPkg.isNullOrBlank() && service?.isValidExternalApplicationPackage(activePkg) == true) {
+                    activeRoot
+                } else {
+                    activeRoot.recycle()
+                    null
+                }
+            } else {
+                null
+            }
+        }
     },
     private val snapshotProvider: () -> ObservationSnapshot? = { (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.getSnapshotForContext(isExternal = true) ?: (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot() },
     private val requireExternalContext: Boolean = true
@@ -144,14 +162,41 @@ class UiActionExecutor(
         // 3. Dispatch Action against Live Node
         try {
             dispatchSuccess = when (request.actionType) {
-                ActionType.UI_CLICK -> liveNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                ActionType.UI_CLICK -> {
+                    var success = liveNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    if (!success) {
+                        var currentParent = liveNode.parent
+                        while (currentParent != null) {
+                            val p = currentParent
+                            if (p.isClickable && p.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                                success = true
+                                p.recycle()
+                                break
+                            }
+                            currentParent = p.parent
+                            p.recycle()
+                        }
+                    }
+                    success
+                }
                 ActionType.UI_LONG_CLICK -> liveNode.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK)
                 ActionType.UI_TEXT_INPUT -> {
                     val payload = request.textInputPayload ?: ""
                     val args = Bundle().apply {
                         putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, payload)
                     }
-                    liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                    var success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                    if (!success) {
+                        if (liveNode.isFocusable && liveNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {
+                            success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                        }
+                    }
+                    if (!success) {
+                        if (liveNode.isClickable && liveNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                        }
+                    }
+                    success
                 }
                 ActionType.UI_SCROLL_FORWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
                 ActionType.UI_SCROLL_BACKWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
