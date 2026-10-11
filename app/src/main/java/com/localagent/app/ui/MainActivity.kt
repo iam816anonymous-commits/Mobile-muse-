@@ -300,28 +300,32 @@ class MainActivity : AppCompatActivity() {
             ActionType.APP_LAUNCH -> {
                 val appLabel = command.parameters["appLabel"] ?: ""
                 val resolver = com.localagent.app.system.AppResolver(this)
-                val targetPkg = resolver.resolvePackageName(appLabel)
-
-                if (targetPkg == null) {
-                    "Command: APP_LAUNCH | Target: $appLabel | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: App '$appLabel' not found on device"
-                } else {
-                    val launcher = com.localagent.app.system.AppLauncher(this)
-                    val preGen = service?.currentGeneration ?: 0L
-                    val launchSuccess = launcher.launchApp(targetPkg)
-
-                    if (!launchSuccess) {
-                        "Command: APP_LAUNCH | Target: $appLabel ($targetPkg) | Status: ${ResultCode.ACTION_FAILED} | Reason: Failed to dispatch launch intent"
-                    } else {
-                        val verifier = com.localagent.app.system.LaunchVerifier()
-                        when (val verification = verifier.awaitUsableWindowAndSnapshot(targetPkg, preGen)) {
-                            is com.localagent.app.system.LaunchVerificationResult.Success -> {
-                                verification.rootNode.recycle()
-                                "Command: APP_LAUNCH | Target: $appLabel ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Reason: Usable interactive window and root node acquired"
+                when (val resolveRes = resolver.resolvePackage(appLabel)) {
+                    is com.localagent.app.system.AppResolutionResult.Success -> {
+                        val targetPkg = resolveRes.packageName
+                        val launcher = com.localagent.app.system.AppLauncher(this)
+                        val preGen = service?.snapshotGenerationCounter ?: 0L
+                        when (val launchRes = launcher.launchApp(targetPkg)) {
+                            is com.localagent.app.system.AppLaunchResult.Dispatched,
+                            is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
+                                val verifier = com.localagent.app.system.LaunchVerifier()
+                                val snapshot = verifier.awaitUsableWindowAndSnapshot(targetPkg, preGen)
+                                if (snapshot != null) {
+                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount}"
+                                } else {
+                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: Target window timeout waiting for package '$targetPkg'"
+                                }
                             }
-                            is com.localagent.app.system.LaunchVerificationResult.Timeout -> {
-                                "Command: APP_LAUNCH | Target: $appLabel ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: ${verification.reason}"
+                            is com.localagent.app.system.AppLaunchResult.LaunchFailed -> {
+                                "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.ACTION_FAILED} | Reason: ${launchRes.reason}"
                             }
                         }
+                    }
+                    is com.localagent.app.system.AppResolutionResult.PackageNotInstalled -> {
+                        "Command: APP_LAUNCH | Target: $appLabel | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
+                    }
+                    is com.localagent.app.system.AppResolutionResult.NotLaunchable -> {
+                        "Command: APP_LAUNCH | Target: $appLabel | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
                     }
                 }
             }
