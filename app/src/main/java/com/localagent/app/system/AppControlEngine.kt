@@ -20,7 +20,11 @@ sealed class AppLaunchResult {
 
 sealed class LaunchVerificationResult {
     data class Success(val packageName: String, val durationMs: Long) : LaunchVerificationResult()
-    data class Timeout(val targetPackageName: String, val currentForegroundPackage: String) : LaunchVerificationResult()
+    data class Timeout(
+        val targetPackageName: String,
+        val currentForegroundPackage: String,
+        val detailedReason: String = "Target window timeout waiting for package '$targetPackageName'"
+    ) : LaunchVerificationResult()
     data class AccessibilityUnavailable(val reason: String) : LaunchVerificationResult()
     data class PackageMismatch(val expectedPackageName: String, val actualPackageName: String) : LaunchVerificationResult()
 }

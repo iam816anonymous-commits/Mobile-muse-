@@ -600,16 +600,19 @@ class AgentAccessibilityService : AccessibilityService() {
                 if (interactiveWindows != null) {
                     for (window in interactiveWindows) {
                         val root = window.root
-                        val pkg = root?.packageName?.toString() ?: ""
-                        val type = window.type
-                        val active = window.isActive
-                        val focused = window.isFocused
-                        val score = calculateWindowScore(type, pkg, active, focused)
                         val obtainedNode = if (root != null) {
                             val copy = AccessibilityNodeInfo.obtain(root)
                             root.recycle()
                             copy
                         } else null
+                        var pkg = root?.packageName?.toString() ?: ""
+                        if (pkg.isBlank() && obtainedNode != null) {
+                            pkg = obtainedNode.packageName?.toString() ?: ""
+                        }
+                        val type = window.type
+                        val active = window.isActive
+                        val focused = window.isFocused
+                        val score = calculateWindowScore(type, pkg, active, focused)
 
                         list.add(
                             InternalCandidate(
