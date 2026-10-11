@@ -173,7 +173,11 @@ class FloatingConsoleService : Service() {
 
                     if (stepResult.contains(ResultCode.TARGET_NOT_FOUND.name) ||
                         stepResult.contains(ResultCode.ACTION_FAILED.name) ||
-                        stepResult.contains(ResultCode.ACCESSIBILITY_UNAVAILABLE.name)) {
+                        stepResult.contains(ResultCode.ACCESSIBILITY_UNAVAILABLE.name) ||
+                        stepResult.contains(ResultCode.TIMEOUT.name) ||
+                        stepResult.contains(ResultCode.TARGET_STALE.name) ||
+                        stepResult.contains(ResultCode.TARGET_NOT_ACTIONABLE.name) ||
+                        stepResult.contains(ResultCode.DISPATCHED_BUT_NOT_VERIFIED.name)) {
                         sequenceHalted = true
                     }
                 }
@@ -246,28 +250,26 @@ class FloatingConsoleService : Service() {
                 val resolver = com.localagent.app.system.AppResolver(this)
                 when (val resolveRes = resolver.resolvePackage(appQuery)) {
                     is com.localagent.app.system.AppResolutionResult.Success -> {
+                        val targetPkg = resolveRes.packageName
                         val launcher = com.localagent.app.system.AppLauncher(this)
                         val verifier = com.localagent.app.system.LaunchVerifier()
-                        when (val launchRes = launcher.launchApp(resolveRes.packageName)) {
+                        val preGen = service.currentGeneration
+                        when (val launchRes = launcher.launchApp(targetPkg)) {
                             is com.localagent.app.system.AppLaunchResult.Dispatched,
                             is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
-                                when (val verifyRes = verifier.verifyForeground(resolveRes.packageName, timeoutMs = 3000L)) {
-                                    is com.localagent.app.system.LaunchVerificationResult.Success ->
-                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} (${resolveRes.packageName}) | Status: ${ResultCode.SUCCESS_VERIFIED} | Duration: ${verifyRes.durationMs}ms"
-                                    is com.localagent.app.system.LaunchVerificationResult.Timeout ->
-                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Foreground verification timed out"
-                                    is com.localagent.app.system.LaunchVerificationResult.PackageMismatch ->
-                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Package mismatch '${verifyRes.actualPackageName}'"
-                                    is com.localagent.app.system.LaunchVerificationResult.AccessibilityUnavailable ->
-                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility unbound"
+                                val snapshot = verifier.awaitUsableWindowAndSnapshot(targetPkg, preGen)
+                                if (snapshot != null) {
+                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount}"
+                                } else {
+                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: Target window timeout waiting for package '$targetPkg'"
                                 }
                             }
                             is com.localagent.app.system.AppLaunchResult.LaunchFailed ->
-                                "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACTION_FAILED} | Reason: ${launchRes.reason}"
+                                "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.ACTION_FAILED} | Reason: ${launchRes.reason}"
                         }
                     }
                     is com.localagent.app.system.AppResolutionResult.PackageNotInstalled ->
-                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: App not installed"
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
                     is com.localagent.app.system.AppResolutionResult.NotLaunchable ->
                         "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
                 }

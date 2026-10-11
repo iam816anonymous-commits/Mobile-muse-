@@ -55,4 +55,14 @@ class FloatingConsoleTest {
         assertNotNull(service)
         controller.destroy()
     }
+
+    @Test
+    fun `FLOATING-CONSOLE-004 - multi-action command parsing preserves step sequence`() {
+        val parseResult = normalizer.parseInput("launch calculator and click 7", CommandSource.CONSOLE)
+        assertTrue(parseResult is CommandParseResult.Success)
+        val sequence = (parseResult as CommandParseResult.Success).sequence
+        assertEquals(2, sequence.size)
+        assertEquals(com.localagent.core.command.ActionType.APP_LAUNCH, sequence[0].actionType)
+        assertEquals(com.localagent.core.command.ActionType.UI_CLICK, sequence[1].actionType)
+    }
 }

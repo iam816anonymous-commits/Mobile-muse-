@@ -209,7 +209,10 @@ class MainActivity : AppCompatActivity() {
                         executionResultText.contains("ACTION_FAILED") ||
                         executionResultText.contains("ACCESSIBILITY_UNAVAILABLE") ||
                         executionResultText.contains("TARGET_NOT_FOUND") ||
-                        executionResultText.contains("CAPABILITY_UNAVAILABLE")) {
+                        executionResultText.contains("CAPABILITY_UNAVAILABLE") ||
+                        executionResultText.contains("TARGET_STALE") ||
+                        executionResultText.contains("TARGET_NOT_ACTIONABLE") ||
+                        executionResultText.contains("DISPATCHED_BUT_NOT_VERIFIED")) {
                         sequenceHalted = true
                     }
                 }
