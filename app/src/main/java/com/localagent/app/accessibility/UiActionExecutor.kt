@@ -246,6 +246,7 @@ class UiActionExecutor(
         }
 
         // 4. Capture Post-Action Snapshot
+        service?.captureLiveSnapshot()
         val postSnapshot = snapshotProvider() ?: ObservationSnapshot()
 
         // 5. Verify Target-Aware Result

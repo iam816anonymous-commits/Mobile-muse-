@@ -213,6 +213,9 @@ class AgentAccessibilityService : AccessibilityService() {
             return
         }
 
+        val isWindowTransitionEvent = event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+
         // Evaluate external application windows on window state, window list, content, or scroll changes
         val isRelevantEvent = when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
@@ -226,7 +229,8 @@ class AgentAccessibilityService : AccessibilityService() {
         }
 
         val now = System.currentTimeMillis()
-        if (isRelevantEvent && isValidExternalApplicationPackage(pkg) && (now - lastObservationRefreshTime >= 150L)) {
+        val shouldEvaluate = isWindowTransitionEvent || (isRelevantEvent && isValidExternalApplicationPackage(pkg))
+        if (shouldEvaluate && (now - lastObservationRefreshTime >= 150L)) {
             lastObservationRefreshTime = now
             evaluateExternalApplicationWindows()
         }

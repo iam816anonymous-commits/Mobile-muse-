@@ -112,4 +112,30 @@ class ExternalObservationLifecycleTest {
         assertTrue(AgentAccessibilityService.isBound)
         assertEquals(ObservationEngineState.STOPPED, service.externalObservationState)
     }
+
+    @Test
+    fun `P6-OBS-LIFE-007 - TYPE_WINDOWS_CHANGED event with null packageName triggers external window evaluation`() {
+        service.externalObservationState = ObservationEngineState.OBSERVING
+
+        val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_WINDOWS_CHANGED).apply {
+            packageName = null
+        }
+
+        // Must not crash or be ignored due to null packageName
+        service.onAccessibilityEvent(event)
+        assertEquals(ObservationEngineState.OBSERVING, service.externalObservationState)
+    }
+
+    @Test
+    fun `P6-OBS-LIFE-008 - SystemUI event triggers reevaluation without setting SystemUI as last external package`() {
+        service.externalObservationState = ObservationEngineState.OBSERVING
+
+        val sysUiEvent = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED).apply {
+            packageName = "com.android.systemui"
+        }
+
+        service.onAccessibilityEvent(sysUiEvent)
+
+        assertNotEquals("com.android.systemui", service.lastExternalPackageName)
+    }
 }
