@@ -287,7 +287,7 @@ class MainActivity : AppCompatActivity() {
                         targetNodeIdentity = command.parameters["targetIdentity"],
                         textInputPayload = command.parameters["text"],
                         expectedPackageName = expectedPkg,
-                        preActionMinGeneration = activeService.snapshotGenerationCounter,
+                        preActionMinGeneration = activeService.currentGeneration,
                         sourceChannel = command.source.name
                     )
                     val result = uiExecutor.execute(request)
@@ -304,7 +304,7 @@ class MainActivity : AppCompatActivity() {
                     is com.localagent.app.system.AppResolutionResult.Success -> {
                         val targetPkg = resolveRes.packageName
                         val launcher = com.localagent.app.system.AppLauncher(this)
-                        val preGen = service?.snapshotGenerationCounter ?: 0L
+                        val preGen = service?.currentGeneration ?: 0L
                         when (val launchRes = launcher.launchApp(targetPkg)) {
                             is com.localagent.app.system.AppLaunchResult.Dispatched,
                             is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {

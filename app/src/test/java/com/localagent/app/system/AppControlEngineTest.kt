@@ -75,7 +75,7 @@ class AppControlEngineTest {
         event.packageName = "com.android.calculator2"
         service.onAccessibilityEvent(event)
 
-        val verifier = LaunchVerifier { service }
+        val verifier = LaunchVerifier(accessibilityServiceSupplier = { service })
         val result = verifier.verifyForeground("com.android.calculator2", timeoutMs = 500)
 
         assertTrue(result is LaunchVerificationResult.Success)
@@ -88,7 +88,7 @@ class AppControlEngineTest {
         val service = serviceController.get()
         service.onServiceConnectedForTest()
 
-        val verifier = LaunchVerifier { service }
+        val verifier = LaunchVerifier(accessibilityServiceSupplier = { service })
         val result = verifier.verifyForeground("com.android.settings", timeoutMs = 200)
 
         assertTrue(result is LaunchVerificationResult.Timeout)
@@ -111,7 +111,7 @@ class AppControlEngineTest {
         sysUiEvent.packageName = "com.android.systemui"
         service.onAccessibilityEvent(sysUiEvent)
 
-        val verifier = LaunchVerifier { service }
+        val verifier = LaunchVerifier(accessibilityServiceSupplier = { service })
         val result = verifier.verifyForeground("com.android.calculator2", timeoutMs = 300)
 
         assertTrue(result is LaunchVerificationResult.Success)
@@ -174,6 +174,143 @@ class AppControlEngineTest {
     }
 
     @Test
+    fun `PHASE8-AWAIT-001 - awaitUsableWindowAndSnapshot succeeds when external snapshot matches target package even if primary is LocalAgent`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        // Set primary snapshot as LocalAgent
+        service.currentObservationSnapshot = ObservationSnapshot(
+            packageName = "com.localagent.app",
+            nodeCount = 10,
+            generation = 5L
+        )
+
+        // Set external snapshot as Calculator with fresh generation
+        val freshExtSnap = ObservationSnapshot(
+            packageName = "com.transsion.calculator",
+            nodeCount = 15,
+            generation = 10L
+        )
+        service.lastExternalObservationSnapshot = freshExtSnap
+
+        val verifier = LaunchVerifier(
+            accessibilityServiceSupplier = { service },
+            rootNodeProvider = { pkg ->
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = pkg,
+                    className = "android.widget.Button",
+                    viewIdResourceName = "btn_7",
+                    text = "7"
+                )
+            }
+        )
+        val snapshot = verifier.awaitUsableWindowAndSnapshot("com.transsion.calculator", minGeneration = 0L, timeoutMs = 200L)
+
+        assertNotNull(snapshot)
+        assertEquals("com.transsion.calculator", snapshot?.packageName)
+        assertEquals(15, snapshot?.nodeCount)
+    }
+
+    @Test
+    fun `PHASE8-AWAIT-002 - awaitUsableWindowAndSnapshot times out when external snapshot belongs to wrong package`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        service.currentObservationSnapshot = ObservationSnapshot(
+            packageName = "com.localagent.app",
+            nodeCount = 10,
+            generation = 5L
+        )
+
+        service.lastExternalObservationSnapshot = ObservationSnapshot(
+            packageName = "com.android.settings",
+            nodeCount = 8,
+            generation = 5L
+        )
+
+        val verifier = LaunchVerifier(
+            accessibilityServiceSupplier = { service },
+            rootNodeProvider = { pkg ->
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = pkg,
+                    className = "android.widget.Button",
+                    viewIdResourceName = "btn_7",
+                    text = "7"
+                )
+            }
+        )
+        val snapshot = verifier.awaitUsableWindowAndSnapshot("com.transsion.calculator", minGeneration = 0L, timeoutMs = 200L)
+
+        assertNull(snapshot)
+    }
+
+    @Test
+    fun `PHASE8-AWAIT-003 - awaitUsableWindowAndSnapshot times out when external snapshot is empty or null`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        service.currentObservationSnapshot = ObservationSnapshot(
+            packageName = "com.localagent.app",
+            nodeCount = 10,
+            generation = 5L
+        )
+
+        // Empty nodeCount
+        service.lastExternalObservationSnapshot = ObservationSnapshot(
+            packageName = "com.transsion.calculator",
+            nodeCount = 0,
+            generation = 5L
+        )
+
+        val verifier = LaunchVerifier(
+            accessibilityServiceSupplier = { service },
+            rootNodeProvider = { pkg ->
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = pkg,
+                    className = "android.widget.Button",
+                    viewIdResourceName = "btn_7",
+                    text = "7"
+                )
+            }
+        )
+        val snapshot = verifier.awaitUsableWindowAndSnapshot("com.transsion.calculator", minGeneration = 0L, timeoutMs = 200L)
+
+        assertNull(snapshot)
+    }
+
+    @Test
+    fun `PHASE8-AWAIT-004 - awaitUsableWindowAndSnapshot times out when external snapshot generation is stale`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        service.lastExternalObservationSnapshot = ObservationSnapshot(
+            packageName = "com.transsion.calculator",
+            nodeCount = 10,
+            generation = 2L
+        )
+
+        val verifier = LaunchVerifier(
+            accessibilityServiceSupplier = { service },
+            rootNodeProvider = { pkg ->
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = pkg,
+                    className = "android.widget.Button",
+                    viewIdResourceName = "btn_7",
+                    text = "7"
+                )
+            }
+        )
+        // minGeneration is 5L, snapshot generation is 2L (stale)
+        val snapshot = verifier.awaitUsableWindowAndSnapshot("com.transsion.calculator", minGeneration = 5L, timeoutMs = 200L)
+
+        assertNull(snapshot)
+    }
+
+    @Test
     fun `PHASE8-E2E-001 - Sequential APP_LAUNCH then UI_CLICK command execution`() {
         val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
         val service = serviceController.get()
@@ -184,7 +321,7 @@ class AppControlEngineTest {
         event.packageName = "com.android.calculator2"
         service.onAccessibilityEvent(event)
 
-        val verifier = LaunchVerifier { service }
+        val verifier = LaunchVerifier(accessibilityServiceSupplier = { service })
         val launchVerifyRes = verifier.verifyForeground("com.android.calculator2", timeoutMs = 300)
         assertTrue(launchVerifyRes is LaunchVerificationResult.Success)
 

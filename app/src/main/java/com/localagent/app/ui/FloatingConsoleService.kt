@@ -218,7 +218,7 @@ class FloatingConsoleService : Service() {
                     targetNodeIdentity = command.parameters["targetIdentity"],
                     textInputPayload = command.parameters["text"],
                     expectedPackageName = expectedPkg,
-                    preActionMinGeneration = service.snapshotGenerationCounter,
+                    preActionMinGeneration = service.currentGeneration,
                     sourceChannel = command.source.name
                 )
                 val result = uiExecutor.execute(request)

@@ -97,7 +97,7 @@ class UiActionExecutor(
         // Expected Package Window Await & Generation Verification Step
         val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
         if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {
-            val verifier = com.localagent.app.system.LaunchVerifier { service }
+            val verifier = com.localagent.app.system.LaunchVerifier(accessibilityServiceSupplier = { service })
             val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
             val freshSnap = verifier.awaitUsableWindowAndSnapshot(
                 targetPackageName = expectedPkg,
