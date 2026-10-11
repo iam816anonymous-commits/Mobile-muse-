@@ -17,59 +17,53 @@ class CommandNormalizer {
             return CommandParseResult.InvalidInput()
         }
 
-        // Split multi-action input by conjunctions/delimiters: " and ", " then ", " and then ", ", ", "; ", ". "
-        val segments = splitCommandSegments(trimmed)
-
-        if (segments.isEmpty()) {
-            return CommandParseResult.InvalidInput()
-        }
-
-        val parsedCommands = mutableListOf<NormalizedCommand>()
-
-        for (segment in segments) {
-            val singleResult = parseSingleSegment(segment, source)
-            when (singleResult) {
-                is CommandParseResult.Success -> parsedCommands.add(singleResult.command)
-                is CommandParseResult.UnknownCommand -> {
-                    return singleResult
+        val segments = splitCompoundSegments(trimmed)
+        if (segments.size > 1) {
+            val sequence = mutableListOf<NormalizedCommand>()
+            var allSuccessful = true
+            for (segment in segments) {
+                when (val result = parseSingleCommand(segment, source)) {
+                    is CommandParseResult.Success -> sequence.add(result.command)
+                    else -> {
+                        allSuccessful = false
+                        break
+                    }
                 }
-                is CommandParseResult.InvalidInput -> {
-                    return singleResult
-                }
+            }
+            if (allSuccessful && sequence.isNotEmpty()) {
+                return CommandParseResult.Success(command = sequence.first(), sequence = sequence)
             }
         }
 
-        if (parsedCommands.isEmpty()) {
-            return CommandParseResult.UnknownCommand(trimmed)
-        }
-
-        return CommandParseResult.Success(
-            command = parsedCommands.first(),
-            sequence = parsedCommands
-        )
+        return parseSingleCommand(trimmed, source)
     }
 
-    private fun splitCommandSegments(input: String): List<String> {
-        val delimiterRegex = Regex("(?i)\\s*(?:,?\\s*(?:and\\s+then|then|and)\\b|,|;|\\.)\\s*")
-        val rawSegments = input.split(delimiterRegex)
-        return rawSegments.map { it.trim() }.filter { it.isNotEmpty() }
+    private fun splitCompoundSegments(input: String): List<String> {
+        val delimiters = listOf(" and then ", " then ", " and ", ";", ",")
+        var segments = listOf(input)
+        for (delim in delimiters) {
+            val nextSegments = mutableListOf<String>()
+            for (seg in segments) {
+                if (seg.contains(delim, ignoreCase = true)) {
+                    seg.split(Regex(delim, RegexOption.IGNORE_CASE)).forEach { s ->
+                        if (s.isNotBlank()) nextSegments.add(s.trim())
+                    }
+                } else {
+                    nextSegments.add(seg)
+                }
+            }
+            segments = nextSegments
+        }
+        return segments
     }
 
-    private fun parseSingleSegment(rawSegment: String, source: CommandSource): CommandParseResult {
-        var trimmed = rawSegment.trim()
-        var lower = trimmed.lowercase()
-
-        // Strip leading conjunction words if left over from splitting
-        if (lower.startsWith("and then ")) {
-            trimmed = trimmed.substring(9).trim()
-            lower = trimmed.lowercase()
-        } else if (lower.startsWith("then ")) {
-            trimmed = trimmed.substring(5).trim()
-            lower = trimmed.lowercase()
-        } else if (lower.startsWith("and ")) {
-            trimmed = trimmed.substring(4).trim()
-            lower = trimmed.lowercase()
+    fun parseSingleCommand(input: String, source: CommandSource): CommandParseResult {
+        val trimmed = input.trim().replace(Regex("\\s+"), " ")
+        if (trimmed.isEmpty()) {
+            return CommandParseResult.InvalidInput()
         }
+
+        val lower = trimmed.lowercase()
 
         return when {
             // Navigation
