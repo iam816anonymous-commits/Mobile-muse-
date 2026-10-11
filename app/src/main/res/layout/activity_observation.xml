@@ -23,6 +23,7 @@
         android:fontFamily="monospace"
         android:textColor="#4A148C" />
 
+    <!-- VIEW SELECTION TABS -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -30,11 +31,35 @@
         android:orientation="horizontal">
 
         <Button
+            android:id="@+id/btnViewLiveScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="View A: Live Screen"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnViewExternalScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="View B: Last External App"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:orientation="horizontal">
+
+        <Button
             android:id="@+id/btnObserveUi"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Refresh Observation"
+            android:text="Refresh Capture"
             android:textSize="10sp" />
 
         <Button

@@ -180,8 +180,8 @@ class AgentAccessibilityService : AccessibilityService() {
         )
     }
 
-    @Volatile
-    var snapshotGenerationCounter: Long = 0L
+    val snapshotGenerationCounter: Long
+        get() = generationCounter.get()
 
     @Volatile
     private var lastObservationRefreshTime: Long = 0L
@@ -465,7 +465,7 @@ class AgentAccessibilityService : AccessibilityService() {
                             packageName = extPkg,
                             activityName = lastExternalActivityName,
                             windowId = bestExternal.candidate.windowId
-                        ).copy(generation = ++snapshotGenerationCounter)
+                        ).copy(generation = generationCounter.incrementAndGet())
                         lastExternalPackageName = extPkg
                         lastExternalWindowId = bestExternal.candidate.windowId
                         lastExternalWindowType = bestExternal.candidate.windowType

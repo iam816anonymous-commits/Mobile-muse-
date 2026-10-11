@@ -150,7 +150,6 @@ class LaunchVerifier(
                         settledRoot.recycle()
                         service.captureLiveSnapshot()
                         val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
-                            ?: service.currentObservationSnapshot
                         if (candidateSnapshot != null &&
                             candidateSnapshot.packageName == targetPackageName &&
                             candidateSnapshot.generation > minGeneration &&
@@ -176,7 +175,6 @@ class LaunchVerifier(
             finalRoot.recycle()
             service.captureLiveSnapshot()
             val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
-                ?: service.currentObservationSnapshot
             if (candidateSnapshot != null &&
                 candidateSnapshot.packageName == targetPackageName &&
                 candidateSnapshot.generation > minGeneration &&
