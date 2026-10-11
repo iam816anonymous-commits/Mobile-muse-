@@ -274,7 +274,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     @Suppress("DEPRECATION")
-    open fun captureLiveSnapshot(): ObservationSnapshot {
+    open fun captureLiveSnapshot(targetPackageName: String? = null): ObservationSnapshot {
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
 
@@ -350,16 +350,26 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         } else if (externalObservationState == ObservationEngineState.OBSERVING) {
             // Primary is LocalAgent or System UI: inspect valid external window candidates
-            val bestExternal = selectBestExternalWindow(
+            var bestExternal = selectBestExternalWindow(
                 candidates = windowCandidates,
                 activeSessionId = activeSessionId,
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
-            if (bestExternal != null && bestExternal.node != null && !recycledNodes.contains(bestExternal.node)) {
+
+            // If an explicit targetPackageName was requested, prefer a candidate matching targetPackageName
+            if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+                if (targetMatch != null) {
+                    bestExternal = targetMatch
+                }
+            }
+
+            val extNode = bestExternal?.node
+            if (bestExternal != null && extNode != null && !recycledNodes.contains(extNode)) {
                 try {
                     val extPkg = bestExternal.candidate.packageName
                     val extSnap = extractor.extractSnapshot(
-                        rootNodeInfo = bestExternal.node,
+                        rootNodeInfo = extNode,
                         packageName = extPkg,
                         activityName = lastExternalActivityName,
                         windowId = bestExternal.candidate.windowId
@@ -370,8 +380,28 @@ class AgentAccessibilityService : AccessibilityService() {
                     lastExternalObservationTimestamp = System.currentTimeMillis()
                     lastExternalObservationSnapshot = extSnap
                 } finally {
-                    bestExternal.node.recycle()
-                    recycledNodes.add(bestExternal.node)
+                    extNode.recycle()
+                    recycledNodes.add(extNode)
+                }
+            } else if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+                // Fallback: Use live root node seam to capture explicit target external snapshot
+                val fallbackRoot = getLiveExternalRootNode(targetPackageName)
+                if (fallbackRoot != null) {
+                    try {
+                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPackageName
+                        val extSnap = extractor.extractSnapshot(
+                            rootNodeInfo = fallbackRoot,
+                            packageName = fallbackPkg,
+                            activityName = lastExternalActivityName,
+                            windowId = fallbackRoot.windowId
+                        ).copy(generation = currentGen)
+                        lastExternalPackageName = fallbackPkg
+                        lastExternalWindowId = fallbackRoot.windowId
+                        lastExternalObservationTimestamp = System.currentTimeMillis()
+                        lastExternalObservationSnapshot = extSnap
+                    } finally {
+                        fallbackRoot.recycle()
+                    }
                 }
             }
         }

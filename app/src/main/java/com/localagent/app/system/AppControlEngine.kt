@@ -152,7 +152,7 @@ class LaunchVerifier(
                     val settledRoot = rootNodeProvider(targetPackageName)
                     if (settledRoot != null) {
                         settledRoot.recycle()
-                        service.captureLiveSnapshot()
+                        service.captureLiveSnapshot(targetPackageName)
                         val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
                         if (candidateSnapshot != null &&
                             candidateSnapshot.packageName == targetPackageName &&
@@ -177,7 +177,7 @@ class LaunchVerifier(
         val finalRoot = rootNodeProvider(targetPackageName)
         if (finalRoot != null) {
             finalRoot.recycle()
-            service.captureLiveSnapshot()
+            service.captureLiveSnapshot(targetPackageName)
             val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
             if (candidateSnapshot != null &&
                 candidateSnapshot.packageName == targetPackageName &&
