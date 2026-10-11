@@ -158,8 +158,27 @@ class FloatingConsoleService : Service() {
             is CommandParseResult.InvalidInput -> "Result: ${ResultCode.INVALID_INPUT} | Reason: ${parseResult.reason}"
             is CommandParseResult.UnknownCommand -> "Result: ${ResultCode.UNKNOWN_COMMAND} | Reason: Unrecognized syntax '$input'"
             is CommandParseResult.Success -> {
-                val command = parseResult.command
-                executeNormalizedCommand(command, service)
+                val sequence = parseResult.sequence
+                val stepResults = mutableListOf<String>()
+                var sequenceHalted = false
+
+                for ((idx, command) in sequence.withIndex()) {
+                    if (sequenceHalted) {
+                        stepResults.add("[Step ${idx + 1}/${sequence.size}] ${command.actionType}: SKIPPED")
+                        continue
+                    }
+
+                    val stepResult = executeNormalizedCommand(command, service)
+                    stepResults.add("[Step ${idx + 1}/${sequence.size}] $stepResult")
+
+                    if (stepResult.contains(ResultCode.TARGET_NOT_FOUND.name) ||
+                        stepResult.contains(ResultCode.ACTION_FAILED.name) ||
+                        stepResult.contains(ResultCode.ACCESSIBILITY_UNAVAILABLE.name)) {
+                        sequenceHalted = true
+                    }
+                }
+
+                stepResults.joinToString("\n")
             }
         }
     }
@@ -192,11 +211,14 @@ class FloatingConsoleService : Service() {
                     is TargetSelector.ByCoordinates -> "coords:${selector.x},${selector.y}"
                     TargetSelector.None -> null
                 }
+                val expectedPkg = service.lastExternalPackageName.takeIf { service.isValidExternalApplicationPackage(it) }
                 val request = com.localagent.core.action.ActionRequest(
                     actionType = coreActionType,
                     targetNodeId = targetIdStr,
                     targetNodeIdentity = command.parameters["targetIdentity"],
                     textInputPayload = command.parameters["text"],
+                    expectedPackageName = expectedPkg,
+                    preActionMinGeneration = service.snapshotGenerationCounter,
                     sourceChannel = command.source.name
                 )
                 val result = uiExecutor.execute(request)
@@ -218,6 +240,37 @@ class FloatingConsoleService : Service() {
                 )
                 val result = globalExecutor.execute(request)
                 "Command: ${command.actionType} | Status: ${result.verificationResult.resultCode} | Reason: ${result.verificationResult.reason ?: "Executed"}"
+            }
+            com.localagent.core.command.ActionType.APP_LAUNCH -> {
+                val appQuery = command.parameters["appLabel"] ?: ""
+                val resolver = com.localagent.app.system.AppResolver(this)
+                when (val resolveRes = resolver.resolvePackage(appQuery)) {
+                    is com.localagent.app.system.AppResolutionResult.Success -> {
+                        val launcher = com.localagent.app.system.AppLauncher(this)
+                        val verifier = com.localagent.app.system.LaunchVerifier()
+                        when (val launchRes = launcher.launchApp(resolveRes.packageName)) {
+                            is com.localagent.app.system.AppLaunchResult.Dispatched,
+                            is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
+                                when (val verifyRes = verifier.verifyForeground(resolveRes.packageName, timeoutMs = 3000L)) {
+                                    is com.localagent.app.system.LaunchVerificationResult.Success ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} (${resolveRes.packageName}) | Status: ${ResultCode.SUCCESS_VERIFIED} | Duration: ${verifyRes.durationMs}ms"
+                                    is com.localagent.app.system.LaunchVerificationResult.Timeout ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Foreground verification timed out"
+                                    is com.localagent.app.system.LaunchVerificationResult.PackageMismatch ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: Package mismatch '${verifyRes.actualPackageName}'"
+                                    is com.localagent.app.system.LaunchVerificationResult.AccessibilityUnavailable ->
+                                        "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACCESSIBILITY_UNAVAILABLE} | Reason: Accessibility unbound"
+                                }
+                            }
+                            is com.localagent.app.system.AppLaunchResult.LaunchFailed ->
+                                "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} | Status: ${ResultCode.ACTION_FAILED} | Reason: ${launchRes.reason}"
+                        }
+                    }
+                    is com.localagent.app.system.AppResolutionResult.PackageNotInstalled ->
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: App not installed"
+                    is com.localagent.app.system.AppResolutionResult.NotLaunchable ->
+                        "Command: APP_LAUNCH | Target: $appQuery | Status: ${ResultCode.TARGET_NOT_FOUND} | Reason: ${resolveRes.reason}"
+                }
             }
             else -> "Command: ${command.actionType} | Status: ${ResultCode.CAPABILITY_UNAVAILABLE}"
         }

@@ -167,7 +167,7 @@ class LocalAgentApplication : Application() {
                     category = CapabilityCategory.SYSTEM,
                     minApi = 27,
                     verificationStrategy = "PackageMatchStrategy",
-                    riskLevel = ActionRiskLevel.HIGH
+                    riskLevel = ActionRiskLevel.LOW
                 )
             )
         }

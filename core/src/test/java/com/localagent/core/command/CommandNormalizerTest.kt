@@ -93,6 +93,38 @@ class CommandNormalizerTest {
     }
 
     @Test
+    fun testMultiActionCommandSequences() {
+        // 1. "launch calculator and click 7"
+        val launchAndClick = normalizer.parseInput("launch calculator and click 7", CommandSource.CONSOLE)
+        assertTrue(launchAndClick is CommandParseResult.Success)
+        assertEquals(2, launchAndClick.sequence.size)
+        assertEquals(ActionType.APP_LAUNCH, launchAndClick.sequence[0].actionType)
+        assertEquals("calculator", launchAndClick.sequence[0].parameters["appLabel"])
+        assertEquals(ActionType.UI_CLICK, launchAndClick.sequence[1].actionType)
+        assertEquals(TargetSelector.ByText("7"), launchAndClick.sequence[1].targetSelector)
+
+        // 2. "open calculator, then tap 7, and click 8"
+        val threeStep = normalizer.parseInput("open calculator, then tap 7, and click 8", CommandSource.CONSOLE)
+        assertTrue(threeStep is CommandParseResult.Success)
+        assertEquals(3, threeStep.sequence.size)
+        assertEquals(ActionType.APP_LAUNCH, threeStep.sequence[0].actionType)
+        assertEquals("calculator", threeStep.sequence[0].parameters["appLabel"])
+        assertEquals(ActionType.UI_CLICK, threeStep.sequence[1].actionType)
+        assertEquals(TargetSelector.ByText("7"), threeStep.sequence[1].targetSelector)
+        assertEquals(ActionType.UI_CLICK, threeStep.sequence[2].actionType)
+        assertEquals(TargetSelector.ByText("8"), threeStep.sequence[2].targetSelector)
+
+        // 3. "open settings and scroll down"
+        val launchAndScroll = normalizer.parseInput("open settings and scroll down", CommandSource.CONSOLE)
+        println("DEBUG launchAndScroll: $launchAndScroll")
+        assertTrue(launchAndScroll is CommandParseResult.Success)
+        assertEquals(2, launchAndScroll.sequence.size)
+        assertEquals(ActionType.APP_LAUNCH, launchAndScroll.sequence[0].actionType)
+        assertEquals("settings", launchAndScroll.sequence[0].parameters["appLabel"])
+        assertEquals(ActionType.UI_SCROLL_FORWARD, launchAndScroll.sequence[1].actionType)
+    }
+
+    @Test
     fun testUnknownCommandsReturnUnknownCommand() {
         val unknown1 = normalizer.parseInput("not real cmd", CommandSource.CONSOLE)
         assertTrue(unknown1 is CommandParseResult.UnknownCommand)

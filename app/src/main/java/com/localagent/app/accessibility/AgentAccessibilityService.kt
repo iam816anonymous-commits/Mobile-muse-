@@ -115,7 +115,7 @@ class AgentAccessibilityService : AccessibilityService() {
         private set
 
     @Volatile
-    var externalObservationState: ObservationEngineState = ObservationEngineState.IDLE
+    var externalObservationState: ObservationEngineState = ObservationEngineState.OBSERVING
 
     val currentEvidence: ObservationEvidence?
         get() {
@@ -180,6 +180,12 @@ class AgentAccessibilityService : AccessibilityService() {
         )
     }
 
+    @Volatile
+    var snapshotGenerationCounter: Long = 0L
+
+    @Volatile
+    private var lastObservationRefreshTime: Long = 0L
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
@@ -207,18 +213,21 @@ class AgentAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Evaluate external application windows on window state, window list, or window content changes
+        // Evaluate external application windows on window state, window list, content, or scroll changes
         val isRelevantEvent = when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_VIEW_SCROLLED,
             AccessibilityEvent.TYPE_VIEW_CLICKED,
             AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
             AccessibilityEvent.TYPE_VIEW_FOCUSED -> true
             else -> false
         }
 
-        if (isRelevantEvent && isValidExternalApplicationPackage(pkg)) {
+        val now = System.currentTimeMillis()
+        if (isRelevantEvent && isValidExternalApplicationPackage(pkg) && (now - lastObservationRefreshTime >= 150L)) {
+            lastObservationRefreshTime = now
             evaluateExternalApplicationWindows()
         }
     }
@@ -456,7 +465,7 @@ class AgentAccessibilityService : AccessibilityService() {
                             packageName = extPkg,
                             activityName = lastExternalActivityName,
                             windowId = bestExternal.candidate.windowId
-                        )
+                        ).copy(generation = ++snapshotGenerationCounter)
                         lastExternalPackageName = extPkg
                         lastExternalWindowId = bestExternal.candidate.windowId
                         lastExternalWindowType = bestExternal.candidate.windowType
@@ -503,6 +512,20 @@ class AgentAccessibilityService : AccessibilityService() {
                     return activeRoot
                 }
                 activeRoot.recycle()
+            }
+
+            // Fallback for launch transitions where window package name in CandidateInfo is empty or System UI overlay:
+            // Check all available candidate windows' root nodes directly for targetPackageName
+            for (candidate in windowCandidates) {
+                val node = candidate.node
+                if (node != null) {
+                    val nodePkg = node.packageName?.toString() ?: ""
+                    if (nodePkg == targetPackageName) {
+                        val matchedNode = AccessibilityNodeInfo.obtain(node)
+                        windowCandidates.forEach { it.node?.recycle() }
+                        return matchedNode
+                    }
+                }
             }
 
             // Target package requested but not found in any external application window

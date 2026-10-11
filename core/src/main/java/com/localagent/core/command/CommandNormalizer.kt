@@ -67,28 +67,55 @@ class CommandNormalizer {
 
         return when {
             // Navigation
-            lower == "back" -> CommandParseResult.Success(
+            lower == "back" || lower == "go back" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
                     actionType = ActionType.GLOBAL_BACK
                 )
             )
-            lower == "home" -> CommandParseResult.Success(
+            lower == "home" || lower == "go home" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
                     actionType = ActionType.GLOBAL_HOME
                 )
             )
-            lower == "recents" -> CommandParseResult.Success(
+            lower == "recents" || lower == "recent apps" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
                     actionType = ActionType.GLOBAL_RECENTS
                 )
             )
 
-            // Clicks
-            lower.startsWith("click ") -> {
-                val target = trimmed.substring(6).trim()
+            // App Launch / Open
+            lower.startsWith("launch ") || lower.startsWith("open ") || lower.startsWith("start ") -> {
+                val spaceIdx = trimmed.indexOf(' ')
+                val appLabel = trimmed.substring(spaceIdx + 1).trim()
+                if (appLabel.isEmpty()) {
+                    CommandParseResult.UnknownCommand(trimmed, "Launch command requires an application label parameter")
+                } else {
+                    CommandParseResult.Success(
+                        NormalizedCommand(
+                            source = source,
+                            actionType = ActionType.APP_LAUNCH,
+                            parameters = mapOf("appLabel" to appLabel)
+                        )
+                    )
+                }
+            }
+            lower == "launch" || lower == "open" || lower == "start" ->
+                CommandParseResult.UnknownCommand(trimmed, "Launch command requires an application label parameter")
+
+            // Clicks & Taps
+            lower.startsWith("click ") || lower.startsWith("tap ") || lower.startsWith("press ") || lower.startsWith("select ") -> {
+                val spaceIdx = trimmed.indexOf(' ')
+                var target = trimmed.substring(spaceIdx + 1).trim()
+                val lowerTarget = target.lowercase()
+                if (lowerTarget.startsWith("the ")) {
+                    target = target.substring(4).trim()
+                } else if (lowerTarget.startsWith("on ")) {
+                    target = target.substring(3).trim()
+                }
+
                 if (target.isEmpty()) {
                     CommandParseResult.UnknownCommand(trimmed, "Click command requires a target parameter")
                 } else {
@@ -101,10 +128,13 @@ class CommandNormalizer {
                     )
                 }
             }
-            lower == "click" -> CommandParseResult.UnknownCommand(trimmed, "Click command requires a target parameter")
+            lower == "click" || lower == "tap" || lower == "press" ->
+                CommandParseResult.UnknownCommand(trimmed, "Click command requires a target parameter")
 
-            lower.startsWith("long click ") -> {
-                val target = trimmed.substring(11).trim()
+            // Long Clicks
+            lower.startsWith("long click ") || lower.startsWith("long press ") || lower.startsWith("hold ") -> {
+                val lastSpace = trimmed.lastIndexOf(' ')
+                val target = trimmed.substring(lastSpace + 1).trim()
                 if (target.isEmpty()) {
                     CommandParseResult.UnknownCommand(trimmed, "Long click command requires a target parameter")
                 } else {
@@ -117,7 +147,23 @@ class CommandNormalizer {
                     )
                 }
             }
-            lower == "long click" -> CommandParseResult.UnknownCommand(trimmed, "Long click command requires a target parameter")
+
+            // Text Input
+            lower.startsWith("type ") || lower.startsWith("input ") || lower.startsWith("enter ") || lower.startsWith("set text ") -> {
+                val spaceIdx = trimmed.indexOf(' ')
+                val text = trimmed.substring(spaceIdx + 1).trim()
+                if (text.isEmpty()) {
+                    CommandParseResult.UnknownCommand(trimmed, "Type command requires a text parameter")
+                } else {
+                    CommandParseResult.Success(
+                        NormalizedCommand(
+                            source = source,
+                            actionType = ActionType.UI_TEXT_INPUT,
+                            parameters = mapOf("text" to text)
+                        )
+                    )
+                }
+            }
 
             // Scrolling
             lower == "scroll down" || lower == "scroll forward" -> CommandParseResult.Success(
@@ -147,23 +193,6 @@ class CommandNormalizer {
                     actionType = ActionType.AGENT_STATUS
                 )
             )
-
-            // App Launch
-            lower.startsWith("launch ") -> {
-                val appLabel = trimmed.substring(7).trim()
-                if (appLabel.isEmpty()) {
-                    CommandParseResult.UnknownCommand(trimmed, "Launch command requires an application label parameter")
-                } else {
-                    CommandParseResult.Success(
-                        NormalizedCommand(
-                            source = source,
-                            actionType = ActionType.APP_LAUNCH,
-                            parameters = mapOf("appLabel" to appLabel)
-                        )
-                    )
-                }
-            }
-            lower == "launch" -> CommandParseResult.UnknownCommand(trimmed, "Launch command requires an application label parameter")
 
             else -> CommandParseResult.UnknownCommand(trimmed)
         }

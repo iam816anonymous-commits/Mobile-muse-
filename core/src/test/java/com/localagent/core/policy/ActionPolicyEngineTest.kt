@@ -37,6 +37,17 @@ class ActionPolicyEngineTest {
                 category = CapabilityCategory.SYSTEM,
                 minApi = 27,
                 verificationStrategy = "PackageMatchStrategy",
+                riskLevel = ActionRiskLevel.LOW
+            )
+        )
+
+        registry.registerCapability(
+            CapabilityRule(
+                capabilityId = "HARDWARE_RESET",
+                name = "Hardware Reset",
+                category = CapabilityCategory.SYSTEM,
+                minApi = 27,
+                verificationStrategy = "SystemResetStrategy",
                 riskLevel = ActionRiskLevel.HIGH
             )
         )
@@ -54,17 +65,39 @@ class ActionPolicyEngineTest {
     }
 
     @Test
-    fun testHighRiskActionRequiresUserConfirmation() {
+    fun testAppLaunchLowRiskApprovedAutomatically() {
         val command = NormalizedCommand(
             source = CommandSource.CONSOLE,
             actionType = ActionType.APP_LAUNCH
         )
 
-        val unconfirmedResult = policyEngine.evaluateCommand(command, isUserConfirmed = false)
+        val result = policyEngine.evaluateCommand(command, isUserConfirmed = false)
+        assertTrue(result is PolicyEvaluationResult.Approved)
+    }
+
+    @Test
+    fun testHighRiskActionRequiresUserConfirmation() {
+        val highRiskCommand = NormalizedCommand(
+            source = CommandSource.CONSOLE,
+            actionType = ActionType.AGENT_STATUS
+        )
+
+        registry.registerCapability(
+            CapabilityRule(
+                capabilityId = "AGENT_STATUS",
+                name = "Status",
+                category = CapabilityCategory.SYSTEM,
+                minApi = 27,
+                verificationStrategy = "StatusStrategy",
+                riskLevel = ActionRiskLevel.HIGH
+            )
+        )
+
+        val unconfirmedResult = policyEngine.evaluateCommand(highRiskCommand, isUserConfirmed = false)
         assertTrue(unconfirmedResult is PolicyEvaluationResult.UserConfirmationRequired)
         assertEquals(ActionRiskLevel.HIGH, unconfirmedResult.riskLevel)
 
-        val confirmedResult = policyEngine.evaluateCommand(command, isUserConfirmed = true)
+        val confirmedResult = policyEngine.evaluateCommand(highRiskCommand, isUserConfirmed = true)
         assertTrue(confirmedResult is PolicyEvaluationResult.Approved)
     }
 }

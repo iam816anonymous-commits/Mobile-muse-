@@ -82,7 +82,7 @@ class UiActionExecutor(
         }
 
         // Capture pre-action observation snapshot
-        val preSnapshot = snapshotProvider() ?: ObservationSnapshot()
+        var preSnapshot = snapshotProvider() ?: ObservationSnapshot()
 
         // Package Safety Check: Reject LocalAgent-owned targets when external app action is required
         if (requireExternalContext && !service.isValidExternalApplicationPackage(preSnapshot.packageName)) {
@@ -92,6 +92,31 @@ class UiActionExecutor(
                 reason = "Target package '${preSnapshot.packageName}' belongs to LocalAgent itself. UI actions require a valid external application context."
             )
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+        }
+
+        // Expected Package Window Await & Generation Verification Step
+        val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
+        if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {
+            val verifier = com.localagent.app.system.LaunchVerifier { service }
+            val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
+            val freshSnap = verifier.awaitUsableWindowAndSnapshot(
+                targetPackageName = expectedPkg,
+                minGeneration = minGen,
+                timeoutMs = 5000L,
+                settleDelayMs = 150L
+            )
+
+            if (freshSnap != null) {
+                preSnapshot = freshSnap
+            } else if (request.expectedPackageName != null) {
+                // Explicit target package requested but usable interactive window was not observed before timeout
+                val verResult = VerificationResult(
+                    status = VerificationStatus.EXECUTION_FAILED,
+                    resultCode = ResultCode.TIMEOUT,
+                    reason = "Target window timeout waiting for usable interactive window and root node for package '$expectedPkg'"
+                )
+                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+            }
         }
 
         val targetNodeId = request.targetNodeId

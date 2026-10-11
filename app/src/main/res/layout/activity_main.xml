@@ -58,12 +58,12 @@
             android:textSize="10sp" />
 
         <Button
-            android:id="@+id/btnOpenCurrentObservationScreen"
+            android:id="@+id/btnOpenObservationScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="4dp"
-            android:text="Current UI Observation"
+            android:text="UI Observation Screen"
             android:textSize="10sp" />
     </LinearLayout>
 
@@ -72,22 +72,22 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/btnOpenExternalObservationScreen"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="External App Observation"
-            android:textSize="10sp" />
 
         <Button
             android:id="@+id/btnOpenEvidenceScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
             android:text="Evidence Diagnostics"
+            android:textSize="10sp" />
+
+        <Button
+            android:id="@+id/btnOpenEventLogScreen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="Event Log"
             android:textSize="10sp" />
     </LinearLayout>
 
@@ -98,19 +98,10 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btnOpenEventLogScreen"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Event Log"
-            android:textSize="10sp" />
-
-        <Button
             android:id="@+id/btnOpenStorageDiagnosticsScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
             android:text="Storage &amp; Memory"
             android:textSize="10sp" />
     </LinearLayout>

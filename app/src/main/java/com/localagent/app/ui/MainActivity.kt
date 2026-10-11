@@ -57,12 +57,8 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, PermissionActivity::class.java))
         }
 
-        binding.btnOpenCurrentObservationScreen.setOnClickListener {
-            startActivity(Intent(this, CurrentObservationActivity::class.java))
-        }
-
-        binding.btnOpenExternalObservationScreen.setOnClickListener {
-            startActivity(Intent(this, ExternalObservationActivity::class.java))
+        binding.btnOpenObservationScreen.setOnClickListener {
+            startActivity(Intent(this, ObservationActivity::class.java))
         }
 
         binding.btnOpenEvidenceScreen.setOnClickListener {
@@ -284,11 +280,14 @@ class MainActivity : AppCompatActivity() {
                         is TargetSelector.ByCoordinates -> "coords:${selector.x},${selector.y}"
                         TargetSelector.None -> null
                     }
+                    val expectedPkg = activeService.lastExternalPackageName.takeIf { activeService.isValidExternalApplicationPackage(it) }
                     val request = com.localagent.core.action.ActionRequest(
                         actionType = coreActionType,
                         targetNodeId = targetIdStr,
                         targetNodeIdentity = command.parameters["targetIdentity"],
                         textInputPayload = command.parameters["text"],
+                        expectedPackageName = expectedPkg,
+                        preActionMinGeneration = activeService.snapshotGenerationCounter,
                         sourceChannel = command.source.name
                     )
                     val result = uiExecutor.execute(request)

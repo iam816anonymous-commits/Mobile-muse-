@@ -1,56 +1,123 @@
-# README.md — LocalAgent Repository Index & Architecture Overview
+# README.md — LocalAgent Architecture, Phase Roadmap & Command Reference
 
 ## Overview
 
-**LocalAgent** is a low-RAM, offline-first Android device agent capable of observing, reasoning about, and safely executing actions on Android devices. It prioritizes **deterministic automation first**, with optional AI learning, research, and planning layers sitting above it.
+**LocalAgent** is a low-RAM, offline-first Android device control agent capable of observing, reasoning about, and safely executing actions on Android applications. It prioritizes **deterministic accessibility automation first**, with AI learning, research, and planning layers sitting above the core execution pipeline.
 
-This repository is currently in **Phase 3.1 Completion** status. All Phase 0/0.9 specifications are frozen, Phase 1 domain core, Phase 2 persistent storage, and Phase 3.1 read-only accessibility observation foundation are implemented and verified.
-
----
-
-## Governance & Phase Alignment Rule
-
-All development and automated agent implementations in LocalAgent are governed by the **Permanent Phase Scope Governance Rule** defined in [`docs/PHASE_SCOPE_GOVERNANCE_RULE.md`](docs/PHASE_SCOPE_GOVERNANCE_RULE.md).
-
-Developers and AI agents MUST perform an explicit **Phase Alignment Check** before implementing any requirement, test, UI screen, or architectural change. Functionality from a future phase must NEVER be silently pulled forward or merged into the current phase without explicit project-owner approval.
+This repository implements **Phases 1 through 8** of the LocalAgent architecture baseline targeting compileSdk 34 and minSdk 27 (Android 8.1+).
 
 ---
 
-## Phase 0.9 & Phase Specification Document Index
+## Phase Roadmap & Implementation Overview (Phases 1 – 8)
 
-All architectural specifications, phase governance rules, and audit reports are indexed below:
+### Phase 1 — Core Domain Models & Command Core
+- **Domain Primitives**: Defines `NormalizedCommand`, `TargetSelector` (`ByViewId`, `ByText`, `ByContentDescription`, `ByNodeIdentityKey`, `ByCoordinates`), `ActionRequest`, `ActionExecutionResult`, and `VerificationResult`.
+- **Command Normalization**: `CommandNormalizer` parses raw command strings from all sources (Console, Overlay, Voice, Planners) into normalized command representations.
+- **Single Execution Pipeline**: All commands route through `GoalDispatcher` -> `CapabilityResolver` -> Action Executor, preventing competing execution engines.
 
-1. **`ARCHITECTURE.md`** — Core Architecture, Unified Pipeline & Directory Structure
-2. **`PHASE_PLAN.md`** — 23-Phase Implementation Roadmap & Phase Contracts (Phases 0 – 22)
-3. **`docs/PHASE_SCOPE_GOVERNANCE_RULE.md`** — Permanent Phase Scope Governance Rule & Alignment Checks
-4. **`CAPABILITY_MATRIX.md`** — Universal Capability Matrix & `CapabilityRule` Definitions
-5. **`PERMISSION_MATRIX.md`** — Security Classifications, Special Access & SAF Storage Protocol
-6. **`ACTION_CONTRACTS.md`** — Target-Aware Action Contracts & `VerificationStrategy` Protocol
-7. **`OBSERVATION_MODEL.md`** — Single-Root Observation Snapshot Generator & Composite Node Identity
-8. **`LOGGING_AND_AUDIT.md`** — Structured Event Logging & Unified `agent.db` WAL Storage Accounting
-9. **`LOW_RAM_DESIGN.md`** — Cross-Phase Low-RAM Architecture & Engineering Memory Targets
-10. **`MEMORY_AND_LEARNING.md`** — Memory Subsystem, `GoalState`, `TaskLifecycle` & `ExecutionLock`
-11. **`STT_TTS_ARCHITECTURE.md`** — Multilingual Speech Engine & `LanguageEngineStatus` Capabilities
-12. **`EXTERNAL_KNOWLEDGE_ARCHITECTURE.md`** — External Research, Chat Import & Prompt Injection Defenses
-13. **`HARDWARE_CAPABILITIES.md`** — Hardware Control Matrix & Risk Policy Integration
-14. **`TESTING_STRATEGY.md`** — 3-Level Testing Pyramid & Master Certification Framework
-15. **`RESEARCH_SOURCES.md`** — Research Sources & Architectural Inferences
-16. **`DEFINITION_OF_DONE.md`** — Multi-Tiered Definition of Done & Prohibitions
-17. **`RISKS_AND_LIMITATIONS.md`** — Architectural Risks & Platform Boundaries
-18. **`docs/PHASE_0_9_AUDIT.md`** — Phase 0.9 Audit & Readiness Report
-19. **`docs/PHASE_0_9_FINAL_AUDIT.md`** — Phase 0.9 Final Master Architecture Audit & Freeze Gate Report
-20. **`docs/PHASE_0_9_CONTRACT_AUDIT.md`** — Phase 0.9 Contract Audit & Freeze Gate Deliverables
-21. **`docs/CROSS_DOCUMENT_CONSISTENCY_MATRIX.md`** — Master Cross-Document Consistency Matrix
-22. **`docs/PHASE_1_COMPLETION_REPORT.md`** — Phase 1 Documentation & Evidence Package
-23. **`docs/PHASE_3_1_COMPLETION_REPORT.md`** — Phase 3.1 Implementation & Verification Report
+### Phase 2 — Storage Partitioning & Unified Event Logging
+- **Operational Storage (`agent.db`)**: SQLite database using Room ORM persisting transient audit events, task lifecycles, and resolution logs with sensitive data redaction and automated row-pruning caps (30 MB / 50,000 rows).
+- **Durable Memory Storage**: `DurableMemoryStorageManager` manages long-term agent memory via SAF/external storage (`/sdcard/LocalAgent/memory/`) with SHA-256 provenance checksums to survive app uninstalls.
+
+### Phase 3 — Accessibility Service Foundation & Lifecycle Monitoring
+- **`AgentAccessibilityService`**: Production accessibility service intercepting window state and UI content change events.
+- **`AccessibilityServiceConnectionMonitor`**: Monitors service connection states (`UNBOUND`, `CONNECTING`, `BOUND`, `DEGRADED`). Unbinding logs `PASSIVE_DEGRADATION_DETECTED` to `agent.db` without crashing or launching unauthorized Settings intents.
+
+### Phase 4 — Permission Manager & Centralized Permission Registry
+- **`PermissionManager`**: Central authority categorizing permissions into `REQUIRED_NOW` (Accessibility Service), `AVAILABLE_OPTIONAL_NOW` (Storage/SAF), and `FUTURE_PHASE` (non-requestable inventory-only permissions).
+- **`PermissionActivity`**: Dedicated permission management screen providing settings intents for requestable permissions while passively detailing future-phase degradation summaries.
+
+### Phase 5 — Read-Only UI Observation Engine
+- **`ObservationSnapshotExtractor`**: Extracts single-root observation hierarchies enforcing strict boundaries (`MAX_NODES = 500`, `MAX_DEPTH = 30`) with explicit truncation flags.
+- **Composite Identity Calculation**: `ObservationNode.computeIdentity()` generates deterministic identity strings (`id:<resId>_text:<text>`, `id:<resId>_idx:<childIndex>`, `cls:<class>_lbl:<label>_parent:<parent>`) with confidence ratings (`EXACT`, `HIGH`, `MEDIUM`, `LOW`, `EPHEMERAL`).
+- **Resource Cleanup**: Guarantees zero un-recycled `AccessibilityNodeInfo` leaks by recycling nodes in `finally` blocks.
+
+### Phase 6 — Multi-Strategy Target Resolution
+- **`TargetResolver`**: Resolves targets from `ObservationSnapshot` using a 5-priority strategy (Priority 1: exact internal `nodeId`, Priority 2: explicit `nodeIdentity` key, Priority 3: exact visible `text`, Priority 4: exact `contentDescription`, Priority 5: view ID resource match).
+- **`LiveTargetResolver`**: Re-acquires live `AccessibilityNodeInfo` references from interactive window root nodes, matching semantic properties and ascending to actionable parent containers when necessary.
+
+### Phase 7 — UI Action Execution Engine & Verification
+- **`UiActionExecutor`**: Dispatches framework accessibility actions (`ACTION_CLICK`, `ACTION_LONG_CLICK`, `ACTION_SET_TEXT`, `ACTION_SCROLL_FORWARD`, `ACTION_SCROLL_BACKWARD`) against Phase 6-resolved targets.
+- **Action Execution Fallbacks**: Implements parent container fallback for `UI_CLICK` (ascending to clickable parent nodes if child node `performAction` returns `false`) and input activation retries for `UI_TEXT_INPUT` (`ACTION_FOCUS`/`ACTION_CLICK` before retrying `ACTION_SET_TEXT`).
+- **Post-Action Verification**: `TargetAwareVerificationStrategy` enforces action settlement delays (`600ms` for clicks, `400ms` for text inputs, `800ms` for scrolls) before capturing post-action observation snapshots to verify UI state changes.
+
+### Phase 8 — Application Control Engine & Foreground-First Pipeline
+- **`AppResolver`**: Resolves application packages and labels via `PackageManager` (mapping queries like `"calculator"` -> `"com.transsion.calculator"` or `"com.android.calculator2"`).
+- **`AppLauncher`**: Launches target applications or brings existing instances to the foreground without unnecessary relaunching.
+- **`LaunchVerifier`**: Polls active accessibility foreground events (`activePackageName`) up to a 3000ms bounded timeout to confirm that the target application has become active.
+- **Foreground-First Pipeline Integration**: `UiActionExecutor` verifies and brings background target applications to the foreground before capturing fresh observations and resolving live targets.
 
 ---
 
-## Key Architecture Mandates
+## Command Reference & Syntax
 
-- **Primary Target Baseline:** Android 8.1 / API level 27 on low-RAM (1–2 GB RAM) hardware.
-- **Universal Pipeline:** Console, Movable Overlay, Voice, Workflows, Solvers, and AI Planners converge into a single `NormalizedCommand` -> `GoalDispatcher` execution path.
-- **No Fake Success:** Execution requires live node reacquisition, actionable ancestor traversal, and target-aware post-action UI observation diff verification.
-- **Single Device Execution Lock:** Only ONE foreground device-control transaction manipulates the Accessibility execution channel at a time.
-- **Unified Persistence:** Operational data, audit events, active tasks, and execution events are stored in SQLite database `agent.db`, whereas long-term memory is persisted via `DurableMemoryStorageManager` (`/sdcard/LocalAgent/memory/`) with SHA-256 checksums to survive uninstalls.
-- **Untrusted External Data Boundary:** Web pages, browser content, chat exports, and AI responses are strictly classified as `<untrusted_external_content>` data and MUST NEVER be converted directly into executable system commands without passing `ActionPolicyEngine` checks.
+All command entry channels (Console, Floating Overlay, Automated Scripts) support the following command syntax:
+
+| Command Syntax | Example Usage | Description & Pipeline Path |
+| :--- | :--- | :--- |
+| `launch <app>` | `launch calculator`, `launch settings` | Resolves app query via `AppResolver`, launches activity via `AppLauncher`, and verifies active package transition via `LaunchVerifier` within 3s timeout. |
+| `click <target>` | `click 7`, `click AC`, `click submit` | Verifies foreground app status, captures fresh observation, resolves semantic target node, re-acquires live target, dispatches click (with parent escalation fallback), and verifies post-action UI change. |
+| `long click <target>` | `long click card_item` | Executes a long click action on the resolved target node. |
+| `scroll down` / `scroll forward` | `scroll down` | Performs `ACTION_SCROLL_FORWARD` on scrollable container targets. |
+| `scroll up` / `scroll backward` | `scroll up` | Performs `ACTION_SCROLL_BACKWARD` on scrollable container targets. |
+| `back` | `back` | Dispatches system global BACK navigation action via `GlobalActionExecutor`. |
+| `home` | `home` | Dispatches system global HOME navigation action via `GlobalActionExecutor`. |
+| `recents` | `recents` | Dispatches system global RECENTS navigation action via `GlobalActionExecutor`. |
+| `observe` | `observe` | Captures and displays a fresh live accessibility snapshot tree. |
+| `status` | `status` | Displays Agent status, Accessibility Service connection state, and storage availability. |
+
+---
+
+## User Interface & Console Inspection Screens
+
+LocalAgent provides clean, dedicated screens for subsystem inspection and execution:
+
+1. **Unified UI Observation Screen (`ObservationActivity`)**:
+   - Single authoritative screen presenting the selected target application, foreground match status, window selection diagnostics, snapshot metadata, and structured accessible element hierarchy (`NodeTreeRenderer`).
+   - Includes Refresh (`btnObserveUi`), Clear Display (`btnClearObservation`), and A11y Settings controls.
+2. **Floating Command Console (`FloatingConsoleService`)**:
+   - Movable system overlay view (`TYPE_APPLICATION_OVERLAY`) rendering above external applications (such as Calculator).
+   - Features a draggable title bar, target package status label, single-line command input field, Execute button (with keyboard action support), Close button, and real-time execution status output.
+3. **Permission Center (`PermissionActivity`)**:
+   - Central authority for runtime permissions and Accessibility Settings launches.
+4. **Evidence Diagnostics (`EvidenceActivity`)**:
+   - Displays SHA-256 provenance hashes and structural node evidence for UI actions.
+5. **Pipeline Event Log (`EventLogActivity`)**:
+   - Displays historical pipeline audit events hydrated directly from `agent.db`.
+
+---
+
+## Build & Testing Verification
+
+The project includes a 3-level testing suite (JVM Unit Tests, Robolectric Component Tests, and Integration Tests) executed via Gradle:
+
+```bash
+# Execute unit test suites across all modules
+./gradlew test
+
+# Execute app module Debug unit tests
+./gradlew :app:testDebugUnitTest
+
+# Execute app module Release unit tests
+./gradlew :app:testReleaseUnitTest
+
+# Execute core module unit tests
+./gradlew :core:test
+
+# Run Android Lint analysis
+./gradlew lint
+
+# Assemble Debug and Release APKs
+./gradlew assembleDebug
+./gradlew assembleRelease
+```
+
+---
+
+## Physical Device Validation Gate (`P7-PHY-*`)
+
+Physical device validation specifications (`P7-PHY-001` through `P7-PHY-008`) evaluate hardware interaction against physical touchscreen devices. In automated sandbox and Robolectric test environments, all eight specifications are strictly recorded as:
+
+`PENDING PHYSICAL VALIDATION / NOT RUN`
+
+Phase 8 meets all software acceptance criteria and unit test requirements. Physical hardware validation remains pending until hardware test execution evidence is reviewed.
