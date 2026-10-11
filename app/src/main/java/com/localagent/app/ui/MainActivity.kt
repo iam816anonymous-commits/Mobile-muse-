@@ -316,7 +316,14 @@ class MainActivity : AppCompatActivity() {
                                 if (snapshot != null) {
                                     "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount}"
                                 } else {
-                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: Target window timeout waiting for package '$targetPkg'"
+                                    val verification = verifier.verifyForeground(targetPkg, timeoutMs = 100L)
+                                    val reasonStr = when (verification) {
+                                        is LaunchVerificationResult.Timeout -> verification.detailedReason
+                                        is LaunchVerificationResult.PackageMismatch -> "Expected package '$targetPkg' but actual foreground package was '${verification.actualPackageName}'"
+                                        is LaunchVerificationResult.AccessibilityUnavailable -> verification.reason
+                                        is LaunchVerificationResult.Success -> "Target window timeout waiting for snapshot publication of '$targetPkg'"
+                                    }
+                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: $reasonStr"
                                 }
                             }
                             is com.localagent.app.system.AppLaunchResult.LaunchFailed -> {
