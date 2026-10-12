@@ -21,7 +21,8 @@ import java.util.UUID
 
 enum class ObservationViewMode {
     LIVE_SCREEN,
-    LAST_EXTERNAL
+    LAST_EXTERNAL,
+    ACTION_PAIR
 }
 
 class ObservationActivity : AppCompatActivity() {
@@ -69,6 +70,12 @@ class ObservationActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnViewLiveScreen.setOnClickListener {
             selectedViewMode = ObservationViewMode.LIVE_SCREEN
+            isDisplayCleared = false
+            updateObservationUi()
+        }
+
+        binding.btnViewActionPair.setOnClickListener {
+            selectedViewMode = ObservationViewMode.ACTION_PAIR
             isDisplayCleared = false
             updateObservationUi()
         }
@@ -137,6 +144,35 @@ class ObservationActivity : AppCompatActivity() {
         if (isDisplayCleared) {
             binding.tvSnapshotMeta.text = "Package: None | Nodes: 0 | Depth: 0 | Truncated: false | Timestamp: None"
             binding.tvNodeTree.text = "Observation display cleared."
+            return
+        }
+
+        if (selectedViewMode == ObservationViewMode.ACTION_PAIR) {
+            binding.tvSnapshotHeader.text = "VIEW C: ACTION COMPARISON PAIR (PRE vs POST):"
+            val actionRes = service?.lastActionExecutionResult
+            if (actionRes != null) {
+                val preSnap = actionRes.preSnapshot
+                val postSnap = actionRes.postSnapshot
+                val verRes = actionRes.verificationResult
+                val preGen = preSnap?.generation ?: 0L
+                val postGen = postSnap?.generation ?: 0L
+                binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Pre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"}) | Result: ${verRes.resultCode}"
+
+                val sb = StringBuilder()
+                sb.append("Action: ${actionRes.request.actionType} | Target: ${actionRes.request.targetNodeId ?: actionRes.request.targetNodeIdentity ?: "None"}\n")
+                sb.append("Status: ${verRes.status} (${verRes.resultCode})\n")
+                sb.append("Reason: ${verRes.reason ?: "Executed"}\n\n")
+
+                sb.append("--- PRE-ACTION SNAPSHOT (Gen $preGen) ---\n")
+                sb.append(if (preSnap != null) NodeTreeRenderer.renderSnapshotTree(preSnap) else "None")
+                sb.append("\n\n--- POST-ACTION SNAPSHOT (Gen $postGen) ---\n")
+                sb.append(if (postSnap != null) NodeTreeRenderer.renderSnapshotTree(postSnap) else "None")
+
+                binding.tvNodeTree.text = sb.toString()
+            } else {
+                binding.tvSnapshotMeta.text = "Exec ID: None | Status: NO_ACTIONS_EXECUTED"
+                binding.tvNodeTree.text = "No UI actions executed yet. Execute an action from the Command Console to view pre/post comparison."
+            }
             return
         }
 

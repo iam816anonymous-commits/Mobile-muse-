@@ -111,6 +111,9 @@ class AgentAccessibilityService : AccessibilityService() {
         }
 
     @Volatile
+    var lastActionExecutionResult: com.localagent.core.action.ActionExecutionResult? = null
+
+    @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
         private set
 

@@ -35,17 +35,26 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="View A: Live Screen"
-            android:textSize="10sp" />
+            android:text="View A: Live"
+            android:textSize="9sp" />
 
         <Button
             android:id="@+id/btnViewExternalScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="View B: Last External App"
-            android:textSize="10sp" />
+            android:layout_marginStart="2dp"
+            android:text="View B: External"
+            android:textSize="9sp" />
+
+        <Button
+            android:id="@+id/btnViewActionPair"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="2dp"
+            android:text="View C: Action Pair"
+            android:textSize="9sp" />
     </LinearLayout>
 
     <LinearLayout

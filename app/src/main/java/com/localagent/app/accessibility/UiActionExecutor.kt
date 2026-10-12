@@ -316,6 +316,7 @@ class UiActionExecutor(
         )
 
         logActionEvidence(result)
+        (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.lastActionExecutionResult = result
         return result
     }
 
