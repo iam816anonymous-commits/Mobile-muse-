@@ -180,8 +180,8 @@ class AgentAccessibilityService : AccessibilityService() {
         )
     }
 
-    @Volatile
-    var snapshotGenerationCounter: Long = 0L
+    val snapshotGenerationCounter: Long
+        get() = generationCounter.get()
 
     @Volatile
     private var lastObservationRefreshTime: Long = 0L
@@ -213,6 +213,9 @@ class AgentAccessibilityService : AccessibilityService() {
             return
         }
 
+        val isWindowTransitionEvent = event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+
         // Evaluate external application windows on window state, window list, content, or scroll changes
         val isRelevantEvent = when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
@@ -226,7 +229,8 @@ class AgentAccessibilityService : AccessibilityService() {
         }
 
         val now = System.currentTimeMillis()
-        if (isRelevantEvent && isValidExternalApplicationPackage(pkg) && (now - lastObservationRefreshTime >= 150L)) {
+        val shouldEvaluate = isWindowTransitionEvent || (isRelevantEvent && isValidExternalApplicationPackage(pkg))
+        if (shouldEvaluate && (now - lastObservationRefreshTime >= 150L)) {
             lastObservationRefreshTime = now
             evaluateExternalApplicationWindows()
         }
@@ -270,7 +274,7 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     @Suppress("DEPRECATION")
-    open fun captureLiveSnapshot(): ObservationSnapshot {
+    open fun captureLiveSnapshot(targetPackageName: String? = null): ObservationSnapshot {
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
 
@@ -346,16 +350,26 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         } else if (externalObservationState == ObservationEngineState.OBSERVING) {
             // Primary is LocalAgent or System UI: inspect valid external window candidates
-            val bestExternal = selectBestExternalWindow(
+            var bestExternal = selectBestExternalWindow(
                 candidates = windowCandidates,
                 activeSessionId = activeSessionId,
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
-            if (bestExternal != null && bestExternal.node != null && !recycledNodes.contains(bestExternal.node)) {
+
+            // If an explicit targetPackageName was requested, prefer a candidate matching targetPackageName
+            if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+                if (targetMatch != null) {
+                    bestExternal = targetMatch
+                }
+            }
+
+            val extNode = bestExternal?.node
+            if (bestExternal != null && extNode != null && !recycledNodes.contains(extNode)) {
                 try {
                     val extPkg = bestExternal.candidate.packageName
                     val extSnap = extractor.extractSnapshot(
-                        rootNodeInfo = bestExternal.node,
+                        rootNodeInfo = extNode,
                         packageName = extPkg,
                         activityName = lastExternalActivityName,
                         windowId = bestExternal.candidate.windowId
@@ -366,8 +380,28 @@ class AgentAccessibilityService : AccessibilityService() {
                     lastExternalObservationTimestamp = System.currentTimeMillis()
                     lastExternalObservationSnapshot = extSnap
                 } finally {
-                    bestExternal.node.recycle()
-                    recycledNodes.add(bestExternal.node)
+                    extNode.recycle()
+                    recycledNodes.add(extNode)
+                }
+            } else if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+                // Fallback: Use live root node seam to capture explicit target external snapshot
+                val fallbackRoot = getLiveExternalRootNode(targetPackageName)
+                if (fallbackRoot != null) {
+                    try {
+                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPackageName
+                        val extSnap = extractor.extractSnapshot(
+                            rootNodeInfo = fallbackRoot,
+                            packageName = fallbackPkg,
+                            activityName = lastExternalActivityName,
+                            windowId = fallbackRoot.windowId
+                        ).copy(generation = currentGen)
+                        lastExternalPackageName = fallbackPkg
+                        lastExternalWindowId = fallbackRoot.windowId
+                        lastExternalObservationTimestamp = System.currentTimeMillis()
+                        lastExternalObservationSnapshot = extSnap
+                    } finally {
+                        fallbackRoot.recycle()
+                    }
                 }
             }
         }
@@ -465,7 +499,7 @@ class AgentAccessibilityService : AccessibilityService() {
                             packageName = extPkg,
                             activityName = lastExternalActivityName,
                             windowId = bestExternal.candidate.windowId
-                        ).copy(generation = ++snapshotGenerationCounter)
+                        ).copy(generation = generationCounter.incrementAndGet())
                         lastExternalPackageName = extPkg
                         lastExternalWindowId = bestExternal.candidate.windowId
                         lastExternalWindowType = bestExternal.candidate.windowType
@@ -596,16 +630,19 @@ class AgentAccessibilityService : AccessibilityService() {
                 if (interactiveWindows != null) {
                     for (window in interactiveWindows) {
                         val root = window.root
-                        val pkg = root?.packageName?.toString() ?: ""
-                        val type = window.type
-                        val active = window.isActive
-                        val focused = window.isFocused
-                        val score = calculateWindowScore(type, pkg, active, focused)
                         val obtainedNode = if (root != null) {
                             val copy = AccessibilityNodeInfo.obtain(root)
                             root.recycle()
                             copy
                         } else null
+                        var pkg = root?.packageName?.toString() ?: ""
+                        if (pkg.isBlank() && obtainedNode != null) {
+                            pkg = obtainedNode.packageName?.toString() ?: ""
+                        }
+                        val type = window.type
+                        val active = window.isActive
+                        val focused = window.isFocused
+                        val score = calculateWindowScore(type, pkg, active, focused)
 
                         list.add(
                             InternalCandidate(

@@ -209,7 +209,10 @@ class MainActivity : AppCompatActivity() {
                         executionResultText.contains("ACTION_FAILED") ||
                         executionResultText.contains("ACCESSIBILITY_UNAVAILABLE") ||
                         executionResultText.contains("TARGET_NOT_FOUND") ||
-                        executionResultText.contains("CAPABILITY_UNAVAILABLE")) {
+                        executionResultText.contains("CAPABILITY_UNAVAILABLE") ||
+                        executionResultText.contains("TARGET_STALE") ||
+                        executionResultText.contains("TARGET_NOT_ACTIONABLE") ||
+                        executionResultText.contains("DISPATCHED_BUT_NOT_VERIFIED")) {
                         sequenceHalted = true
                     }
                 }
@@ -287,7 +290,7 @@ class MainActivity : AppCompatActivity() {
                         targetNodeIdentity = command.parameters["targetIdentity"],
                         textInputPayload = command.parameters["text"],
                         expectedPackageName = expectedPkg,
-                        preActionMinGeneration = activeService.snapshotGenerationCounter,
+                        preActionMinGeneration = activeService.currentGeneration,
                         sourceChannel = command.source.name
                     )
                     val result = uiExecutor.execute(request)
@@ -304,7 +307,7 @@ class MainActivity : AppCompatActivity() {
                     is com.localagent.app.system.AppResolutionResult.Success -> {
                         val targetPkg = resolveRes.packageName
                         val launcher = com.localagent.app.system.AppLauncher(this)
-                        val preGen = service?.snapshotGenerationCounter ?: 0L
+                        val preGen = service?.currentGeneration ?: 0L
                         when (val launchRes = launcher.launchApp(targetPkg)) {
                             is com.localagent.app.system.AppLaunchResult.Dispatched,
                             is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
@@ -313,7 +316,14 @@ class MainActivity : AppCompatActivity() {
                                 if (snapshot != null) {
                                     "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount}"
                                 } else {
-                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: Target window timeout waiting for package '$targetPkg'"
+                                    val verification = verifier.verifyForeground(targetPkg, timeoutMs = 100L)
+                                    val reasonStr = when (verification) {
+                                        is LaunchVerificationResult.Timeout -> verification.detailedReason
+                                        is LaunchVerificationResult.PackageMismatch -> "Expected package '$targetPkg' but actual foreground package was '${verification.actualPackageName}'"
+                                        is LaunchVerificationResult.AccessibilityUnavailable -> verification.reason
+                                        is LaunchVerificationResult.Success -> "Target window timeout waiting for snapshot publication of '$targetPkg'"
+                                    }
+                                    "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.TIMEOUT} | Reason: $reasonStr"
                                 }
                             }
                             is com.localagent.app.system.AppLaunchResult.LaunchFailed -> {

@@ -3,6 +3,7 @@ package com.localagent.app.system
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.view.accessibility.AccessibilityNodeInfo
 import com.localagent.app.accessibility.AgentAccessibilityService
 
 sealed class AppResolutionResult {
@@ -19,7 +20,11 @@ sealed class AppLaunchResult {
 
 sealed class LaunchVerificationResult {
     data class Success(val packageName: String, val durationMs: Long) : LaunchVerificationResult()
-    data class Timeout(val targetPackageName: String, val currentForegroundPackage: String) : LaunchVerificationResult()
+    data class Timeout(
+        val targetPackageName: String,
+        val currentForegroundPackage: String,
+        val detailedReason: String = "Target window timeout waiting for package '$targetPackageName'"
+    ) : LaunchVerificationResult()
     data class AccessibilityUnavailable(val reason: String) : LaunchVerificationResult()
     data class PackageMismatch(val expectedPackageName: String, val actualPackageName: String) : LaunchVerificationResult()
 }
@@ -108,7 +113,10 @@ class AppLauncher(private val context: Context) {
 }
 
 class LaunchVerifier(
-    private val accessibilityServiceSupplier: () -> AgentAccessibilityService? = { AgentAccessibilityService.INSTANCE }
+    private val accessibilityServiceSupplier: () -> AgentAccessibilityService? = { AgentAccessibilityService.INSTANCE },
+    private val rootNodeProvider: (targetPackageName: String) -> AccessibilityNodeInfo? = { pkg ->
+        (accessibilityServiceSupplier() ?: AgentAccessibilityService.INSTANCE)?.getLiveExternalRootNode(pkg)
+    }
 ) {
 
     fun awaitUsableWindowAndSnapshot(
@@ -124,7 +132,7 @@ class LaunchVerifier(
         val pollIntervalMs = 100L
 
         while (System.currentTimeMillis() - startTime <= timeoutMs) {
-            val root = service.getLiveExternalRootNode(targetPackageName)
+            val root = rootNodeProvider(targetPackageName)
             if (root != null) {
                 // Verify matching package and usable non-null node
                 val rootPkg = root.packageName?.toString() ?: ""
@@ -141,12 +149,17 @@ class LaunchVerifier(
                     }
 
                     // Re-verify root availability after settling
-                    val settledRoot = service.getLiveExternalRootNode(targetPackageName)
+                    val settledRoot = rootNodeProvider(targetPackageName)
                     if (settledRoot != null) {
                         settledRoot.recycle()
-                        val freshSnapshot = service.captureLiveSnapshot()
-                        if (freshSnapshot.packageName == targetPackageName && freshSnapshot.generation > minGeneration && freshSnapshot.nodeCount > 0) {
-                            return freshSnapshot
+                        service.captureLiveSnapshot(targetPackageName)
+                        val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
+                        if (candidateSnapshot != null &&
+                            candidateSnapshot.packageName == targetPackageName &&
+                            candidateSnapshot.generation > minGeneration &&
+                            candidateSnapshot.nodeCount > 0
+                        ) {
+                            return candidateSnapshot
                         }
                     }
                 }
@@ -161,12 +174,17 @@ class LaunchVerifier(
         }
 
         // Final attempt
-        val finalRoot = service.getLiveExternalRootNode(targetPackageName)
+        val finalRoot = rootNodeProvider(targetPackageName)
         if (finalRoot != null) {
             finalRoot.recycle()
-            val freshSnapshot = service.captureLiveSnapshot()
-            if (freshSnapshot.packageName == targetPackageName && freshSnapshot.generation > minGeneration && freshSnapshot.nodeCount > 0) {
-                return freshSnapshot
+            service.captureLiveSnapshot(targetPackageName)
+            val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
+            if (candidateSnapshot != null &&
+                candidateSnapshot.packageName == targetPackageName &&
+                candidateSnapshot.generation > minGeneration &&
+                candidateSnapshot.nodeCount > 0
+            ) {
+                return candidateSnapshot
             }
         }
 

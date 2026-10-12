@@ -36,6 +36,34 @@ class ObservationActivityTest {
     }
 
     @Test
+    fun testViewModeTabsToggle() {
+        val controller = Robolectric.buildActivity(ObservationActivity::class.java).create().start().resume()
+        val activity = controller.get()
+
+        val btnLive = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnViewLiveScreen)
+        val btnExt = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnViewExternalScreen)
+        val header = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvSnapshotHeader)
+
+        btnExt.performClick()
+        assertTrue(header.text.toString().contains("VIEW B: LAST EXTERNAL SCREEN"))
+
+        btnLive.performClick()
+        assertTrue(header.text.toString().contains("VIEW A: LIVE SCREEN NODES"))
+    }
+
+    @Test
+    fun testViewBShowsExplicitEmptyStateWhenNoExternalSnapshot() {
+        val controller = Robolectric.buildActivity(ObservationActivity::class.java).create().start().resume()
+        val activity = controller.get()
+
+        val btnExt = activity.findViewById<android.widget.Button>(com.localagent.app.R.id.btnViewExternalScreen)
+        val treeView = activity.findViewById<android.widget.TextView>(com.localagent.app.R.id.tvNodeTree)
+
+        btnExt.performClick()
+        assertTrue(treeView.text.toString().contains("No external application observation captured yet"))
+    }
+
+    @Test
     fun testNodeTreeRenderingFormatting() {
         val childNode = ObservationNode(
             nodeId = "node_1",

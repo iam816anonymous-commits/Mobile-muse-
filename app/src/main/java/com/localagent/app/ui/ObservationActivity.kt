@@ -19,10 +19,16 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+enum class ObservationViewMode {
+    LIVE_SCREEN,
+    LAST_EXTERNAL
+}
+
 class ObservationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityObservationBinding
     private var isDisplayCleared: Boolean = false
+    private var selectedViewMode: ObservationViewMode = ObservationViewMode.LIVE_SCREEN
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +67,18 @@ class ObservationActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        binding.btnViewLiveScreen.setOnClickListener {
+            selectedViewMode = ObservationViewMode.LIVE_SCREEN
+            isDisplayCleared = false
+            updateObservationUi()
+        }
+
+        binding.btnViewExternalScreen.setOnClickListener {
+            selectedViewMode = ObservationViewMode.LAST_EXTERNAL
+            isDisplayCleared = false
+            updateObservationUi()
+        }
+
         binding.btnOpenAccessibilitySettings.setOnClickListener {
             try {
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
@@ -122,8 +140,14 @@ class ObservationActivity : AppCompatActivity() {
             return
         }
 
-        // Authoritative external observation snapshot
-        val snap = service?.getSnapshotForContext(isExternal = true) ?: service?.currentObservationSnapshot
+        val snap = if (selectedViewMode == ObservationViewMode.LIVE_SCREEN) {
+            service?.currentObservationSnapshot ?: service?.captureLiveSnapshot()
+        } else {
+            service?.lastExternalObservationSnapshot
+        }
+
+        val modeTitle = if (selectedViewMode == ObservationViewMode.LIVE_SCREEN) "VIEW A: LIVE SCREEN NODES" else "VIEW B: LAST EXTERNAL SCREEN"
+        binding.tvSnapshotHeader.text = "$modeTitle:"
 
         if (snap != null) {
             val dateStr = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date(snap.timestamp))
@@ -131,7 +155,11 @@ class ObservationActivity : AppCompatActivity() {
             binding.tvNodeTree.text = NodeTreeRenderer.renderSnapshotTree(snap)
         } else {
             binding.tvSnapshotMeta.text = "Gen: 0 | Package: None | Nodes: 0 | Depth: 0 | Truncated: false | Timestamp: None"
-            binding.tvNodeTree.text = if (a11yBound) "No observation captured yet. Tap Refresh Observation." else "Accessibility Service unbound. Open A11y Settings to enable service."
+            if (selectedViewMode == ObservationViewMode.LAST_EXTERNAL) {
+                binding.tvNodeTree.text = "No external application observation captured yet. Launch an external app (e.g. Calculator) to capture."
+            } else {
+                binding.tvNodeTree.text = if (a11yBound) "No live observation captured yet. Tap Refresh Capture." else "Accessibility Service unbound. Open A11y Settings to enable service."
+            }
         }
     }
 
