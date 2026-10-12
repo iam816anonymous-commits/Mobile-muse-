@@ -274,7 +274,26 @@ class UiActionExecutor(
 
         // 4. Capture Post-Action Snapshot
         service?.captureLiveSnapshot()
-        val postSnapshot = snapshotProvider() ?: ObservationSnapshot()
+        var postSnapshot = snapshotProvider() ?: ObservationSnapshot()
+
+        // Bounded polling for fresh post-action snapshot if generation hasn't advanced or package transition occurred
+        if (service != null && (postSnapshot.generation <= preSnapshot.generation || postSnapshot == preSnapshot)) {
+            val pollStart = System.currentTimeMillis()
+            while (System.currentTimeMillis() - pollStart < 1000L) {
+                try {
+                    Thread.sleep(150L)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    break
+                }
+                service.captureLiveSnapshot()
+                val candidatePost = snapshotProvider()
+                if (candidatePost != null && (candidatePost.generation > preSnapshot.generation || candidatePost.packageName != preSnapshot.packageName)) {
+                    postSnapshot = candidatePost
+                    break
+                }
+            }
+        }
 
         // 5. Verify Target-Aware Result
         val verification = if (!dispatchSuccess) {

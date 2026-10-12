@@ -370,18 +370,20 @@ class AgentAccessibilityService : AccessibilityService() {
             val extNode = bestExternal?.node
             if (bestExternal != null && extNode != null && !recycledNodes.contains(extNode)) {
                 try {
-                    val extPkg = bestExternal.candidate.packageName
-                    val extSnap = extractor.extractSnapshot(
-                        rootNodeInfo = extNode,
-                        packageName = extPkg,
-                        activityName = lastExternalActivityName,
-                        windowId = bestExternal.candidate.windowId
-                    ).copy(generation = currentGen)
-                    lastExternalPackageName = extPkg
-                    lastExternalWindowId = bestExternal.candidate.windowId
-                    lastExternalWindowType = bestExternal.candidate.windowType
-                    lastExternalObservationTimestamp = System.currentTimeMillis()
-                    lastExternalObservationSnapshot = extSnap
+                    val extPkg = bestExternal.candidate.packageName.ifBlank { extNode.packageName?.toString() ?: activePackageName }
+                    if (isValidExternalApplicationPackage(extPkg)) {
+                        val extSnap = extractor.extractSnapshot(
+                            rootNodeInfo = extNode,
+                            packageName = extPkg,
+                            activityName = lastExternalActivityName,
+                            windowId = bestExternal.candidate.windowId
+                        ).copy(generation = currentGen)
+                        lastExternalPackageName = extPkg
+                        lastExternalWindowId = bestExternal.candidate.windowId
+                        lastExternalWindowType = bestExternal.candidate.windowType
+                        lastExternalObservationTimestamp = System.currentTimeMillis()
+                        lastExternalObservationSnapshot = extSnap
+                    }
                 } finally {
                     extNode.recycle()
                     recycledNodes.add(extNode)

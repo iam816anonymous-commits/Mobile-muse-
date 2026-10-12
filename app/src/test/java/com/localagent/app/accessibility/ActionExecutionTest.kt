@@ -77,6 +77,76 @@ class ActionExecutionTest {
     }
 
     @Test
+    fun `P7-ACTION-004-PACKAGE-TRANSITION - UI_CLICK across package boundary records distinct pre and post snapshots`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon_text:Camera",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val preLauncherSnap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode,
+            generation = 10L
+        )
+
+        val cameraNode = ObservationNode(
+            nodeId = "shutter_button",
+            className = "android.widget.ImageView",
+            resourceId = "com.transsion.camera:id/shutter",
+            clickable = true,
+            nodeIdentity = "id:shutter",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val postCameraSnap = ObservationSnapshot(
+            packageName = "com.transsion.camera",
+            nodeCount = 1,
+            rootNode = cameraNode,
+            generation = 11L
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "com.transsion.hilauncher:id/camera_icon",
+                    text = "Camera"
+                )
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preLauncherSnap else postCameraSnap
+            }
+        )
+
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals(ActionType.UI_CLICK, result.request.actionType)
+        assertEquals("com.transsion.hilauncher", result.preSnapshot?.packageName)
+        assertEquals("com.transsion.camera", result.postSnapshot?.packageName)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
+        assertNotNull(service.lastActionExecutionResult)
+        assertEquals(result.executionId, service.lastActionExecutionResult?.executionId)
+    }
+
+    @Test
     fun `P7-ACTION-004 - UI_CLICK contract execution against live re-acquired target`() {
         val obsNode = ObservationNode(
             nodeId = "submit",
