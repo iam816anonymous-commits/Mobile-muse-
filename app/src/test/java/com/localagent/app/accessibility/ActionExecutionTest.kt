@@ -442,6 +442,55 @@ class ActionExecutionTest {
     // --- GROUP C: P7-SAFE Zero-Action Safety Invariant Tests ---
 
     @Test
+    fun `P7-SAFE-000-BLOCKING-OVERLAY - Blocking system overlay window prevents click dispatch`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon_text:Camera"
+        )
+        val snap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode
+        )
+
+        val windowDiagnostics = ObservationWindowDiagnostics(
+            availableWindows = listOf(
+                WindowCandidateInfo(
+                    windowId = 99,
+                    windowType = android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM,
+                    windowTypeName = "TYPE_SYSTEM",
+                    packageName = "com.android.systemui",
+                    isActive = true,
+                    isFocused = true,
+                    score = 90
+                )
+            )
+        )
+        service.latestDiagnostics = windowDiagnostics
+
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { null },
+            snapshotProvider = { snap }
+        )
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertFalse(result.dispatchSuccess)
+        assertEquals(VerificationStatus.EXECUTION_FAILED, result.verificationResult.status)
+        assertTrue(result.verificationResult.reason?.contains("blocking system dialog or overlay") == true)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
+    }
+
+    @Test
     fun `P7-SAFE-001 - Stale target yields zero framework action dispatch`() {
         val uiExecutor = UiActionExecutor(
             accessibilityService = service,

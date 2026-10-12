@@ -94,6 +94,22 @@ class UiActionExecutor(
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
         }
 
+        // Blocking Overlay / Modal Dialog Window Detection
+        val activeWindowCandidate = service.latestDiagnostics.availableWindows.firstOrNull { it.isActive && it.isFocused }
+        if (activeWindowCandidate != null &&
+            activeWindowCandidate.windowType == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
+            activeWindowCandidate.packageName.isNotBlank() &&
+            activeWindowCandidate.packageName != preSnapshot.packageName &&
+            activeWindowCandidate.packageName != "com.localagent.app"
+        ) {
+            val verResult = VerificationResult(
+                status = VerificationStatus.EXECUTION_FAILED,
+                resultCode = ResultCode.ACTION_FAILED,
+                reason = "CLICK NOT EXECUTED: A blocking system dialog or overlay ('${activeWindowCandidate.packageName}') changed the actionable window. The target '${request.targetNodeId ?: request.targetNodeIdentity}' could not be safely resolved in the live UI."
+            )
+            return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+        }
+
         // Expected Package Window Await & Generation Verification Step
         val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
         if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {

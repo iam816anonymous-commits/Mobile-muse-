@@ -131,7 +131,7 @@ class AgentAccessibilityService : AccessibilityService() {
 
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
-        private set
+        set
 
     @Volatile
     var externalObservationState: ObservationEngineState = ObservationEngineState.OBSERVING

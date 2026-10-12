@@ -44,6 +44,19 @@ class TargetAwareVerificationStrategy(
 
         val diffResult = diffEngine.computeDiff(preSnapshot, postSnapshot)
 
+        val packageChanged = preSnapshot.packageName.isNotBlank() &&
+                postSnapshot.packageName.isNotBlank() &&
+                preSnapshot.packageName != postSnapshot.packageName
+
+        if (packageChanged) {
+            return VerificationResult(
+                status = VerificationStatus.EXECUTED_AND_VERIFIED,
+                resultCode = ResultCode.SUCCESS_VERIFIED,
+                reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'",
+                diffResult = diffResult
+            )
+        }
+
         // Rule 1: Identical pre/post snapshots (no changes)
         if (!diffResult.hasChanges) {
             return VerificationResult(
