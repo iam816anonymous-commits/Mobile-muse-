@@ -80,8 +80,9 @@ class AgentAccessibilityServiceTest {
 
         assertFalse(service.isValidExternalApplicationPackage("com.localagent.app"))
         assertFalse(service.isValidExternalApplicationPackage("com.android.systemui"))
-        assertFalse(service.isValidExternalApplicationPackage("com.google.android.apps.nexuslauncher"))
-        assertFalse(service.isValidExternalApplicationPackage("com.android.launcher3"))
+        assertTrue(service.isValidExternalApplicationPackage("com.google.android.apps.nexuslauncher"))
+        assertTrue(service.isValidExternalApplicationPackage("com.android.launcher3"))
+        assertTrue(service.isValidExternalApplicationPackage("com.transsion.hilauncher"))
         assertFalse(service.isValidExternalApplicationPackage(""))
     }
 
@@ -175,14 +176,14 @@ class AgentAccessibilityServiceTest {
             Int::class.java, Int::class.java, String::class.java, String::class.java, Boolean::class.java, Boolean::class.java, Int::class.java
         ).newInstance(1, AccessibilityWindowInfo.TYPE_SYSTEM, "TYPE_SYSTEM", "com.android.systemui", true, true, 50)
 
-        val launcherInfo = candidateInfoClass.getConstructor(
+        val localAgentInfo = candidateInfoClass.getConstructor(
             Int::class.java, Int::class.java, String::class.java, String::class.java, Boolean::class.java, Boolean::class.java, Int::class.java
-        ).newInstance(2, AccessibilityWindowInfo.TYPE_APPLICATION, "TYPE_APPLICATION", "com.android.launcher3", true, true, 60)
+        ).newInstance(2, AccessibilityWindowInfo.TYPE_APPLICATION, "TYPE_APPLICATION", "com.localagent.app", true, true, 60)
 
         val sysUiCand = internalCandidateClass.getConstructor(candidateInfoClass, android.view.accessibility.AccessibilityNodeInfo::class.java).newInstance(sysUiInfo, null)
-        val launcherCand = internalCandidateClass.getConstructor(candidateInfoClass, android.view.accessibility.AccessibilityNodeInfo::class.java).newInstance(launcherInfo, null)
+        val localAgentCand = internalCandidateClass.getConstructor(candidateInfoClass, android.view.accessibility.AccessibilityNodeInfo::class.java).newInstance(localAgentInfo, null)
 
-        val candidateList = listOf(sysUiCand, launcherCand, sysUiCand)
+        val candidateList = listOf(sysUiCand, localAgentCand, sysUiCand)
         val rejectedSet = mutableSetOf<String>()
 
         val activeSessionId = app.eventLogger.getActiveSession().sessionId
@@ -198,11 +199,11 @@ class AgentAccessibilityServiceTest {
         val rejectionsLogged = eventsAfter.filter { it.eventType == "OBSERVATION_EXTERNAL_CANDIDATE_REJECTED" }
         val newRejectionsCount = rejectionsLogged.size - countBefore
 
-        // Test B: SystemUI and Launcher logged independently (2 distinct events for 2 distinct invalid packages)
+        // Test B: SystemUI and LocalAgent logged independently (2 distinct events for 2 distinct invalid packages)
         assertEquals(2, newRejectionsCount)
         val recentRejections = rejectionsLogged.take(newRejectionsCount) // newest events first
         assertTrue(recentRejections.any { it.metadataJson.contains("com.android.systemui") })
-        assertTrue(recentRejections.any { it.metadataJson.contains("com.android.launcher3") })
+        assertTrue(recentRejections.any { it.metadataJson.contains("com.localagent.app") })
     }
 
     @Test

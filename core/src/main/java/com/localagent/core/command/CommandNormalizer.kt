@@ -165,20 +165,20 @@ class CommandNormalizer {
                 }
             }
 
-            // Scrolling
-            lower == "scroll down" || lower == "scroll forward" -> CommandParseResult.Success(
+            // Scrolling / Swiping
+            lower == "scroll down" || lower == "scroll forward" || lower == "swipe up" || lower == "swipe forward" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
                     actionType = ActionType.UI_SCROLL_FORWARD
                 )
             )
-            lower == "scroll up" || lower == "scroll backward" -> CommandParseResult.Success(
+            lower == "scroll up" || lower == "scroll backward" || lower == "swipe down" || lower == "swipe backward" -> CommandParseResult.Success(
                 NormalizedCommand(
                     source = source,
                     actionType = ActionType.UI_SCROLL_BACKWARD
                 )
             )
-            lower == "scroll" -> CommandParseResult.UnknownCommand(trimmed, "Scroll command requires a direction parameter (e.g. scroll up, scroll down)")
+            lower == "scroll" || lower == "swipe" -> CommandParseResult.UnknownCommand(trimmed, "Scroll/Swipe command requires a direction parameter (e.g. scroll up, scroll down, swipe up, swipe down)")
 
             // Observation & System Status
             lower == "observe" || lower == "observe current" || lower == "test observe" -> CommandParseResult.Success(

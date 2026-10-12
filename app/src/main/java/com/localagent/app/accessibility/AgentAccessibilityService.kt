@@ -603,7 +603,6 @@ class AgentAccessibilityService : AccessibilityService() {
         if (pkg.isBlank()) return false
         if (pkg == "com.localagent.app") return false
         if (pkg == "com.android.systemui") return false
-        if (pkg.endsWith(".launcher") || pkg.endsWith(".launcher3") || pkg == "com.google.android.apps.nexuslauncher" || pkg == "com.android.launcher3") return false
         return true
     }
 
@@ -709,7 +708,7 @@ class AgentAccessibilityService : AccessibilityService() {
             val pkg = item.candidate.packageName
             if (isValidExternalApplicationPackage(pkg)) {
                 validCandidates.add(item)
-            } else if (pkg.isNotBlank() && pkg != "com.localagent.app") {
+            } else if (pkg.isNotBlank()) {
                 val reason = getCandidateRejectionReason(pkg)
                 if (rejectedPackagesInRequest.add(pkg)) {
                     app?.eventLogger?.logEvent(

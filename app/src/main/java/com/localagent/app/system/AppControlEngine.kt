@@ -55,6 +55,7 @@ class AppResolver(private val context: Context) {
         val knownAlias = when (trimmed.lowercase()) {
             "calculator", "calc" -> listOf("com.transsion.calculator", "com.android.calculator2", "com.google.android.calculator")
             "settings" -> listOf("com.android.settings")
+            "hilauncher", "launcher", "home launcher", "home" -> listOf("com.transsion.hilauncher", "com.transsion.hilauncher.v2", "com.transsion.hilauncher3", "com.google.android.apps.nexuslauncher", "com.android.launcher3")
             else -> emptyList()
         }
 
@@ -68,6 +69,14 @@ class AppResolver(private val context: Context) {
                     pkg
                 }
                 return AppResolutionResult.Success(pkg, appLabel)
+            }
+            // Check if package exists as a Home / Launcher Activity
+            try {
+                val appInfo = pm.getApplicationInfo(pkg, 0)
+                val appLabel = pm.getApplicationLabel(appInfo).toString()
+                return AppResolutionResult.Success(pkg, appLabel)
+            } catch (_: Exception) {
+                // Package not installed, check next alias
             }
         }
 
@@ -98,8 +107,23 @@ class AppLauncher(private val context: Context) {
         }
 
         val pm = context.packageManager
-        val launchIntent = pm.getLaunchIntentForPackage(packageName)
-            ?: return AppLaunchResult.LaunchFailed(packageName, "No launch intent found for package '$packageName'")
+        var launchIntent = pm.getLaunchIntentForPackage(packageName)
+
+        if (launchIntent == null) {
+            // Check if this package is a Launcher / Home package
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                setPackage(packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            }
+            if (pm.queryIntentActivities(homeIntent, 0).isNotEmpty()) {
+                launchIntent = homeIntent
+            }
+        }
+
+        if (launchIntent == null) {
+            return AppLaunchResult.LaunchFailed(packageName, "No launch intent found for package '$packageName'")
+        }
 
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
