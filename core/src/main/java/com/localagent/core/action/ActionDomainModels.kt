@@ -19,6 +19,20 @@ enum class ActionType {
     UI_SCROLL_BACKWARD
 }
 
+enum class ActionObservationPolicy {
+    POST_STATE_ONLY,
+    PRE_AND_POST,
+    TARGET_VERIFICATION,
+    UNVERIFIED
+}
+
+val ActionType.defaultObservationPolicy: ActionObservationPolicy
+    get() = when (this) {
+        ActionType.GLOBAL_HOME -> ActionObservationPolicy.POST_STATE_ONLY
+        ActionType.GLOBAL_BACK, ActionType.GLOBAL_RECENTS -> ActionObservationPolicy.PRE_AND_POST
+        ActionType.UI_CLICK, ActionType.UI_LONG_CLICK, ActionType.UI_TEXT_INPUT, ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> ActionObservationPolicy.PRE_AND_POST
+    }
+
 enum class VerificationStatus {
     EXECUTED_AND_VERIFIED,
     EXECUTED_BUT_NOT_VERIFIED,
