@@ -136,7 +136,7 @@ class ObservationActivity : AppCompatActivity() {
         val targetPkg = if (service?.isValidExternalApplicationPackage(lastExtPkg) == true) lastExtPkg else activePkg
         val isForegroundMatch = activePkg == targetPkg
 
-        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Target: $targetPkg | FgMatch: $isForegroundMatch"
+        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "BOUND" else "UNBOUND"} | Target App: $targetPkg | FgMatch: $isForegroundMatch [Foreground vs Target App Match]"
 
         val diag = service?.latestDiagnostics
         binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)
@@ -150,6 +150,8 @@ class ObservationActivity : AppCompatActivity() {
         if (selectedViewMode == ObservationViewMode.ACTION_PAIR) {
             binding.scrollSingleTree.visibility = android.view.View.GONE
             binding.layoutActionPairContainer.visibility = android.view.View.VISIBLE
+            binding.tvDiagnosticsHeader.visibility = android.view.View.GONE
+            binding.tvDiagnosticsContent.visibility = android.view.View.GONE
 
             binding.tvSnapshotHeader.text = "VIEW C: ACTION COMPARISON PAIR (PRE vs POST):"
             val actionRes = service?.lastActionExecutionResult
@@ -185,6 +187,8 @@ class ObservationActivity : AppCompatActivity() {
         // View A or View B: Single Tree layout
         binding.scrollSingleTree.visibility = android.view.View.VISIBLE
         binding.layoutActionPairContainer.visibility = android.view.View.GONE
+        binding.tvDiagnosticsHeader.visibility = android.view.View.VISIBLE
+        binding.tvDiagnosticsContent.visibility = android.view.View.VISIBLE
 
         val snap = if (selectedViewMode == ObservationViewMode.LIVE_SCREEN) {
             service?.currentObservationSnapshot ?: service?.captureLiveSnapshot()

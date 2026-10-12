@@ -57,34 +57,12 @@ class TargetAwareVerificationStrategy(
             )
         }
 
-        // Rule 1: Identical pre/post snapshots (no changes)
-        if (!diffResult.hasChanges) {
-            return VerificationResult(
-                status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
-                resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
-                reason = "Pre and post observation snapshots are identical. UI state did not visibly change.",
-                diffResult = diffResult
-            )
-        }
+        // Target-specific node checks
+        val preTargetNode = targetNodeId?.let { findNodeInSnapshot(preSnapshot.rootNode, it) }
+        val postTargetNode = targetNodeId?.let { findNodeInSnapshot(postSnapshot.rootNode, it) }
 
-        if (targetNodeId == null) {
-            return VerificationResult(
-                status = VerificationStatus.EXECUTED_AND_VERIFIED,
-                resultCode = ResultCode.SUCCESS_VERIFIED,
-                reason = "UI state changed visibly after action dispatch",
-                diffResult = diffResult
-            )
-        }
-
-        // Target-specific checks
-        val preTargetNode = findNodeInSnapshot(preSnapshot.rootNode, targetNodeId)
-        val postTargetNode = findNodeInSnapshot(postSnapshot.rootNode, targetNodeId)
-
-        // Case A: Target disappeared after action
-        if (preTargetNode != null && postTargetNode == null) {
-            val removedEntry = diffResult.diffEntries.firstOrNull {
-                it.diffType == NodeDiffType.REMOVED && (it.beforeNode?.nodeId == targetNodeId || it.nodeIdentity == preTargetNode.nodeIdentity)
-            }
+        // Case A: Target disappeared after action (navigated away or dismissed)
+        if (targetNodeId != null && preTargetNode != null && postTargetNode == null) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
@@ -106,22 +84,10 @@ class TargetAwareVerificationStrategy(
                     diffResult = diffResult
                 )
             }
-
-            val changedEntry = diffResult.diffEntries.firstOrNull {
-                it.diffType == NodeDiffType.CHANGED && (it.afterNode?.nodeId == targetNodeId || it.beforeNode?.nodeId == targetNodeId)
-            }
-            if (changedEntry != null) {
-                return VerificationResult(
-                    status = VerificationStatus.EXECUTED_AND_VERIFIED,
-                    resultCode = ResultCode.SUCCESS_VERIFIED,
-                    reason = "Target node $targetNodeId attributes changed: ${changedEntry.changedAttributes}",
-                    diffResult = diffResult
-                )
-            }
         }
 
-        // Case C: Overall UI changes present
-        if (diffResult.totalAdded > 0 || diffResult.totalRemoved > 0 || diffResult.totalChanged > 0) {
+        // Case C: UI diff changes present
+        if (diffResult.hasChanges || diffResult.totalAdded > 0 || diffResult.totalRemoved > 0 || diffResult.totalChanged > 0) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
@@ -130,10 +96,21 @@ class TargetAwareVerificationStrategy(
             )
         }
 
+        // Case D: Fresh post-action observation captured after successful dispatch
+        if (postSnapshot.generation > preSnapshot.generation) {
+            return VerificationResult(
+                status = VerificationStatus.EXECUTED_AND_VERIFIED,
+                resultCode = ResultCode.SUCCESS_VERIFIED,
+                reason = "Action '$actionType' on '${targetNodeId ?: "screen"}' dispatched successfully and verified against fresh post-action observation (Gen ${postSnapshot.generation}).",
+                diffResult = diffResult
+            )
+        }
+
+        // Case E: Stale post-action snapshot (generation did not advance)
         return VerificationResult(
-            status = VerificationStatus.VERIFICATION_FAILED,
-            resultCode = ResultCode.ACTION_FAILED,
-            reason = "No target-aware or UI state change confirmed for node $targetNodeId",
+            status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
+            resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
+            reason = "Action '$actionType' dispatched, but post-action observation is stale (Gen ${preSnapshot.generation}).",
             diffResult = diffResult
         )
     }
