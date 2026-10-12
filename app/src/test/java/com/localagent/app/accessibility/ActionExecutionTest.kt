@@ -77,6 +77,79 @@ class ActionExecutionTest {
     }
 
     @Test
+    fun `P7-ACTION-MULTI-STEP-FRESHNESS - Multi-step execution guarantees post-action capture occurs post-dispatch with fresh generation`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon_text:Camera",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val preSnap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode,
+            generation = 100L,
+            timestamp = 1000L
+        )
+
+        val cameraNode = ObservationNode(
+            nodeId = "shutter",
+            className = "android.widget.ImageView",
+            resourceId = "com.transsion.camera:id/shutter",
+            clickable = true,
+            nodeIdentity = "id:shutter",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val postSnap = ObservationSnapshot(
+            packageName = "com.transsion.camera",
+            nodeCount = 1,
+            rootNode = cameraNode,
+            generation = 101L,
+            timestamp = 1500L
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "com.transsion.hilauncher:id/camera_icon",
+                    text = "Camera"
+                )
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
+        service.lastExternalObservationSnapshot = preSnap
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals(100L, result.preSnapshot?.generation)
+        assertEquals(101L, result.postSnapshot?.generation)
+        assertTrue(result.postSnapshot!!.generation > result.preSnapshot!!.generation)
+        assertEquals("com.transsion.hilauncher", result.preSnapshot?.packageName)
+        assertEquals("com.transsion.camera", result.postSnapshot?.packageName)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
+    }
+
+    @Test
     fun `P7-ACTION-004-PACKAGE-TRANSITION - UI_CLICK across package boundary records distinct pre and post snapshots`() {
         val launcherNode = ObservationNode(
             nodeId = "camera_icon",

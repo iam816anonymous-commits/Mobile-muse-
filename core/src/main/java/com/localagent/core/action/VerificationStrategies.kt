@@ -97,7 +97,7 @@ class TargetAwareVerificationStrategy(
         }
 
         // Case D: Fresh post-action observation captured after successful dispatch
-        if (postSnapshot.generation > preSnapshot.generation) {
+        if (postSnapshot.generation > preSnapshot.generation || postSnapshot.timestamp > preSnapshot.timestamp) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
@@ -106,11 +106,11 @@ class TargetAwareVerificationStrategy(
             )
         }
 
-        // Case E: Stale post-action snapshot (generation did not advance)
+        // Case E: Stale post-action snapshot (generation and timestamp did not advance)
         return VerificationResult(
             status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
             resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
-            reason = "Action '$actionType' dispatched, but post-action observation is stale (Gen ${preSnapshot.generation}).",
+            reason = "Action '$actionType' dispatched, but post-action observation is stale (Gen ${preSnapshot.generation}, PreTime ${preSnapshot.timestamp}, PostTime ${postSnapshot.timestamp}).",
             diffResult = diffResult
         )
     }
