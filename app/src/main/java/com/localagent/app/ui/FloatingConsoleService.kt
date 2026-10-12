@@ -259,6 +259,24 @@ class FloatingConsoleService : Service() {
                             is com.localagent.app.system.AppLaunchResult.AlreadyForeground -> {
                                 val snapshot = verifier.awaitUsableWindowAndSnapshot(targetPkg, preGen)
                                 if (snapshot != null) {
+                                    val req = com.localagent.core.action.ActionRequest(
+                                        actionType = com.localagent.core.action.ActionType.GLOBAL_HOME,
+                                        targetNodeId = targetPkg,
+                                        sourceChannel = command.source.name
+                                    )
+                                    val verResult = com.localagent.core.action.VerificationResult(
+                                        status = com.localagent.core.action.VerificationStatus.EXECUTED_AND_VERIFIED,
+                                        resultCode = ResultCode.SUCCESS_VERIFIED,
+                                        reason = "Application '${resolveRes.appLabel}' ($targetPkg) launched and foreground verified"
+                                    )
+                                    val execResult = com.localagent.core.action.ActionExecutionResult(
+                                        request = req,
+                                        dispatchSuccess = true,
+                                        preSnapshot = null,
+                                        postSnapshot = snapshot,
+                                        verificationResult = verResult
+                                    )
+                                    service.recordActionExecution(execResult)
                                     "Command: APP_LAUNCH | Target: ${resolveRes.appLabel} ($targetPkg) | Status: ${ResultCode.SUCCESS_VERIFIED} | Pkg: ${snapshot.packageName} | Nodes: ${snapshot.nodeCount}"
                                 } else {
                                     val verification = verifier.verifyForeground(targetPkg, timeoutMs = 100L)

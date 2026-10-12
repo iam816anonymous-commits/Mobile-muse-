@@ -110,8 +110,24 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         }
 
+    private val executionHistoryList = Collections.synchronizedList(mutableListOf<com.localagent.core.action.ActionExecutionResult>())
+
+    val actionExecutionHistory: List<com.localagent.core.action.ActionExecutionResult>
+        get() = synchronized(executionHistoryList) { executionHistoryList.toList() }
+
     @Volatile
     var lastActionExecutionResult: com.localagent.core.action.ActionExecutionResult? = null
+        private set
+
+    fun recordActionExecution(result: com.localagent.core.action.ActionExecutionResult) {
+        lastActionExecutionResult = result
+        synchronized(executionHistoryList) {
+            executionHistoryList.add(result)
+            if (executionHistoryList.size > 20) {
+                executionHistoryList.removeAt(0)
+            }
+        }
+    }
 
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()

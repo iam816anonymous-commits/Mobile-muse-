@@ -148,6 +148,9 @@ class ObservationActivity : AppCompatActivity() {
         }
 
         if (selectedViewMode == ObservationViewMode.ACTION_PAIR) {
+            binding.scrollSingleTree.visibility = android.view.View.GONE
+            binding.layoutActionPairContainer.visibility = android.view.View.VISIBLE
+
             binding.tvSnapshotHeader.text = "VIEW C: ACTION COMPARISON PAIR (PRE vs POST):"
             val actionRes = service?.lastActionExecutionResult
             if (actionRes != null) {
@@ -158,23 +161,30 @@ class ObservationActivity : AppCompatActivity() {
                 val postGen = postSnap?.generation ?: 0L
                 binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Pre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"}) | Result: ${verRes.resultCode}"
 
-                val sb = StringBuilder()
-                sb.append("Action: ${actionRes.request.actionType} | Target: ${actionRes.request.targetNodeId ?: actionRes.request.targetNodeIdentity ?: "None"}\n")
-                sb.append("Status: ${verRes.status} (${verRes.resultCode})\n")
-                sb.append("Reason: ${verRes.reason ?: "Executed"}\n\n")
+                binding.tvPreHeader.text = "PANEL A — PRE-ACTION TREE (Gen $preGen | ${preSnap?.packageName ?: "N/A"}):"
+                binding.tvPreNodeTree.text = if (preSnap != null) {
+                    NodeTreeRenderer.renderSnapshotTree(preSnap)
+                } else {
+                    "[PRE-ACTION TREE NOT REQUIRED OR UNAVAILABLE FOR THIS ACTION POLICY]"
+                }
 
-                sb.append("--- PRE-ACTION SNAPSHOT (Gen $preGen) ---\n")
-                sb.append(if (preSnap != null) NodeTreeRenderer.renderSnapshotTree(preSnap) else "None")
-                sb.append("\n\n--- POST-ACTION SNAPSHOT (Gen $postGen) ---\n")
-                sb.append(if (postSnap != null) NodeTreeRenderer.renderSnapshotTree(postSnap) else "None")
-
-                binding.tvNodeTree.text = sb.toString()
+                binding.tvPostHeader.text = "PANEL B — POST-ACTION TREE (Gen $postGen | ${postSnap?.packageName ?: "N/A"}):"
+                binding.tvPostNodeTree.text = if (postSnap != null) {
+                    NodeTreeRenderer.renderSnapshotTree(postSnap)
+                } else {
+                    "[POST-ACTION SNAPSHOT UNAVAILABLE / UNVERIFIED]"
+                }
             } else {
                 binding.tvSnapshotMeta.text = "Exec ID: None | Status: NO_ACTIONS_EXECUTED"
-                binding.tvNodeTree.text = "No UI actions executed yet. Execute an action from the Command Console to view pre/post comparison."
+                binding.tvPreNodeTree.text = "No UI actions executed yet."
+                binding.tvPostNodeTree.text = "Execute an action from the Command Console to view pre/post comparison pair."
             }
             return
         }
+
+        // View A or View B: Single Tree layout
+        binding.scrollSingleTree.visibility = android.view.View.VISIBLE
+        binding.layoutActionPairContainer.visibility = android.view.View.GONE
 
         val snap = if (selectedViewMode == ObservationViewMode.LIVE_SCREEN) {
             service?.currentObservationSnapshot ?: service?.captureLiveSnapshot()
