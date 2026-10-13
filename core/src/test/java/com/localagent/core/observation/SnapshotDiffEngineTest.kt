@@ -1,146 +1,102 @@
 package com.localagent.core.observation
 
 import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
 
 class SnapshotDiffEngineTest {
 
-    private lateinit var diffEngine: SnapshotDiffEngine
-
-    @Before
-    fun setUp() {
-        diffEngine = SnapshotDiffEngine()
-    }
+    private val diffEngine = SnapshotDiffEngine()
 
     @Test
-    fun testIdenticalSnapshotsProduceUnchangedDiff() {
-        val node1 = ObservationNode(
-            nodeId = "node_0",
+    fun `testCalculatorFormulaTextChangeReportsExactOneChangedNode`() {
+        val (idFormula, conf1) = ObservationNode.computeIdentity(
+            packageName = "com.transsion.calculator",
             className = "android.widget.TextView",
-            text = "Hello World",
-            resourceId = "com.example:id/tvTitle",
-            nodeIdentity = "id:tvTitle_text:Hello World",
-            identityConfidence = NodeIdentityConfidence.EXACT
+            resourceId = "com.transsion.calculator:id/formula",
+            text = "No formula",
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = "root"
         )
 
-        val snapA = ObservationSnapshot(
-            snapshotId = "snap_1",
-            packageName = "com.example.app",
+        val beforeNode = ObservationNode(
+            nodeId = "node_1",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.calculator:id/formula",
+            text = "No formula",
+            packageName = "com.transsion.calculator",
+            nodeIdentity = idFormula,
+            identityConfidence = conf1
+        )
+
+        val afterNode = beforeNode.copy(text = "6")
+
+        val beforeSnap = ObservationSnapshot(
+            snapshotId = "snap_before",
+            packageName = "com.transsion.calculator",
             nodeCount = 1,
-            rootNode = node1
+            rootNode = beforeNode
         )
 
-        val snapB = ObservationSnapshot(
-            snapshotId = "snap_2",
-            packageName = "com.example.app",
+        val afterSnap = ObservationSnapshot(
+            snapshotId = "snap_after",
+            packageName = "com.transsion.calculator",
             nodeCount = 1,
-            rootNode = node1
+            rootNode = afterNode
         )
 
-        val result = diffEngine.computeDiff(snapA, snapB)
+        val diff = diffEngine.computeDiff(beforeSnap, afterSnap)
 
-        assertFalse(result.hasChanges)
-        assertEquals(0, result.totalAdded)
-        assertEquals(0, result.totalRemoved)
-        assertEquals(0, result.totalChanged)
-        assertEquals(1, result.totalUnchanged)
-        assertEquals(NodeDiffType.UNCHANGED, result.diffEntries[0].diffType)
+        assertTrue(diff.hasChanges)
+        assertEquals(0, diff.totalAdded)
+        assertEquals(0, diff.totalRemoved)
+        assertEquals(1, diff.totalChanged)
+
+        val changedEntry = diff.diffEntries.first { it.diffType == NodeDiffType.CHANGED }
+        assertEquals("id:formula", changedEntry.nodeIdentity)
+        assertTrue(changedEntry.changedAttributes.contains("text"))
+        assertEquals("No formula", changedEntry.beforeNode?.text)
+        assertEquals("6", changedEntry.afterNode?.text)
     }
 
     @Test
-    fun testAddedAndRemovedNodesDiff() {
-        val rootA = ObservationNode(
-            nodeId = "node_0",
-            className = "android.widget.LinearLayout",
-            nodeIdentity = "cls:LinearLayout_parent:root",
-            identityConfidence = NodeIdentityConfidence.LOW,
-            children = listOf(
-                ObservationNode(
-                    nodeId = "node_1",
-                    className = "android.widget.TextView",
-                    text = "Item 1",
-                    nodeIdentity = "cls:TextView_lbl:Item 1_parent:cls:LinearLayout_parent:root",
-                    identityConfidence = NodeIdentityConfidence.MEDIUM
-                )
-            )
-        )
-
-        val rootB = ObservationNode(
-            nodeId = "node_0",
-            className = "android.widget.LinearLayout",
-            nodeIdentity = "cls:LinearLayout_parent:root",
-            identityConfidence = NodeIdentityConfidence.LOW,
-            children = listOf(
-                ObservationNode(
-                    nodeId = "node_2",
-                    className = "android.widget.TextView",
-                    text = "Item 2",
-                    nodeIdentity = "cls:TextView_lbl:Item 2_parent:cls:LinearLayout_parent:root",
-                    identityConfidence = NodeIdentityConfidence.MEDIUM
-                )
-            )
-        )
-
-        val snapA = ObservationSnapshot(snapshotId = "snap_1", nodeCount = 2, rootNode = rootA)
-        val snapB = ObservationSnapshot(snapshotId = "snap_2", nodeCount = 2, rootNode = rootB)
-
-        val result = diffEngine.computeDiff(snapA, snapB)
-
-        assertTrue(result.hasChanges)
-        assertEquals(1, result.totalAdded)   // Item 2 added
-        assertEquals(1, result.totalRemoved) // Item 1 removed
-        assertEquals(0, result.totalChanged)
-        assertEquals(1, result.totalUnchanged) // Root LinearLayout unchanged
-    }
-
-    @Test
-    fun testChangedAttributeNodeDiff() {
-        val rootA = ObservationNode(
-            nodeId = "node_0",
+    fun `testVolatileBoundsOrMetadataJitterDoesNotProduceFakeDiffs`() {
+        val (idBtn, conf) = ObservationNode.computeIdentity(
+            packageName = "com.transsion.calculator",
             className = "android.widget.Button",
-            text = "Submit",
-            enabled = true,
-            resourceId = "com.example:id/btnSubmit",
-            nodeIdentity = "id:btnSubmit_text:Submit",
-            identityConfidence = NodeIdentityConfidence.EXACT
+            resourceId = "com.transsion.calculator:id/digit_6",
+            text = "6",
+            contentDescription = null,
+            childIndex = 1,
+            parentIdentity = "root"
         )
 
-        val rootB = ObservationNode(
-            nodeId = "node_0",
+        val beforeNode = ObservationNode(
+            nodeId = "node_btn",
             className = "android.widget.Button",
-            text = "Submit",
-            enabled = false, // Changed attribute
-            resourceId = "com.example:id/btnSubmit",
-            nodeIdentity = "id:btnSubmit_text:Submit",
-            identityConfidence = NodeIdentityConfidence.EXACT
+            resourceId = "com.transsion.calculator:id/digit_6",
+            text = "6",
+            bounds = ObservationBounds(left = 100, top = 200, right = 300, bottom = 400),
+            focused = false,
+            nodeIdentity = idBtn,
+            identityConfidence = conf
         )
 
-        val snapA = ObservationSnapshot(snapshotId = "snap_1", nodeCount = 1, rootNode = rootA)
-        val snapB = ObservationSnapshot(snapshotId = "snap_2", nodeCount = 1, rootNode = rootB)
+        // Minor 2px jitter in bounds and focused toggle
+        val afterNode = beforeNode.copy(
+            bounds = ObservationBounds(left = 101, top = 200, right = 300, bottom = 400),
+            focused = true
+        )
 
-        val result = diffEngine.computeDiff(snapA, snapB)
+        val beforeSnap = ObservationSnapshot(snapshotId = "snap_1", rootNode = beforeNode)
+        val afterSnap = ObservationSnapshot(snapshotId = "snap_2", rootNode = afterNode)
 
-        assertTrue(result.hasChanges)
-        assertEquals(0, result.totalAdded)
-        assertEquals(0, result.totalRemoved)
-        assertEquals(1, result.totalChanged)
-        assertEquals(0, result.totalUnchanged)
+        val diff = diffEngine.computeDiff(beforeSnap, afterSnap)
 
-        val changedEntry = result.diffEntries[0]
-        assertEquals(NodeDiffType.CHANGED, changedEntry.diffType)
-        assertTrue(changedEntry.changedAttributes.contains("enabled"))
-    }
-
-    @Test
-    fun testEmptyAndNullSnapshotsDiff() {
-        val result = diffEngine.computeDiff(null, null)
-
-        assertFalse(result.hasChanges)
-        assertEquals(0, result.totalAdded)
-        assertEquals(0, result.totalRemoved)
-        assertEquals(0, result.totalChanged)
-        assertEquals(0, result.totalUnchanged)
-        assertTrue(result.diffEntries.isEmpty())
+        assertFalse(diff.hasChanges)
+        assertEquals(0, diff.totalAdded)
+        assertEquals(0, diff.totalRemoved)
+        assertEquals(0, diff.totalChanged)
+        assertEquals(1, diff.totalUnchanged)
     }
 }

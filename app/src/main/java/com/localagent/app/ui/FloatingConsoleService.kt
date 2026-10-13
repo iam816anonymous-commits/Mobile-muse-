@@ -215,7 +215,7 @@ class FloatingConsoleService : Service() {
                     is TargetSelector.ByCoordinates -> "coords:${selector.x},${selector.y}"
                     TargetSelector.None -> null
                 }
-                val expectedPkg = service.lastExternalPackageName.takeIf { service.isValidExternalApplicationPackage(it) }
+                val expectedPkg = command.parameters["expectedPackageName"]
                 val request = com.localagent.core.action.ActionRequest(
                     actionType = coreActionType,
                     targetNodeId = targetIdStr,
