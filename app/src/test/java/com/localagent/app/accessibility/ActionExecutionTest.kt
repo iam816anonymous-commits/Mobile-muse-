@@ -77,6 +77,63 @@ class ActionExecutionTest {
     }
 
     @Test
+    fun `P7-ACTION-UNCHANGED-TREE-EVALUATES-TO-DISPATCHED-BUT-NOT-VERIFIED - Action on unchanged tree returns DISPATCHED_BUT_NOT_VERIFIED`() {
+        val calcButton = ObservationNode(
+            nodeId = "digit7",
+            className = "android.widget.Button",
+            resourceId = "com.android.calculator2:id/digit_7",
+            text = "7",
+            clickable = true,
+            nodeIdentity = "id:digit_7_text:7",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val preSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = calcButton,
+            generation = 29L
+        )
+
+        val postSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = calcButton,
+            generation = 30L
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
+                    text = "7"
+                )
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "digit7"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals(VerificationStatus.EXECUTED_BUT_NOT_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.DISPATCHED_BUT_NOT_VERIFIED, result.verificationResult.resultCode)
+        assertTrue(result.verificationResult.reason?.contains("no observable accessibility state change occurred") == true)
+    }
+
+    @Test
     fun `P7-ACTION-MULTI-STEP-FRESHNESS - Multi-step execution guarantees post-action capture occurs post-dispatch with fresh generation`() {
         val launcherNode = ObservationNode(
             nodeId = "camera_icon",

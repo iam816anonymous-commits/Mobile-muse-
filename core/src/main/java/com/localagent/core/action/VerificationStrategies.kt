@@ -86,8 +86,8 @@ class TargetAwareVerificationStrategy(
             }
         }
 
-        // Case C: UI diff changes present
-        if (diffResult.hasChanges || diffResult.totalAdded > 0 || diffResult.totalRemoved > 0 || diffResult.totalChanged > 0) {
+        // Case C: Semantic UI diff changes present
+        if (diffResult.hasChanges) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
@@ -96,12 +96,12 @@ class TargetAwareVerificationStrategy(
             )
         }
 
-        // Case D: Fresh post-action observation captured after successful dispatch
+        // Case D: Dispatched successfully, fresh post-action observation obtained, but NO observable accessibility tree change occurred
         if (postSnapshot.generation > preSnapshot.generation || postSnapshot.timestamp > preSnapshot.timestamp) {
             return VerificationResult(
-                status = VerificationStatus.EXECUTED_AND_VERIFIED,
-                resultCode = ResultCode.SUCCESS_VERIFIED,
-                reason = "Action '$actionType' on '${targetNodeId ?: "screen"}' dispatched successfully and verified against fresh post-action observation (Gen ${postSnapshot.generation}).",
+                status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
+                resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
+                reason = "Action '$actionType' on '${targetNodeId ?: "screen"}' dispatched successfully, but no observable accessibility state change occurred in post-action evidence (Gen ${postSnapshot.generation}).",
                 diffResult = diffResult
             )
         }
