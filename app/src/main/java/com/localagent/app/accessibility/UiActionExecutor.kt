@@ -288,12 +288,12 @@ class UiActionExecutor(
             }
         }
 
-        // 4. Capture Post-Action Snapshot strictly post-dispatch with explicit target package publication
-        val targetPkg = request.expectedPackageName ?: preSnapshot.packageName
-        service?.captureLiveSnapshot(targetPackageName = targetPkg)
+        // 4. Capture Post-Action Snapshot strictly post-dispatch
+        val postTargetPkg = request.expectedPackageName
+        service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
         var postSnapshot = snapshotProvider() ?: ObservationSnapshot()
 
-        // Bounded polling for fresh post-action snapshot if generation hasn't advanced or timestamp hasn't advanced
+        // Bounded polling for fresh post-action snapshot if generation hasn't advanced or package transition occurred
         if (service != null && postSnapshot.generation <= preSnapshot.generation) {
             val pollStart = System.currentTimeMillis()
             while (System.currentTimeMillis() - pollStart < 1000L) {
@@ -303,7 +303,7 @@ class UiActionExecutor(
                     Thread.currentThread().interrupt()
                     break
                 }
-                service.captureLiveSnapshot(targetPackageName = targetPkg)
+                service.captureLiveSnapshot(targetPackageName = postTargetPkg)
                 val candidatePost = snapshotProvider()
                 if (candidatePost != null && (candidatePost.generation > preSnapshot.generation || candidatePost.packageName != preSnapshot.packageName)) {
                     postSnapshot = candidatePost

@@ -632,7 +632,6 @@ class AgentAccessibilityService : AccessibilityService() {
             pkg.isBlank() -> "BLANK_PACKAGE"
             pkg == "com.localagent.app" -> "LOCAL_AGENT_NOT_EXTERNAL_APPLICATION"
             pkg == "com.android.systemui" -> "SYSTEM_UI_NOT_VALID_EXTERNAL_APPLICATION"
-            pkg.contains("launcher") -> "LAUNCHER_NOT_VALID_EXTERNAL_APPLICATION"
             else -> "INVALID_EXTERNAL_APPLICATION"
         }
     }
