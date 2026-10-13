@@ -104,8 +104,8 @@ class AgentAccessibilityServiceTest {
         val systemUiScore = method.invoke(service, AccessibilityWindowInfo.TYPE_SYSTEM, "com.android.systemui", true, true) as Int
 
         assertTrue(chromeScore > systemUiScore)
-        assertEquals(100, chromeScore)
-        assertEquals(50, systemUiScore)
+        assertEquals(170, chromeScore)
+        assertEquals(110, systemUiScore)
     }
 
     @Test

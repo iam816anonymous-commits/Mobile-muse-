@@ -657,6 +657,13 @@ class AgentAccessibilityService : AccessibilityService() {
                         var pkg = root?.packageName?.toString() ?: ""
                         if (pkg.isBlank() && obtainedNode != null) {
                             pkg = obtainedNode.packageName?.toString() ?: ""
+                            if (pkg.isBlank() && obtainedNode.childCount > 0) {
+                                val child0 = obtainedNode.getChild(0)
+                                if (child0 != null) {
+                                    pkg = child0.packageName?.toString() ?: ""
+                                    child0.recycle()
+                                }
+                            }
                         }
                         val type = window.type
                         val active = window.isActive
@@ -725,7 +732,7 @@ class AgentAccessibilityService : AccessibilityService() {
         val app = application as? LocalAgentApplication
 
         for (item in candidates) {
-            val pkg = item.candidate.packageName
+            val pkg = item.candidate.packageName.ifBlank { item.node?.packageName?.toString() ?: "" }
             if (isValidExternalApplicationPackage(pkg)) {
                 validCandidates.add(item)
             } else if (pkg.isNotBlank()) {
@@ -758,18 +765,18 @@ class AgentAccessibilityService : AccessibilityService() {
         if (type == AccessibilityWindowInfo.TYPE_APPLICATION) {
             score += 50
             if (isValidExternalApplicationPackage(packageName)) {
-                score += 10 // Preferred valid non-system application
+                score += 20 // Preferred valid non-system application
             }
         } else {
             score += 10
         }
 
         if (isActive && isFocused) {
-            score += 40
+            score += 100 // Active and focused window is the primary interactive foreground UI
         } else if (isActive) {
-            score += 30
+            score += 40
         } else if (isFocused) {
-            score += 20
+            score += 30
         }
 
         return score
