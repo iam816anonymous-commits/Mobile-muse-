@@ -161,7 +161,8 @@ class ObservationActivity : AppCompatActivity() {
                 val verRes = actionRes.verificationResult
                 val preGen = preSnap?.generation ?: 0L
                 val postGen = postSnap?.generation ?: 0L
-                binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Pre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"}) | Result: ${verRes.resultCode}"
+                val diffSummaryStr = verRes.diffResult?.let { "Diff: +${it.totalAdded} -${it.totalRemoved} ~${it.totalChanged}" } ?: "Diff: None"
+                binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Action: ${actionRes.request.actionType} | Result: ${verRes.resultCode} | $diffSummaryStr\nPre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"})"
 
                 binding.tvPreHeader.text = "PANEL A — PRE-ACTION TREE (Gen $preGen | ${preSnap?.packageName ?: "N/A"}):"
                 binding.tvPreNodeTree.text = if (preSnap != null) {

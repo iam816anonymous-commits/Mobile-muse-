@@ -9,6 +9,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 enum class ActionType {
+    APP_LAUNCH,
     GLOBAL_BACK,
     GLOBAL_HOME,
     GLOBAL_RECENTS,
@@ -28,7 +29,7 @@ enum class ActionObservationPolicy {
 
 val ActionType.defaultObservationPolicy: ActionObservationPolicy
     get() = when (this) {
-        ActionType.GLOBAL_HOME -> ActionObservationPolicy.POST_STATE_ONLY
+        ActionType.APP_LAUNCH, ActionType.GLOBAL_HOME -> ActionObservationPolicy.POST_STATE_ONLY
         ActionType.GLOBAL_BACK, ActionType.GLOBAL_RECENTS -> ActionObservationPolicy.PRE_AND_POST
         ActionType.UI_CLICK, ActionType.UI_LONG_CLICK, ActionType.UI_TEXT_INPUT, ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> ActionObservationPolicy.PRE_AND_POST
     }

@@ -127,6 +127,40 @@ class AgentAccessibilityService : AccessibilityService() {
                 executionHistoryList.removeAt(0)
             }
         }
+        logActionEvidenceEvent(result)
+    }
+
+    private fun logActionEvidenceEvent(result: com.localagent.core.action.ActionExecutionResult) {
+        val app = application as? LocalAgentApplication ?: return
+        val activeSessionId = app.eventLogger.getActiveSession().sessionId
+
+        val evidence = com.localagent.core.action.ActionEvidence(
+            executionId = result.executionId,
+            actionType = result.request.actionType,
+            targetIdentity = result.targetResolutionResult?.resolvedNodeIdentity ?: result.request.targetNodeIdentity ?: result.request.targetNodeId,
+            targetConfidence = result.targetResolutionResult?.confidence,
+            preSnapshotId = result.preSnapshot?.snapshotId,
+            postSnapshotId = result.postSnapshot?.snapshotId,
+            diffSummary = result.verificationResult.diffResult?.toJsonString() ?: "No diff",
+            status = result.verificationResult.status,
+            resultCode = result.verificationResult.resultCode
+        )
+
+        app.eventLogger.logEvent(
+            AgentEvent(
+                eventId = UUID.randomUUID().toString(),
+                sessionId = activeSessionId,
+                subsystem = EventSubsystem.ACTION,
+                eventType = "ACTION_EVIDENCE_GENERATED",
+                actionType = result.request.actionType.name,
+                sourceChannel = result.request.sourceChannel,
+                resultCode = result.verificationResult.resultCode,
+                durationMs = result.executionDurationMs,
+                severity = if (result.verificationResult.status == com.localagent.core.action.VerificationStatus.EXECUTED_AND_VERIFIED) EventSeverity.INFO else EventSeverity.WARNING,
+                errorCode = result.verificationResult.reason,
+                metadataJson = evidence.toJsonObject().toString()
+            )
+        )
     }
 
     @Volatile

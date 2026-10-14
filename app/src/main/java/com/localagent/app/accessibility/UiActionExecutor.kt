@@ -320,9 +320,10 @@ class UiActionExecutor(
                 reason = "Framework performAction returned false"
             )
         } else {
-            verificationStrategy.verify(
+            verificationStrategy.verifyTargetAware(
                 actionType = request.actionType,
                 targetNodeId = resolvedNode.nodeId,
+                expectedPackageName = request.expectedPackageName,
                 preSnapshot = preSnapshot,
                 postSnapshot = postSnapshot
             )
@@ -351,7 +352,6 @@ class UiActionExecutor(
             executionDurationMs = duration
         )
 
-        logActionEvidence(result)
         (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.recordActionExecution(result)
         return result
     }

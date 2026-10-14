@@ -65,49 +65,35 @@ class SnapshotDiffEngine {
         val beforeNodes = flattenSnapshotNodes(beforeSnapshot)
         val afterNodes = flattenSnapshotNodes(afterSnapshot)
 
-        val beforeMap = beforeNodes.associateBy { it.nodeIdentity.ifBlank { it.resourceId?.ifBlank { null } ?: it.nodeId } }
-        val afterMap = afterNodes.associateBy { it.nodeIdentity.ifBlank { it.resourceId?.ifBlank { null } ?: it.nodeId } }
+        // Build frequency-indexed maps so duplicate node Identities/resource IDs do not overwrite each other
+        val beforeMap = buildUniqueNodeMap(beforeNodes)
+        val afterMap = buildUniqueNodeMap(afterNodes)
 
-        val allIdentities = (beforeMap.keys + afterMap.keys).distinct()
+        val allKeys = (beforeMap.keys + afterMap.keys).distinct()
         val entries = mutableListOf<NodeDiffEntry>()
+
+        val unmappedBefore = mutableMapOf<String, ObservationNode>()
+        val unmappedAfter = mutableMapOf<String, ObservationNode>()
 
         var addedCount = 0
         var removedCount = 0
         var changedCount = 0
         var unchangedCount = 0
 
-        for (id in allIdentities) {
-            val before = beforeMap[id]
-            val after = afterMap[id]
+        for (key in allKeys) {
+            val before = beforeMap[key]
+            val after = afterMap[key]
 
             when {
-                before == null && after != null -> {
-                    addedCount++
-                    entries.add(
-                        NodeDiffEntry(
-                            nodeIdentity = id,
-                            diffType = NodeDiffType.ADDED,
-                            afterNode = after
-                        )
-                    )
-                }
-                before != null && after == null -> {
-                    removedCount++
-                    entries.add(
-                        NodeDiffEntry(
-                            nodeIdentity = id,
-                            diffType = NodeDiffType.REMOVED,
-                            beforeNode = before
-                        )
-                    )
-                }
+                before == null && after != null -> unmappedAfter[key] = after
+                before != null && after == null -> unmappedBefore[key] = before
                 before != null && after != null -> {
                     val changedAttrs = compareNodeAttributes(before, after)
                     if (changedAttrs.isNotEmpty()) {
                         changedCount++
                         entries.add(
                             NodeDiffEntry(
-                                nodeIdentity = id,
+                                nodeIdentity = before.nodeIdentity.ifBlank { key },
                                 diffType = NodeDiffType.CHANGED,
                                 beforeNode = before,
                                 afterNode = after,
@@ -118,7 +104,7 @@ class SnapshotDiffEngine {
                         unchangedCount++
                         entries.add(
                             NodeDiffEntry(
-                                nodeIdentity = id,
+                                nodeIdentity = before.nodeIdentity.ifBlank { key },
                                 diffType = NodeDiffType.UNCHANGED,
                                 beforeNode = before,
                                 afterNode = after
@@ -126,6 +112,66 @@ class SnapshotDiffEngine {
                         )
                     }
                 }
+            }
+        }
+
+        // Structural positional matching for remaining unmapped nodes with matching nodeId or resourceId
+        val resolvedAfterKeys = mutableSetOf<String>()
+        for ((bKey, before) in unmappedBefore) {
+            val matchKey = unmappedAfter.entries.firstOrNull { (aKey, after) ->
+                !resolvedAfterKeys.contains(aKey) &&
+                        (after.nodeId == before.nodeId ||
+                                (!before.resourceId.isNullOrBlank() && before.resourceId == after.resourceId && after.className == before.className))
+            }?.key
+
+            if (matchKey != null) {
+                val after = unmappedAfter[matchKey]!!
+                resolvedAfterKeys.add(matchKey)
+                val changedAttrs = compareNodeAttributes(before, after)
+                if (changedAttrs.isNotEmpty()) {
+                    changedCount++
+                    entries.add(
+                        NodeDiffEntry(
+                            nodeIdentity = before.nodeIdentity.ifBlank { bKey },
+                            diffType = NodeDiffType.CHANGED,
+                            beforeNode = before,
+                            afterNode = after,
+                            changedAttributes = changedAttrs
+                        )
+                    )
+                } else {
+                    unchangedCount++
+                    entries.add(
+                        NodeDiffEntry(
+                            nodeIdentity = before.nodeIdentity.ifBlank { bKey },
+                            diffType = NodeDiffType.UNCHANGED,
+                            beforeNode = before,
+                            afterNode = after
+                        )
+                    )
+                }
+            } else {
+                removedCount++
+                entries.add(
+                    NodeDiffEntry(
+                        nodeIdentity = before.nodeIdentity.ifBlank { bKey },
+                        diffType = NodeDiffType.REMOVED,
+                        beforeNode = before
+                    )
+                )
+            }
+        }
+
+        for ((aKey, after) in unmappedAfter) {
+            if (!resolvedAfterKeys.contains(aKey)) {
+                addedCount++
+                entries.add(
+                    NodeDiffEntry(
+                        nodeIdentity = after.nodeIdentity.ifBlank { aKey },
+                        diffType = NodeDiffType.ADDED,
+                        afterNode = after
+                    )
+                )
             }
         }
 
@@ -138,6 +184,20 @@ class SnapshotDiffEngine {
             totalUnchanged = unchangedCount,
             diffEntries = entries
         )
+    }
+
+    private fun buildUniqueNodeMap(nodes: List<ObservationNode>): Map<String, ObservationNode> {
+        val map = mutableMapOf<String, ObservationNode>()
+        val counts = mutableMapOf<String, Int>()
+
+        for (node in nodes) {
+            val baseKey = node.nodeIdentity.ifBlank { node.resourceId?.ifBlank { null } ?: node.nodeId }
+            val count = counts.getOrDefault(baseKey, 0)
+            counts[baseKey] = count + 1
+            val uniqueKey = if (count == 0) baseKey else "$baseKey#$count"
+            map[uniqueKey] = node
+        }
+        return map
     }
 
     private fun flattenSnapshotNodes(snapshot: ObservationSnapshot?): List<ObservationNode> {
@@ -162,12 +222,12 @@ class SnapshotDiffEngine {
         if (before.selected != after.selected) changes.add("selected")
         if (before.visibleToUser != after.visibleToUser) changes.add("visibleToUser")
 
-        // Significant bounds shift (viewport scroll or container resize)
+        // Significant bounds shift (viewport scroll or container resize > 30px)
         val dx = kotlin.math.abs(before.bounds.left - after.bounds.left)
         val dy = kotlin.math.abs(before.bounds.top - after.bounds.top)
         val dw = kotlin.math.abs(before.bounds.width - after.bounds.width)
         val dh = kotlin.math.abs(before.bounds.height - after.bounds.height)
-        if (dx > 10 || dy > 10 || dw > 10 || dh > 10) {
+        if (dx > 30 || dy > 30 || dw > 30 || dh > 30) {
             changes.add("bounds")
         }
 
