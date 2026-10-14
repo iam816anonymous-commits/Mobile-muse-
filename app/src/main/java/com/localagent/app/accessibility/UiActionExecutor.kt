@@ -284,7 +284,7 @@ class UiActionExecutor(
         fun isValidPostSnapshot(snap: ObservationSnapshot?): Boolean {
             if (snap == null) return false
             if (snap.snapshotId == preSnapshot.snapshotId) return false
-            if (snap.packageName.isBlank()) return false
+            if (snap.packageName.isBlank() || service?.isValidExternalApplicationPackage(snap.packageName) == false) return false
             // Package transition is valid even if destination hierarchy is sparse
             if (snap.packageName != preSnapshot.packageName) return true
             // Same-package capture requires nodeCount > 0 and (generation > preSnapshot.generation or timestamp >= preSnapshot.timestamp)

@@ -76,13 +76,20 @@ class TargetAwareVerificationStrategy(
             }
         }
 
+        val hierarchyState = when {
+            postSnapshot.nodeCount == 0 -> DestinationHierarchyState.UNAVAILABLE_HIERARCHY
+            postSnapshot.nodeCount in 1..3 -> DestinationHierarchyState.SPARSE_HIERARCHY
+            else -> DestinationHierarchyState.FULL_HIERARCHY
+        }
+
         if (packageChanged) {
-            val hierarchyNote = if (postSnapshot.nodeCount == 0) " (destination hierarchy sparse/unavailable)" else ""
+            val hierarchyNote = if (postSnapshot.nodeCount == 0) " (destination hierarchy unavailable/sparse)" else ""
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
                 reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'$hierarchyNote",
-                diffResult = diffResult
+                diffResult = diffResult,
+                hierarchyState = hierarchyState
             )
         }
 
