@@ -107,16 +107,17 @@ class TargetAwareVerificationStrategy(
             )
         }
 
-        // Case B: Target identity changed
+        // Case B: Target resource identity changed unexpectedly (for EXACT/HIGH confidence targets with resource IDs)
         if (preTargetNode != null && postTargetNode != null) {
-            if (preTargetNode.nodeIdentity.isNotBlank() &&
-                postTargetNode.nodeIdentity.isNotBlank() &&
-                preTargetNode.nodeIdentity != postTargetNode.nodeIdentity
-            ) {
+            val preResId = preTargetNode.resourceId?.substringAfterLast('/')?.ifBlank { null }
+                ?: preTargetNode.nodeIdentity.takeIf { it.startsWith("id:") }
+            val postResId = postTargetNode.resourceId?.substringAfterLast('/')?.ifBlank { null }
+                ?: postTargetNode.nodeIdentity.takeIf { it.startsWith("id:") }
+            if (preResId != null && postResId != null && preResId != postResId) {
                 return VerificationResult(
                     status = VerificationStatus.VERIFICATION_FAILED,
                     resultCode = ResultCode.TARGET_STALE,
-                    reason = "Target node identity changed unexpectedly after action from '${preTargetNode.nodeIdentity}' to '${postTargetNode.nodeIdentity}'",
+                    reason = "Target identity changed unexpectedly after action from '$preResId' to '$postResId'",
                     diffResult = diffResult
                 )
             }

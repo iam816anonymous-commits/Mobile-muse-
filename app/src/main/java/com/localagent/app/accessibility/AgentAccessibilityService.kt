@@ -581,12 +581,21 @@ class AgentAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun isLauncherPackageName(pkg: String): Boolean {
+        if (pkg.isBlank()) return false
+        val lower = pkg.lowercase()
+        return lower.contains("launcher") || lower.contains("home") || lower == "com.android.launcher3" || lower == "com.google.android.apps.nexuslauncher"
+    }
+
     fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
         val windowCandidates = collectWindowCandidates()
 
         // 1. Direct match for requested targetPackageName
         if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
-            val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+            val isTargetLauncher = isLauncherPackageName(targetPackageName)
+            val directMatch = windowCandidates.firstOrNull {
+                (it.candidate.packageName == targetPackageName || (isTargetLauncher && isLauncherPackageName(it.candidate.packageName))) && it.node != null
+            }
             if (directMatch?.node != null) {
                 val matchedNode = AccessibilityNodeInfo.obtain(directMatch.node)
                 windowCandidates.forEach { it.node?.recycle() }
@@ -597,7 +606,7 @@ class AgentAccessibilityService : AccessibilityService() {
             val activeRoot = rootInActiveWindow
             if (activeRoot != null) {
                 val activePkg = activeRoot.packageName?.toString() ?: ""
-                if (activePkg == targetPackageName) {
+                if (activePkg == targetPackageName || (isTargetLauncher && isLauncherPackageName(activePkg))) {
                     windowCandidates.forEach { it.node?.recycle() }
                     return activeRoot
                 }

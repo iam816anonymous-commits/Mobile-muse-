@@ -51,6 +51,28 @@ class AppResolver(private val context: Context) {
             return AppResolutionResult.Success(trimmed, appLabel)
         }
 
+        // 0. If query is a home / launcher alias, prioritize resolving the actual default Home activity
+        val isLauncherQuery = when (trimmed.lowercase()) {
+            "hilauncher", "launcher", "home launcher", "home" -> true
+            else -> false
+        }
+        if (isLauncherQuery) {
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+            }
+            val defaultHome = pm.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            val resolvedPkg = defaultHome?.activityInfo?.packageName
+            if (!resolvedPkg.isNullOrBlank()) {
+                val appLabel = try {
+                    val appInfo = pm.getApplicationInfo(resolvedPkg, 0)
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (_: Exception) {
+                    resolvedPkg
+                }
+                return AppResolutionResult.Success(resolvedPkg, appLabel)
+            }
+        }
+
         // Common alias mappings
         val knownAlias = when (trimmed.lowercase()) {
             "calculator", "calc" -> listOf("com.transsion.calculator", "com.android.calculator2", "com.google.android.calculator")
