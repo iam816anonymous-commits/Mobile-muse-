@@ -52,6 +52,16 @@ class TargetResolver(
             }
         }
 
+        // Priority 6: Scroll container fallback when actionType is SCROLL or query is blank/scroll
+        if (matchingNode == null && (actionType == TargetActionType.SCROLL || query.isBlank() || query == "scroll")) {
+            matchingNode = allNodes.firstOrNull { node ->
+                node.scrollable || (node.className?.contains("ScrollView", ignoreCase = true) == true) ||
+                        (node.className?.contains("RecyclerView", ignoreCase = true) == true) ||
+                        (node.className?.contains("ListView", ignoreCase = true) == true) ||
+                        (node.className?.contains("ViewPager", ignoreCase = true) == true)
+            }
+        }
+
         if (matchingNode == null) {
             return TargetResolutionResult(
                 requestedNodeId = nodeId,

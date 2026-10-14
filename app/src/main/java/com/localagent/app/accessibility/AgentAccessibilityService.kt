@@ -110,9 +110,28 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         }
 
+    private val executionHistoryList = Collections.synchronizedList(mutableListOf<com.localagent.core.action.ActionExecutionResult>())
+
+    val actionExecutionHistory: List<com.localagent.core.action.ActionExecutionResult>
+        get() = synchronized(executionHistoryList) { executionHistoryList.toList() }
+
+    @Volatile
+    var lastActionExecutionResult: com.localagent.core.action.ActionExecutionResult? = null
+        private set
+
+    fun recordActionExecution(result: com.localagent.core.action.ActionExecutionResult) {
+        lastActionExecutionResult = result
+        synchronized(executionHistoryList) {
+            executionHistoryList.add(result)
+            if (executionHistoryList.size > 20) {
+                executionHistoryList.removeAt(0)
+            }
+        }
+    }
+
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
-        private set
+        set
 
     @Volatile
     var externalObservationState: ObservationEngineState = ObservationEngineState.OBSERVING
@@ -367,18 +386,20 @@ class AgentAccessibilityService : AccessibilityService() {
             val extNode = bestExternal?.node
             if (bestExternal != null && extNode != null && !recycledNodes.contains(extNode)) {
                 try {
-                    val extPkg = bestExternal.candidate.packageName
-                    val extSnap = extractor.extractSnapshot(
-                        rootNodeInfo = extNode,
-                        packageName = extPkg,
-                        activityName = lastExternalActivityName,
-                        windowId = bestExternal.candidate.windowId
-                    ).copy(generation = currentGen)
-                    lastExternalPackageName = extPkg
-                    lastExternalWindowId = bestExternal.candidate.windowId
-                    lastExternalWindowType = bestExternal.candidate.windowType
-                    lastExternalObservationTimestamp = System.currentTimeMillis()
-                    lastExternalObservationSnapshot = extSnap
+                    val extPkg = bestExternal.candidate.packageName.ifBlank { extNode.packageName?.toString() ?: activePackageName }
+                    if (isValidExternalApplicationPackage(extPkg)) {
+                        val extSnap = extractor.extractSnapshot(
+                            rootNodeInfo = extNode,
+                            packageName = extPkg,
+                            activityName = lastExternalActivityName,
+                            windowId = bestExternal.candidate.windowId
+                        ).copy(generation = currentGen)
+                        lastExternalPackageName = extPkg
+                        lastExternalWindowId = bestExternal.candidate.windowId
+                        lastExternalWindowType = bestExternal.candidate.windowType
+                        lastExternalObservationTimestamp = System.currentTimeMillis()
+                        lastExternalObservationSnapshot = extSnap
+                    }
                 } finally {
                     extNode.recycle()
                     recycledNodes.add(extNode)
@@ -603,7 +624,6 @@ class AgentAccessibilityService : AccessibilityService() {
         if (pkg.isBlank()) return false
         if (pkg == "com.localagent.app") return false
         if (pkg == "com.android.systemui") return false
-        if (pkg.endsWith(".launcher") || pkg.endsWith(".launcher3") || pkg == "com.google.android.apps.nexuslauncher" || pkg == "com.android.launcher3") return false
         return true
     }
 
@@ -612,7 +632,6 @@ class AgentAccessibilityService : AccessibilityService() {
             pkg.isBlank() -> "BLANK_PACKAGE"
             pkg == "com.localagent.app" -> "LOCAL_AGENT_NOT_EXTERNAL_APPLICATION"
             pkg == "com.android.systemui" -> "SYSTEM_UI_NOT_VALID_EXTERNAL_APPLICATION"
-            pkg.contains("launcher") -> "LAUNCHER_NOT_VALID_EXTERNAL_APPLICATION"
             else -> "INVALID_EXTERNAL_APPLICATION"
         }
     }
@@ -638,6 +657,13 @@ class AgentAccessibilityService : AccessibilityService() {
                         var pkg = root?.packageName?.toString() ?: ""
                         if (pkg.isBlank() && obtainedNode != null) {
                             pkg = obtainedNode.packageName?.toString() ?: ""
+                            if (pkg.isBlank() && obtainedNode.childCount > 0) {
+                                val child0 = obtainedNode.getChild(0)
+                                if (child0 != null) {
+                                    pkg = child0.packageName?.toString() ?: ""
+                                    child0.recycle()
+                                }
+                            }
                         }
                         val type = window.type
                         val active = window.isActive
@@ -706,10 +732,10 @@ class AgentAccessibilityService : AccessibilityService() {
         val app = application as? LocalAgentApplication
 
         for (item in candidates) {
-            val pkg = item.candidate.packageName
+            val pkg = item.candidate.packageName.ifBlank { item.node?.packageName?.toString() ?: "" }
             if (isValidExternalApplicationPackage(pkg)) {
                 validCandidates.add(item)
-            } else if (pkg.isNotBlank() && pkg != "com.localagent.app") {
+            } else if (pkg.isNotBlank()) {
                 val reason = getCandidateRejectionReason(pkg)
                 if (rejectedPackagesInRequest.add(pkg)) {
                     app?.eventLogger?.logEvent(
@@ -739,18 +765,18 @@ class AgentAccessibilityService : AccessibilityService() {
         if (type == AccessibilityWindowInfo.TYPE_APPLICATION) {
             score += 50
             if (isValidExternalApplicationPackage(packageName)) {
-                score += 10 // Preferred valid non-system application
+                score += 20 // Preferred valid non-system application
             }
         } else {
             score += 10
         }
 
         if (isActive && isFocused) {
-            score += 40
+            score += 100 // Active and focused window is the primary interactive foreground UI
         } else if (isActive) {
-            score += 30
+            score += 40
         } else if (isFocused) {
-            score += 20
+            score += 30
         }
 
         return score

@@ -70,7 +70,7 @@ class RoomEventRepository(
             args.add(it)
         }
 
-        sqlBuilder.append(" ORDER BY timestamp DESC LIMIT ? OFFSET ?")
+        sqlBuilder.append(" ORDER BY timestamp DESC, rowid DESC LIMIT ? OFFSET ?")
         args.add(filter.limit)
         args.add(filter.offset)
 

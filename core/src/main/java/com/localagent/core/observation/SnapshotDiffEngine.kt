@@ -65,8 +65,8 @@ class SnapshotDiffEngine {
         val beforeNodes = flattenSnapshotNodes(beforeSnapshot)
         val afterNodes = flattenSnapshotNodes(afterSnapshot)
 
-        val beforeMap = beforeNodes.associateBy { it.nodeIdentity.ifBlank { it.nodeId } }
-        val afterMap = afterNodes.associateBy { it.nodeIdentity.ifBlank { it.nodeId } }
+        val beforeMap = beforeNodes.associateBy { it.nodeIdentity.ifBlank { it.resourceId?.ifBlank { null } ?: it.nodeId } }
+        val afterMap = afterNodes.associateBy { it.nodeIdentity.ifBlank { it.resourceId?.ifBlank { null } ?: it.nodeId } }
 
         val allIdentities = (beforeMap.keys + afterMap.keys).distinct()
         val entries = mutableListOf<NodeDiffEntry>()
@@ -155,12 +155,22 @@ class SnapshotDiffEngine {
         val changes = mutableListOf<String>()
         if (before.text != after.text) changes.add("text")
         if (before.contentDescription != after.contentDescription) changes.add("contentDescription")
-        if (before.bounds != after.bounds) changes.add("bounds")
+        if (before.resourceId != after.resourceId) changes.add("resourceId")
         if (before.enabled != after.enabled) changes.add("enabled")
-        if (before.visibleToUser != after.visibleToUser) changes.add("visibleToUser")
-        if (before.focused != after.focused) changes.add("focused")
-        if (before.selected != after.selected) changes.add("selected")
+        if (before.editable != after.editable) changes.add("editable")
         if (before.checked != after.checked) changes.add("checked")
+        if (before.selected != after.selected) changes.add("selected")
+        if (before.visibleToUser != after.visibleToUser) changes.add("visibleToUser")
+
+        // Significant bounds shift (viewport scroll or container resize)
+        val dx = kotlin.math.abs(before.bounds.left - after.bounds.left)
+        val dy = kotlin.math.abs(before.bounds.top - after.bounds.top)
+        val dw = kotlin.math.abs(before.bounds.width - after.bounds.width)
+        val dh = kotlin.math.abs(before.bounds.height - after.bounds.height)
+        if (dx > 10 || dy > 10 || dw > 10 || dh > 10) {
+            changes.add("bounds")
+        }
+
         if (before.children.size != after.children.size) changes.add("childrenCount")
         return changes
     }

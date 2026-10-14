@@ -77,6 +77,206 @@ class ActionExecutionTest {
     }
 
     @Test
+    fun `P7-ACTION-UNCHANGED-TREE-EVALUATES-TO-DISPATCHED-BUT-NOT-VERIFIED - Action on unchanged tree returns DISPATCHED_BUT_NOT_VERIFIED`() {
+        val calcButton = ObservationNode(
+            nodeId = "digit7",
+            className = "android.widget.Button",
+            resourceId = "com.android.calculator2:id/digit_7",
+            text = "7",
+            clickable = true,
+            nodeIdentity = "id:digit_7_text:7",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val preSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = calcButton,
+            generation = 29L
+        )
+
+        val postSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = calcButton,
+            generation = 30L
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
+                    text = "7"
+                )
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "digit7"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals(VerificationStatus.EXECUTED_BUT_NOT_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.DISPATCHED_BUT_NOT_VERIFIED, result.verificationResult.resultCode)
+        assertTrue(result.verificationResult.reason?.contains("no observable accessibility state change occurred") == true)
+    }
+
+    @Test
+    fun `P7-ACTION-MULTI-STEP-FRESHNESS - Multi-step execution guarantees post-action capture occurs post-dispatch with fresh generation`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon_text:Camera",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val preSnap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode,
+            generation = 100L,
+            timestamp = 1000L
+        )
+
+        val cameraNode = ObservationNode(
+            nodeId = "shutter",
+            className = "android.widget.ImageView",
+            resourceId = "com.transsion.camera:id/shutter",
+            clickable = true,
+            nodeIdentity = "id:shutter",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val postSnap = ObservationSnapshot(
+            packageName = "com.transsion.camera",
+            nodeCount = 1,
+            rootNode = cameraNode,
+            generation = 101L,
+            timestamp = 1500L
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "com.transsion.hilauncher:id/camera_icon",
+                    text = "Camera"
+                )
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preSnap else postSnap
+            }
+        )
+
+        service.lastExternalObservationSnapshot = preSnap
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals(100L, result.preSnapshot?.generation)
+        assertEquals(101L, result.postSnapshot?.generation)
+        assertTrue(result.postSnapshot!!.generation > result.preSnapshot!!.generation)
+        assertEquals("com.transsion.hilauncher", result.preSnapshot?.packageName)
+        assertEquals("com.transsion.camera", result.postSnapshot?.packageName)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
+    }
+
+    @Test
+    fun `P7-ACTION-004-PACKAGE-TRANSITION - UI_CLICK across package boundary records distinct pre and post snapshots`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon_text:Camera",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val preLauncherSnap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode,
+            generation = 10L
+        )
+
+        val cameraNode = ObservationNode(
+            nodeId = "shutter_button",
+            className = "android.widget.ImageView",
+            resourceId = "com.transsion.camera:id/shutter",
+            clickable = true,
+            nodeIdentity = "id:shutter",
+            identityConfidence = NodeIdentityConfidence.EXACT
+        )
+
+        val postCameraSnap = ObservationSnapshot(
+            packageName = "com.transsion.camera",
+            nodeCount = 1,
+            rootNode = cameraNode,
+            generation = 11L
+        )
+
+        var snapshotCallCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "com.transsion.hilauncher:id/camera_icon",
+                    text = "Camera"
+                )
+            },
+            snapshotProvider = {
+                snapshotCallCount++
+                if (snapshotCallCount == 1) preLauncherSnap else postCameraSnap
+            }
+        )
+
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals(ActionType.UI_CLICK, result.request.actionType)
+        assertEquals("com.transsion.hilauncher", result.preSnapshot?.packageName)
+        assertEquals("com.transsion.camera", result.postSnapshot?.packageName)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
+        assertNotNull(service.lastActionExecutionResult)
+        assertEquals(result.executionId, service.lastActionExecutionResult?.executionId)
+    }
+
+    @Test
     fun `P7-ACTION-004 - UI_CLICK contract execution against live re-acquired target`() {
         val obsNode = ObservationNode(
             nodeId = "submit",
@@ -370,6 +570,55 @@ class ActionExecutionTest {
     }
 
     // --- GROUP C: P7-SAFE Zero-Action Safety Invariant Tests ---
+
+    @Test
+    fun `P7-SAFE-000-BLOCKING-OVERLAY - Blocking system overlay window prevents click dispatch`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon_text:Camera"
+        )
+        val snap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode
+        )
+
+        val windowDiagnostics = ObservationWindowDiagnostics(
+            availableWindows = listOf(
+                WindowCandidateInfo(
+                    windowId = 99,
+                    windowType = android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM,
+                    windowTypeName = "TYPE_SYSTEM",
+                    packageName = "com.android.systemui",
+                    isActive = true,
+                    isFocused = true,
+                    score = 90
+                )
+            )
+        )
+        service.latestDiagnostics = windowDiagnostics
+
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = { null },
+            snapshotProvider = { snap }
+        )
+        val request = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(request)
+
+        assertFalse(result.dispatchSuccess)
+        assertEquals(VerificationStatus.EXECUTION_FAILED, result.verificationResult.status)
+        assertTrue(result.verificationResult.reason?.contains("blocking system dialog or overlay") == true)
+        assertEquals(0, shadowService.globalActionsPerformed.size)
+    }
 
     @Test
     fun `P7-SAFE-001 - Stale target yields zero framework action dispatch`() {

@@ -43,7 +43,7 @@ class CommandNormalizerTest {
     }
 
     @Test
-    fun testValidScrollCommands() {
+    fun testValidScrollAndSwipeCommands() {
         val scrollUp = normalizer.parseInput("scroll up", CommandSource.CONSOLE)
         assertTrue(scrollUp is CommandParseResult.Success)
         assertEquals(ActionType.UI_SCROLL_BACKWARD, scrollUp.command.actionType)
@@ -52,6 +52,10 @@ class CommandNormalizerTest {
         assertTrue(scrollBackward is CommandParseResult.Success)
         assertEquals(ActionType.UI_SCROLL_BACKWARD, scrollBackward.command.actionType)
 
+        val swipeDown = normalizer.parseInput("swipe down", CommandSource.CONSOLE)
+        assertTrue(swipeDown is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_BACKWARD, swipeDown.command.actionType)
+
         val scrollDown = normalizer.parseInput("scroll down", CommandSource.CONSOLE)
         assertTrue(scrollDown is CommandParseResult.Success)
         assertEquals(ActionType.UI_SCROLL_FORWARD, scrollDown.command.actionType)
@@ -59,6 +63,10 @@ class CommandNormalizerTest {
         val scrollForward = normalizer.parseInput("scroll forward", CommandSource.CONSOLE)
         assertTrue(scrollForward is CommandParseResult.Success)
         assertEquals(ActionType.UI_SCROLL_FORWARD, scrollForward.command.actionType)
+
+        val swipeUp = normalizer.parseInput("swipe up", CommandSource.CONSOLE)
+        assertTrue(swipeUp is CommandParseResult.Success)
+        assertEquals(ActionType.UI_SCROLL_FORWARD, swipeUp.command.actionType)
     }
 
     @Test

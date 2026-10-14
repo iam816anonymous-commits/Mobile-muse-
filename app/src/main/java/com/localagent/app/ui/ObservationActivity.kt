@@ -21,7 +21,8 @@ import java.util.UUID
 
 enum class ObservationViewMode {
     LIVE_SCREEN,
-    LAST_EXTERNAL
+    LAST_EXTERNAL,
+    ACTION_PAIR
 }
 
 class ObservationActivity : AppCompatActivity() {
@@ -69,6 +70,12 @@ class ObservationActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnViewLiveScreen.setOnClickListener {
             selectedViewMode = ObservationViewMode.LIVE_SCREEN
+            isDisplayCleared = false
+            updateObservationUi()
+        }
+
+        binding.btnViewActionPair.setOnClickListener {
+            selectedViewMode = ObservationViewMode.ACTION_PAIR
             isDisplayCleared = false
             updateObservationUi()
         }
@@ -129,7 +136,7 @@ class ObservationActivity : AppCompatActivity() {
         val targetPkg = if (service?.isValidExternalApplicationPackage(lastExtPkg) == true) lastExtPkg else activePkg
         val isForegroundMatch = activePkg == targetPkg
 
-        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "READY (BOUND)" else "SERVICE_UNBOUND"} | Target: $targetPkg | FgMatch: $isForegroundMatch"
+        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "BOUND" else "UNBOUND"} | Target App: $targetPkg | FgMatch: $isForegroundMatch [Foreground vs Target App Match]"
 
         val diag = service?.latestDiagnostics
         binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)
@@ -139,6 +146,49 @@ class ObservationActivity : AppCompatActivity() {
             binding.tvNodeTree.text = "Observation display cleared."
             return
         }
+
+        if (selectedViewMode == ObservationViewMode.ACTION_PAIR) {
+            binding.scrollSingleTree.visibility = android.view.View.GONE
+            binding.layoutActionPairContainer.visibility = android.view.View.VISIBLE
+            binding.tvDiagnosticsHeader.visibility = android.view.View.GONE
+            binding.tvDiagnosticsContent.visibility = android.view.View.GONE
+
+            binding.tvSnapshotHeader.text = "VIEW C: ACTION COMPARISON PAIR (PRE vs POST):"
+            val actionRes = service?.lastActionExecutionResult
+            if (actionRes != null) {
+                val preSnap = actionRes.preSnapshot
+                val postSnap = actionRes.postSnapshot
+                val verRes = actionRes.verificationResult
+                val preGen = preSnap?.generation ?: 0L
+                val postGen = postSnap?.generation ?: 0L
+                binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Pre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"}) | Result: ${verRes.resultCode}"
+
+                binding.tvPreHeader.text = "PANEL A — PRE-ACTION TREE (Gen $preGen | ${preSnap?.packageName ?: "N/A"}):"
+                binding.tvPreNodeTree.text = if (preSnap != null) {
+                    NodeTreeRenderer.renderSnapshotTree(preSnap)
+                } else {
+                    "[PRE-ACTION TREE NOT REQUIRED OR UNAVAILABLE FOR THIS ACTION POLICY]"
+                }
+
+                binding.tvPostHeader.text = "PANEL B — POST-ACTION TREE (Gen $postGen | ${postSnap?.packageName ?: "N/A"}):"
+                binding.tvPostNodeTree.text = if (postSnap != null) {
+                    NodeTreeRenderer.renderSnapshotTree(postSnap)
+                } else {
+                    "[POST-ACTION SNAPSHOT UNAVAILABLE / UNVERIFIED]"
+                }
+            } else {
+                binding.tvSnapshotMeta.text = "Exec ID: None | Status: NO_ACTIONS_EXECUTED"
+                binding.tvPreNodeTree.text = "No UI actions executed yet."
+                binding.tvPostNodeTree.text = "Execute an action from the Command Console to view pre/post comparison pair."
+            }
+            return
+        }
+
+        // View A or View B: Single Tree layout
+        binding.scrollSingleTree.visibility = android.view.View.VISIBLE
+        binding.layoutActionPairContainer.visibility = android.view.View.GONE
+        binding.tvDiagnosticsHeader.visibility = android.view.View.VISIBLE
+        binding.tvDiagnosticsContent.visibility = android.view.View.VISIBLE
 
         val snap = if (selectedViewMode == ObservationViewMode.LIVE_SCREEN) {
             service?.currentObservationSnapshot ?: service?.captureLiveSnapshot()

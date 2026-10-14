@@ -44,34 +44,25 @@ class TargetAwareVerificationStrategy(
 
         val diffResult = diffEngine.computeDiff(preSnapshot, postSnapshot)
 
-        // Rule 1: Identical pre/post snapshots (no changes)
-        if (!diffResult.hasChanges) {
-            return VerificationResult(
-                status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
-                resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
-                reason = "Pre and post observation snapshots are identical. UI state did not visibly change.",
-                diffResult = diffResult
-            )
-        }
+        val packageChanged = preSnapshot.packageName.isNotBlank() &&
+                postSnapshot.packageName.isNotBlank() &&
+                preSnapshot.packageName != postSnapshot.packageName
 
-        if (targetNodeId == null) {
+        if (packageChanged) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
-                reason = "UI state changed visibly after action dispatch",
+                reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'",
                 diffResult = diffResult
             )
         }
 
-        // Target-specific checks
-        val preTargetNode = findNodeInSnapshot(preSnapshot.rootNode, targetNodeId)
-        val postTargetNode = findNodeInSnapshot(postSnapshot.rootNode, targetNodeId)
+        // Target-specific node checks
+        val preTargetNode = targetNodeId?.let { findNodeInSnapshot(preSnapshot.rootNode, it) }
+        val postTargetNode = targetNodeId?.let { findNodeInSnapshot(postSnapshot.rootNode, it) }
 
-        // Case A: Target disappeared after action
-        if (preTargetNode != null && postTargetNode == null) {
-            val removedEntry = diffResult.diffEntries.firstOrNull {
-                it.diffType == NodeDiffType.REMOVED && (it.beforeNode?.nodeId == targetNodeId || it.nodeIdentity == preTargetNode.nodeIdentity)
-            }
+        // Case A: Target disappeared after action (navigated away or dismissed)
+        if (targetNodeId != null && preTargetNode != null && postTargetNode == null) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
@@ -93,22 +84,10 @@ class TargetAwareVerificationStrategy(
                     diffResult = diffResult
                 )
             }
-
-            val changedEntry = diffResult.diffEntries.firstOrNull {
-                it.diffType == NodeDiffType.CHANGED && (it.afterNode?.nodeId == targetNodeId || it.beforeNode?.nodeId == targetNodeId)
-            }
-            if (changedEntry != null) {
-                return VerificationResult(
-                    status = VerificationStatus.EXECUTED_AND_VERIFIED,
-                    resultCode = ResultCode.SUCCESS_VERIFIED,
-                    reason = "Target node $targetNodeId attributes changed: ${changedEntry.changedAttributes}",
-                    diffResult = diffResult
-                )
-            }
         }
 
-        // Case C: Overall UI changes present
-        if (diffResult.totalAdded > 0 || diffResult.totalRemoved > 0 || diffResult.totalChanged > 0) {
+        // Case C: Semantic UI diff changes present
+        if (diffResult.hasChanges) {
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
@@ -117,10 +96,21 @@ class TargetAwareVerificationStrategy(
             )
         }
 
+        // Case D: Dispatched successfully, fresh post-action observation obtained, but NO observable accessibility tree change occurred
+        if (postSnapshot.generation > preSnapshot.generation || postSnapshot.timestamp > preSnapshot.timestamp) {
+            return VerificationResult(
+                status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
+                resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
+                reason = "Action '$actionType' on '${targetNodeId ?: "screen"}' dispatched successfully, but no observable accessibility state change occurred in post-action evidence (Gen ${postSnapshot.generation}).",
+                diffResult = diffResult
+            )
+        }
+
+        // Case E: Stale post-action snapshot (generation and timestamp did not advance)
         return VerificationResult(
-            status = VerificationStatus.VERIFICATION_FAILED,
-            resultCode = ResultCode.ACTION_FAILED,
-            reason = "No target-aware or UI state change confirmed for node $targetNodeId",
+            status = VerificationStatus.EXECUTED_BUT_NOT_VERIFIED,
+            resultCode = ResultCode.DISPATCHED_BUT_NOT_VERIFIED,
+            reason = "Action '$actionType' dispatched, but post-action observation is stale (Gen ${preSnapshot.generation}, PreTime ${preSnapshot.timestamp}, PostTime ${postSnapshot.timestamp}).",
             diffResult = diffResult
         )
     }

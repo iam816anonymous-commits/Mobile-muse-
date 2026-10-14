@@ -182,6 +182,15 @@ class ObservationContextRoutingTest {
 
     @Test
     fun `CC-OBS-004 - UI_SCROLL_FORWARD uses ExternalObservation`() {
+        val (idRecycler, confRecycler) = ObservationNode.computeIdentity(
+            packageName = "com.android.settings",
+            className = "androidx.recyclerview.widget.RecyclerView",
+            resourceId = "com.android.settings:id/recycler",
+            text = null,
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = null
+        )
         val extSnapshot = ObservationSnapshot(
             packageName = "com.android.settings",
             nodeCount = 1,
@@ -190,8 +199,8 @@ class ObservationContextRoutingTest {
                 className = "androidx.recyclerview.widget.RecyclerView",
                 resourceId = "com.android.settings:id/recycler",
                 scrollable = true,
-                nodeIdentity = "id:recycler_idx:0",
-                identityConfidence = NodeIdentityConfidence.HIGH
+                nodeIdentity = idRecycler,
+                identityConfidence = confRecycler
             )
         )
         service.lastExternalObservationSnapshot = extSnapshot
@@ -217,6 +226,15 @@ class ObservationContextRoutingTest {
 
     @Test
     fun `CC-OBS-005 - UI_SCROLL_BACKWARD uses ExternalObservation`() {
+        val (idRecycler, confRecycler) = ObservationNode.computeIdentity(
+            packageName = "com.android.settings",
+            className = "androidx.recyclerview.widget.RecyclerView",
+            resourceId = "com.android.settings:id/recycler",
+            text = null,
+            contentDescription = null,
+            childIndex = 0,
+            parentIdentity = null
+        )
         val extSnapshot = ObservationSnapshot(
             packageName = "com.android.settings",
             nodeCount = 1,
@@ -225,8 +243,8 @@ class ObservationContextRoutingTest {
                 className = "androidx.recyclerview.widget.RecyclerView",
                 resourceId = "com.android.settings:id/recycler",
                 scrollable = true,
-                nodeIdentity = "id:recycler_idx:0",
-                identityConfidence = NodeIdentityConfidence.HIGH
+                nodeIdentity = idRecycler,
+                identityConfidence = confRecycler
             )
         )
         service.lastExternalObservationSnapshot = extSnapshot

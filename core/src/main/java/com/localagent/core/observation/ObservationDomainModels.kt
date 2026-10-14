@@ -115,13 +115,10 @@ data class ObservationNode(
             val classSimple = className.substringAfterLast('.')
 
             return when {
-                resIdStr != null && labelText != null -> {
-                    val id = "id:${resIdStr.substringAfterLast('/')}_text:${labelText.take(30)}"
-                    Pair(id, NodeIdentityConfidence.EXACT)
-                }
                 resIdStr != null -> {
-                    val id = "id:${resIdStr.substringAfterLast('/')}_idx:$childIndex"
-                    Pair(id, NodeIdentityConfidence.HIGH)
+                    val id = "id:${resIdStr.substringAfterLast('/')}"
+                    val confidence = if (labelText != null) NodeIdentityConfidence.EXACT else NodeIdentityConfidence.HIGH
+                    Pair(id, confidence)
                 }
                 labelText != null -> {
                     val label = labelText.take(30)

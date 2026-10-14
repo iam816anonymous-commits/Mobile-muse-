@@ -35,17 +35,26 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="View A: Live Screen"
-            android:textSize="10sp" />
+            android:text="View A: Live"
+            android:textSize="9sp" />
 
         <Button
             android:id="@+id/btnViewExternalScreen"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="View B: Last External App"
-            android:textSize="10sp" />
+            android:layout_marginStart="2dp"
+            android:text="View B: External"
+            android:textSize="9sp" />
+
+        <Button
+            android:id="@+id/btnViewActionPair"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="2dp"
+            android:text="View C: Action Pair"
+            android:textSize="9sp" />
     </LinearLayout>
 
     <LinearLayout
@@ -132,7 +141,9 @@
         android:textSize="10sp"
         android:textStyle="bold" />
 
+    <!-- SINGLE TREE CONTAINER (FOR VIEW A & VIEW B) -->
     <ScrollView
+        android:id="@+id/scrollSingleTree"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -147,5 +158,75 @@
             android:textSize="10sp"
             android:fontFamily="monospace" />
     </ScrollView>
+
+    <!-- ACTION PAIR CONTAINER (FOR VIEW C: PRE vs POST) -->
+    <LinearLayout
+        android:id="@+id/layoutActionPairContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="2dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- PANEL A: PRE-ACTION TREE -->
+        <TextView
+            android:id="@+id/tvPreHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="PANEL A — PRE-ACTION TREE:"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#1B5E20" />
+
+        <ScrollView
+            android:id="@+id/scrollPreNodeTree"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="1dp"
+            android:background="#F1F8E9"
+            android:padding="4dp"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/tvPreNodeTree"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No pre-action snapshot captured."
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+        </ScrollView>
+
+        <!-- PANEL B: POST-ACTION TREE -->
+        <TextView
+            android:id="@+id/tvPostHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="PANEL B — POST-ACTION TREE:"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#0D47A1" />
+
+        <ScrollView
+            android:id="@+id/scrollPostNodeTree"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="1dp"
+            android:background="#E3F2FD"
+            android:padding="4dp"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/tvPostNodeTree"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No post-action snapshot captured."
+                android:textSize="10sp"
+                android:fontFamily="monospace" />
+        </ScrollView>
+    </LinearLayout>
 
 </LinearLayout>
