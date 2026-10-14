@@ -52,6 +52,23 @@ enum class DestinationHierarchyState {
     UNKNOWN_DESTINATION       // Foreground package cannot be confirmed confidently
 }
 
+enum class FailureStage {
+    NONE,
+    COMMAND_NORMALIZATION,
+    TARGET_RESOLUTION,
+    SOURCE_OBSERVATION,
+    PRE_DISPATCH_VALIDATION,
+    ACTION_DISPATCH,
+    FOREGROUND_TRANSITION,
+    POST_ACTION_CAPTURE,
+    SNAPSHOT_VALIDATION,
+    SNAPSHOT_ASSOCIATION,
+    SEMANTIC_DIFF,
+    GOAL_VERIFICATION,
+    EVIDENCE_PERSISTENCE,
+    UI_PRESENTATION
+}
+
 data class ActionRequest(
     val requestId: String = UUID.randomUUID().toString(),
     val actionType: ActionType,
@@ -81,7 +98,8 @@ data class VerificationResult(
     val resultCode: ResultCode,
     val reason: String? = null,
     val diffResult: SnapshotDiffResult? = null,
-    val hierarchyState: DestinationHierarchyState = DestinationHierarchyState.FULL_HIERARCHY
+    val hierarchyState: DestinationHierarchyState = DestinationHierarchyState.FULL_HIERARCHY,
+    val failureStage: FailureStage = FailureStage.NONE
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -90,6 +108,7 @@ data class VerificationResult(
             reason?.let { put("reason", it) }
             diffResult?.let { put("diffResult", it.toJsonString()) }
             put("hierarchyState", hierarchyState.name)
+            put("failureStage", failureStage.name)
         }
     }
 }

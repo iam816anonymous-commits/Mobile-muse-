@@ -163,7 +163,8 @@ class ObservationActivity : AppCompatActivity() {
                 val postGen = postSnap?.generation ?: 0L
                 val diffSummaryStr = verRes.diffResult?.let { "Diff: +${it.totalAdded} -${it.totalRemoved} ~${it.totalChanged}" } ?: "Diff: None"
                 val hierarchyStateStr = "Hierarchy: ${verRes.hierarchyState}"
-                binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Action: ${actionRes.request.actionType} | Result: ${verRes.resultCode} | $diffSummaryStr | $hierarchyStateStr\nPre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"})"
+                val failureStageStr = if (verRes.failureStage != com.localagent.core.action.FailureStage.NONE) " | FailureStage: ${verRes.failureStage}" else ""
+                binding.tvSnapshotMeta.text = "Exec ID: ${actionRes.executionId.take(8)} | Action: ${actionRes.request.actionType} | Result: ${verRes.resultCode}$failureStageStr | $diffSummaryStr | $hierarchyStateStr\nPre Gen: $preGen (${preSnap?.packageName ?: "None"}) | Post Gen: $postGen (${postSnap?.packageName ?: "None"})"
 
                 binding.tvPreHeader.text = "PANEL A — PRE-ACTION TREE (Gen $preGen | ${preSnap?.packageName ?: "N/A"}):"
                 binding.tvPreNodeTree.text = if (preSnap != null) {

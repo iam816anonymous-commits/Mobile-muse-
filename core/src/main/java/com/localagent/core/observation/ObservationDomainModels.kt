@@ -221,7 +221,8 @@ data class ObservationSnapshot(
     val nodeCount: Int = 0,
     val rootNode: ObservationNode? = null,
     val truncationInfo: ObservationTruncationInfo = ObservationTruncationInfo(),
-    val metadataJson: String = "{}"
+    val metadataJson: String = "{}",
+    val executionId: String? = null
 ) {
     fun toJsonString(): String {
         return JSONObject().apply {
@@ -235,6 +236,7 @@ data class ObservationSnapshot(
             rootNode?.let { put("rootNode", it.toJsonObject()) }
             put("truncationInfo", truncationInfo.toJsonObject())
             put("metadataJson", metadataJson)
+            executionId?.let { put("executionId", it) }
         }.toString(2)
     }
 
@@ -254,7 +256,8 @@ data class ObservationSnapshot(
                 nodeCount = json.optInt("nodeCount", 0),
                 rootNode = rootNode,
                 truncationInfo = ObservationTruncationInfo.fromJsonObject(json.optJSONObject("truncationInfo") ?: JSONObject()),
-                metadataJson = json.optString("metadataJson", "{}")
+                metadataJson = json.optString("metadataJson", "{}"),
+                executionId = if (json.has("executionId")) json.optString("executionId") else null
             )
         }
     }
