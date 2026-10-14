@@ -527,7 +527,7 @@ class AgentAccessibilityService : AccessibilityService() {
             )
         )
 
-        val returnSnapshot = if (isValidExternalApplicationPackage(selectedPkg) && targetPackageName.isNullOrBlank()) {
+        val returnSnapshot = if (isValidExternalApplicationPackage(selectedPkg) && (targetPackageName.isNullOrBlank() || selectedPkg == targetPackageName)) {
             primarySnapshot
         } else {
             lastExternalObservationSnapshot ?: primarySnapshot

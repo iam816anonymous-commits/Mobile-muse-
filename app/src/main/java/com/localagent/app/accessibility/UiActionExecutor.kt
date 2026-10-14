@@ -112,7 +112,7 @@ class UiActionExecutor(
 
         // Source Package Window Usability Verification Step (Ensure source window where target resides is ready)
         val sourcePkg = preSnapshot.packageName
-        if (requireExternalContext && service.isValidExternalApplicationPackage(sourcePkg)) {
+        if (requireExternalContext && preSnapshot.nodeCount == 0 && service.isValidExternalApplicationPackage(sourcePkg)) {
             val verifier = com.localagent.app.system.LaunchVerifier(accessibilityServiceSupplier = { service })
             val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
             val freshSnap = verifier.awaitUsableWindowAndSnapshot(
@@ -319,7 +319,7 @@ class UiActionExecutor(
             return snap.nodeCount > 0 && (snap.generation > preSnapshot.generation || snap.timestamp >= preSnapshot.timestamp)
         }
 
-        val postTargetPkg = request.expectedPackageName ?: preSnapshot.packageName
+        val postTargetPkg = request.expectedPackageName
         val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
         var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
             ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
