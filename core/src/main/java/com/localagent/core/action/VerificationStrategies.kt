@@ -34,6 +34,16 @@ class TargetAwareVerificationStrategy(
         preSnapshot: ObservationSnapshot?,
         postSnapshot: ObservationSnapshot?
     ): VerificationResult {
+        return verifyTargetAware(actionType, targetNodeId, null, preSnapshot, postSnapshot)
+    }
+
+    fun verifyTargetAware(
+        actionType: ActionType,
+        targetNodeId: String?,
+        expectedPackageName: String?,
+        preSnapshot: ObservationSnapshot?,
+        postSnapshot: ObservationSnapshot?
+    ): VerificationResult {
         if (preSnapshot == null || postSnapshot == null) {
             return VerificationResult(
                 status = VerificationStatus.VERIFICATION_FAILED,
@@ -47,6 +57,24 @@ class TargetAwareVerificationStrategy(
         val packageChanged = preSnapshot.packageName.isNotBlank() &&
                 postSnapshot.packageName.isNotBlank() &&
                 preSnapshot.packageName != postSnapshot.packageName
+
+        if (!expectedPackageName.isNullOrBlank()) {
+            if (postSnapshot.packageName == expectedPackageName) {
+                return VerificationResult(
+                    status = VerificationStatus.EXECUTED_AND_VERIFIED,
+                    resultCode = ResultCode.SUCCESS_VERIFIED,
+                    reason = "Target action verified foreground package '$expectedPackageName' successfully",
+                    diffResult = diffResult
+                )
+            } else if (packageChanged) {
+                return VerificationResult(
+                    status = VerificationStatus.VERIFICATION_FAILED,
+                    resultCode = ResultCode.ACTION_FAILED,
+                    reason = "Expected package '$expectedPackageName' but observed transition to '${postSnapshot.packageName}'",
+                    diffResult = diffResult
+                )
+            }
+        }
 
         if (packageChanged) {
             return VerificationResult(
