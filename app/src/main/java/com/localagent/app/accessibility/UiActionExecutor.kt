@@ -191,17 +191,45 @@ class UiActionExecutor(
         resolutionLogger?.logTargetResolution(reacquisitionResult.targetResolutionResult)
         resolutionLogger?.endRequest()
 
-        if (!reacquisitionResult.reacquired || reacquisitionResult.liveNode == null) {
+        var liveNode = reacquisitionResult.liveNode
+        var finalTargetRes = reacquisitionResult.targetResolutionResult
+
+        if (!reacquisitionResult.reacquired || liveNode == null) {
+            // Safe bounded re-resolution against live root if initial re-acquisition failed due to layout shift
+            if (liveRoot != null) {
+                val liveSnap = (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot(preSnapshot.packageName)
+                if (liveSnap != null) {
+                    val freshRes = if (targetNodeId != null) {
+                        targetResolver.resolveTargetById(liveSnap, targetNodeId, targetActionType)
+                    } else {
+                        targetResolver.resolveTargetByIdentity(liveSnap, targetNodeIdentity!!, targetActionType)
+                    }
+                    if (freshRes.status == TargetResolutionStatus.RESOLVED && freshRes.resolvedNode != null) {
+                        val retryReacq = liveTargetResolver.reacquireLiveTarget(
+                            rootLiveNode = liveRoot,
+                            targetResolutionResult = freshRes,
+                            resolvedTarget = freshRes.resolvedNode!!,
+                            actionType = targetActionType,
+                            requestedTargetQuery = request.targetNodeId ?: request.targetNodeIdentity
+                        )
+                        if (retryReacq.reacquired && retryReacq.liveNode != null) {
+                            liveNode = retryReacq.liveNode
+                            finalTargetRes = retryReacq.targetResolutionResult
+                        }
+                    }
+                }
+            }
+        }
+
+        if (liveNode == null) {
             liveRoot?.recycle()
             val verResult = VerificationResult(
                 status = VerificationStatus.TARGET_STALE,
                 resultCode = ResultCode.TARGET_STALE,
-                reason = reacquisitionResult.failureReason ?: "Live target re-acquisition failed"
+                reason = reacquisitionResult.failureReason ?: "Live target re-acquisition and re-resolution failed"
             )
             return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, false, preSnapshot, null, verResult, startTime)
         }
-
-        val liveNode = reacquisitionResult.liveNode!!
         var dispatchSuccess = false
 
         // Log resolved live target details
@@ -339,7 +367,7 @@ class UiActionExecutor(
             )
         }
 
-        return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
+        return buildResultAndLog(request, finalTargetRes, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
     }
 
     private fun buildResultAndLog(

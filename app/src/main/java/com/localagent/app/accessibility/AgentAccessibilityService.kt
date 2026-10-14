@@ -676,6 +676,18 @@ class AgentAccessibilityService : AccessibilityService() {
         val node: AccessibilityNodeInfo?
     )
 
+    private fun resolvePackageFromNode(node: AccessibilityNodeInfo): String {
+        val direct = node.packageName?.toString() ?: ""
+        if (direct.isNotBlank()) return direct
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val childPkg = child.packageName?.toString() ?: ""
+            child.recycle()
+            if (childPkg.isNotBlank()) return childPkg
+        }
+        return ""
+    }
+
     private fun collectWindowCandidates(): List<InternalCandidate> {
         val list = mutableListOf<InternalCandidate>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -690,17 +702,17 @@ class AgentAccessibilityService : AccessibilityService() {
                             copy
                         } else null
                         var pkg = root?.packageName?.toString() ?: ""
+                        val type = window.type
                         if (pkg.isBlank() && obtainedNode != null) {
-                            pkg = obtainedNode.packageName?.toString() ?: ""
-                            if (pkg.isBlank() && obtainedNode.childCount > 0) {
-                                val child0 = obtainedNode.getChild(0)
-                                if (child0 != null) {
-                                    pkg = child0.packageName?.toString() ?: ""
-                                    child0.recycle()
-                                }
+                            pkg = resolvePackageFromNode(obtainedNode)
+                        }
+                        if (pkg.isBlank() && type == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                            if (isValidExternalApplicationPackage(activePackageName)) {
+                                pkg = activePackageName
+                            } else if (isValidExternalApplicationPackage(lastExternalPackageName)) {
+                                pkg = lastExternalPackageName
                             }
                         }
-                        val type = window.type
                         val active = window.isActive
                         val focused = window.isFocused
                         val score = calculateWindowScore(type, pkg, active, focused)
