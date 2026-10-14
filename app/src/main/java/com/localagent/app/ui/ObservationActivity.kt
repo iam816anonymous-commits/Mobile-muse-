@@ -171,11 +171,11 @@ class ObservationActivity : AppCompatActivity() {
                     "[PRE-ACTION TREE NOT REQUIRED OR UNAVAILABLE FOR THIS ACTION POLICY]"
                 }
 
-                binding.tvPostHeader.text = "PANEL B — POST-ACTION TREE (Gen $postGen | ${postSnap?.packageName ?: "N/A"}):"
+                binding.tvPostHeader.text = "PANEL B — POST-ACTION TREE (Gen ${if (postSnap != null) postGen else "N/A"} | ${postSnap?.packageName ?: "UNAVAILABLE"}):"
                 binding.tvPostNodeTree.text = if (postSnap != null) {
                     NodeTreeRenderer.renderSnapshotTree(postSnap)
                 } else {
-                    "[POST-ACTION SNAPSHOT UNAVAILABLE / UNVERIFIED]"
+                    "[POST-ACTION SNAPSHOT UNAVAILABLE / UNVERIFIED: ${verRes.reason ?: "Post-action capture timed out or returned stale snapshot"}]"
                 }
             } else {
                 binding.tvSnapshotMeta.text = "Exec ID: None | Status: NO_ACTIONS_EXECUTED"

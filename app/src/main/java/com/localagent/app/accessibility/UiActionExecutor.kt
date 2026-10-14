@@ -111,8 +111,8 @@ class UiActionExecutor(
         }
 
         // Expected Package Window Await & Generation Verification Step
-        val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
-        if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {
+        val expectedPkg = request.expectedPackageName
+        if (expectedPkg != null && service.isValidExternalApplicationPackage(expectedPkg)) {
             val verifier = com.localagent.app.system.LaunchVerifier(accessibilityServiceSupplier = { service })
             val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
             val freshSnap = verifier.awaitUsableWindowAndSnapshot(
@@ -124,7 +124,7 @@ class UiActionExecutor(
 
             if (freshSnap != null) {
                 preSnapshot = freshSnap
-            } else if (request.expectedPackageName != null) {
+            } else {
                 // Explicit target package requested but usable interactive window was not observed before timeout
                 val verResult = VerificationResult(
                     status = VerificationStatus.EXECUTION_FAILED,
@@ -289,12 +289,22 @@ class UiActionExecutor(
         }
 
         // 4. Capture Post-Action Snapshot strictly post-dispatch
-        val postTargetPkg = request.expectedPackageName
-        service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
-        var postSnapshot = snapshotProvider() ?: ObservationSnapshot()
+        fun isValidPostSnapshot(snap: ObservationSnapshot?): Boolean {
+            if (snap == null) return false
+            if (snap.snapshotId == preSnapshot.snapshotId) return false
+            if (snap.nodeCount == 0 || snap.packageName.isBlank()) return false
+            return snap.generation > preSnapshot.generation ||
+                    snap.timestamp >= preSnapshot.timestamp ||
+                    snap.packageName != preSnapshot.packageName
+        }
+
+        val postTargetPkg = request.expectedPackageName ?: preSnapshot.packageName
+        val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
+        var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
+            ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
 
         // Bounded polling for fresh post-action snapshot if generation hasn't advanced or package transition occurred
-        if (service != null && postSnapshot.generation <= preSnapshot.generation) {
+        if (service != null && !isValidPostSnapshot(postSnapshot)) {
             val pollStart = System.currentTimeMillis()
             while (System.currentTimeMillis() - pollStart < 1000L) {
                 try {
@@ -303,13 +313,20 @@ class UiActionExecutor(
                     Thread.currentThread().interrupt()
                     break
                 }
-                service.captureLiveSnapshot(targetPackageName = postTargetPkg)
-                val candidatePost = snapshotProvider()
-                if (candidatePost != null && (candidatePost.generation > preSnapshot.generation || candidatePost.packageName != preSnapshot.packageName)) {
+                val polledCap = service.captureLiveSnapshot(targetPackageName = postTargetPkg)
+                val candidatePost = polledCap.takeIf { isValidPostSnapshot(it) }
+                    ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
+
+                if (isValidPostSnapshot(candidatePost)) {
                     postSnapshot = candidatePost
                     break
                 }
             }
+        }
+
+        // Enforce strict freshness & usability
+        if (!isValidPostSnapshot(postSnapshot)) {
+            postSnapshot = null
         }
 
         // 5. Verify Target-Aware Result

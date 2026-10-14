@@ -409,9 +409,10 @@ class AgentAccessibilityService : AccessibilityService() {
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
 
-            // If an explicit targetPackageName was requested, prefer a candidate matching targetPackageName
-            if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
-                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+            // If an explicit targetPackageName was requested or if lastExternalPackageName exists, prefer matching candidate
+            val targetPkgToFind = targetPackageName?.ifBlank { null } ?: lastExternalPackageName.takeIf { isValidExternalApplicationPackage(it) }
+            if (!targetPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(targetPkgToFind)) {
+                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPkgToFind && it.node != null }
                 if (targetMatch != null) {
                     bestExternal = targetMatch
                 }
@@ -438,12 +439,12 @@ class AgentAccessibilityService : AccessibilityService() {
                     extNode.recycle()
                     recycledNodes.add(extNode)
                 }
-            } else if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+            } else if (!targetPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(targetPkgToFind)) {
                 // Fallback: Use live root node seam to capture explicit target external snapshot
-                val fallbackRoot = getLiveExternalRootNode(targetPackageName)
+                val fallbackRoot = getLiveExternalRootNode(targetPkgToFind)
                 if (fallbackRoot != null) {
                     try {
-                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPackageName
+                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPkgToFind
                         val extSnap = extractor.extractSnapshot(
                             rootNodeInfo = fallbackRoot,
                             packageName = fallbackPkg,
