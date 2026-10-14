@@ -77,10 +77,11 @@ class TargetAwareVerificationStrategy(
         }
 
         if (packageChanged) {
+            val hierarchyNote = if (postSnapshot.nodeCount == 0) " (destination hierarchy sparse/unavailable)" else ""
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
-                reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'",
+                reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'$hierarchyNote",
                 diffResult = diffResult
             )
         }

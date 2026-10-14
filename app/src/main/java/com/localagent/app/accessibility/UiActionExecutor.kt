@@ -110,28 +110,20 @@ class UiActionExecutor(
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
         }
 
-        // Expected Package Window Await & Generation Verification Step
-        val expectedPkg = request.expectedPackageName
-        if (expectedPkg != null && service.isValidExternalApplicationPackage(expectedPkg)) {
+        // Source Package Window Usability Verification Step (Ensure source window where target resides is ready)
+        val sourcePkg = preSnapshot.packageName
+        if (requireExternalContext && service.isValidExternalApplicationPackage(sourcePkg)) {
             val verifier = com.localagent.app.system.LaunchVerifier(accessibilityServiceSupplier = { service })
             val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
             val freshSnap = verifier.awaitUsableWindowAndSnapshot(
-                targetPackageName = expectedPkg,
+                targetPackageName = sourcePkg,
                 minGeneration = minGen,
-                timeoutMs = 5000L,
-                settleDelayMs = 150L
+                timeoutMs = 1500L,
+                settleDelayMs = 100L
             )
 
             if (freshSnap != null) {
                 preSnapshot = freshSnap
-            } else {
-                // Explicit target package requested but usable interactive window was not observed before timeout
-                val verResult = VerificationResult(
-                    status = VerificationStatus.EXECUTION_FAILED,
-                    resultCode = ResultCode.TIMEOUT,
-                    reason = "Target window timeout waiting for usable interactive window and root node for package '$expectedPkg'"
-                )
-                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
             }
         }
 
@@ -292,13 +284,14 @@ class UiActionExecutor(
         fun isValidPostSnapshot(snap: ObservationSnapshot?): Boolean {
             if (snap == null) return false
             if (snap.snapshotId == preSnapshot.snapshotId) return false
-            if (snap.nodeCount == 0 || snap.packageName.isBlank()) return false
-            return snap.generation > preSnapshot.generation ||
-                    snap.timestamp >= preSnapshot.timestamp ||
-                    snap.packageName != preSnapshot.packageName
+            if (snap.packageName.isBlank()) return false
+            // Package transition is valid even if destination hierarchy is sparse
+            if (snap.packageName != preSnapshot.packageName) return true
+            // Same-package capture requires nodeCount > 0 and (generation > preSnapshot.generation or timestamp >= preSnapshot.timestamp)
+            return snap.nodeCount > 0 && (snap.generation > preSnapshot.generation || snap.timestamp >= preSnapshot.timestamp)
         }
 
-        val postTargetPkg = request.expectedPackageName ?: preSnapshot.packageName
+        val postTargetPkg = request.expectedPackageName
         val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
         var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
             ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
