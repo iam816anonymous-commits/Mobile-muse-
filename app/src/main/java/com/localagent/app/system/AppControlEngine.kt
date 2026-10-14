@@ -93,12 +93,18 @@ class AppResolver(private val context: Context) {
                 return AppResolutionResult.Success(pkg, appLabel)
             }
             // Check if package exists as a Home / Launcher Activity
-            try {
-                val appInfo = pm.getApplicationInfo(pkg, 0)
-                val appLabel = pm.getApplicationLabel(appInfo).toString()
+            val homeCheckIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                setPackage(pkg)
+            }
+            if (pm.queryIntentActivities(homeCheckIntent, 0).isNotEmpty()) {
+                val appLabel = try {
+                    val appInfo = pm.getApplicationInfo(pkg, 0)
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (_: Exception) {
+                    pkg
+                }
                 return AppResolutionResult.Success(pkg, appLabel)
-            } catch (_: Exception) {
-                // Package not installed, check next alias
             }
         }
 
