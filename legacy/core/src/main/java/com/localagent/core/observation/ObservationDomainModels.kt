@@ -115,10 +115,13 @@ data class ObservationNode(
             val classSimple = className.substringAfterLast('.')
 
             return when {
+                resIdStr != null && labelText != null -> {
+                    val id = "id:${resIdStr.substringAfterLast('/')}_text:${labelText.take(30)}"
+                    Pair(id, NodeIdentityConfidence.EXACT)
+                }
                 resIdStr != null -> {
-                    val id = "id:${resIdStr.substringAfterLast('/')}"
-                    val confidence = if (labelText != null) NodeIdentityConfidence.EXACT else NodeIdentityConfidence.HIGH
-                    Pair(id, confidence)
+                    val id = "id:${resIdStr.substringAfterLast('/')}_idx:$childIndex"
+                    Pair(id, NodeIdentityConfidence.HIGH)
                 }
                 labelText != null -> {
                     val label = labelText.take(30)
@@ -221,8 +224,7 @@ data class ObservationSnapshot(
     val nodeCount: Int = 0,
     val rootNode: ObservationNode? = null,
     val truncationInfo: ObservationTruncationInfo = ObservationTruncationInfo(),
-    val metadataJson: String = "{}",
-    val executionId: String? = null
+    val metadataJson: String = "{}"
 ) {
     fun toJsonString(): String {
         return JSONObject().apply {
@@ -236,7 +238,6 @@ data class ObservationSnapshot(
             rootNode?.let { put("rootNode", it.toJsonObject()) }
             put("truncationInfo", truncationInfo.toJsonObject())
             put("metadataJson", metadataJson)
-            executionId?.let { put("executionId", it) }
         }.toString(2)
     }
 
@@ -256,8 +257,7 @@ data class ObservationSnapshot(
                 nodeCount = json.optInt("nodeCount", 0),
                 rootNode = rootNode,
                 truncationInfo = ObservationTruncationInfo.fromJsonObject(json.optJSONObject("truncationInfo") ?: JSONObject()),
-                metadataJson = json.optString("metadataJson", "{}"),
-                executionId = if (json.has("executionId")) json.optString("executionId") else null
+                metadataJson = json.optString("metadataJson", "{}")
             )
         }
     }

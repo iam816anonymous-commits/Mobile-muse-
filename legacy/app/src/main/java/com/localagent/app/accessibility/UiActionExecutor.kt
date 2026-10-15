@@ -94,40 +94,32 @@ class UiActionExecutor(
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
         }
 
-        // Blocking Overlay / Modal Dialog Window Detection
-        val activeWindowCandidate = service.latestDiagnostics.availableWindows.firstOrNull { it.isActive && it.isFocused }
-        if (activeWindowCandidate != null &&
-            activeWindowCandidate.windowType == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
-            activeWindowCandidate.packageName.isNotBlank() &&
-            activeWindowCandidate.packageName != preSnapshot.packageName &&
-            activeWindowCandidate.packageName != "com.localagent.app"
-        ) {
-            val verResult = VerificationResult(
-                status = VerificationStatus.EXECUTION_FAILED,
-                resultCode = ResultCode.ACTION_FAILED,
-                reason = "CLICK NOT EXECUTED: A blocking system dialog or overlay ('${activeWindowCandidate.packageName}') changed the actionable window. The target '${request.targetNodeId ?: request.targetNodeIdentity}' could not be safely resolved in the live UI."
-            )
-            return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
-        }
-
-        // Source Package Window Usability Verification Step (Ensure source window where target resides is ready)
-        val sourcePkg = preSnapshot.packageName
-        if (requireExternalContext && preSnapshot.nodeCount == 0 && service.isValidExternalApplicationPackage(sourcePkg)) {
+        // Expected Package Window Await & Generation Verification Step
+        val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
+        if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {
             val verifier = com.localagent.app.system.LaunchVerifier(accessibilityServiceSupplier = { service })
             val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
             val freshSnap = verifier.awaitUsableWindowAndSnapshot(
-                targetPackageName = sourcePkg,
+                targetPackageName = expectedPkg,
                 minGeneration = minGen,
-                timeoutMs = 1500L,
-                settleDelayMs = 100L
+                timeoutMs = 5000L,
+                settleDelayMs = 150L
             )
 
             if (freshSnap != null) {
                 preSnapshot = freshSnap
+            } else if (request.expectedPackageName != null) {
+                // Explicit target package requested but usable interactive window was not observed before timeout
+                val verResult = VerificationResult(
+                    status = VerificationStatus.EXECUTION_FAILED,
+                    resultCode = ResultCode.TIMEOUT,
+                    reason = "Target window timeout waiting for usable interactive window and root node for package '$expectedPkg'"
+                )
+                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
             }
         }
 
-        val targetNodeId = request.targetNodeId ?: if (request.actionType == ActionType.UI_SCROLL_FORWARD || request.actionType == ActionType.UI_SCROLL_BACKWARD) "scroll" else null
+        val targetNodeId = request.targetNodeId
         val targetNodeIdentity = request.targetNodeIdentity
 
         if (targetNodeId == null && targetNodeIdentity == null) {
@@ -150,21 +142,6 @@ class UiActionExecutor(
 
         if (resolutionResult.status != TargetResolutionStatus.RESOLVED || resolutionResult.resolvedNode == null) {
             resolutionLogger?.endRequest()
-            // Fallback for scroll actions: Gesture fallback if target container not found
-            if (request.actionType == ActionType.UI_SCROLL_FORWARD || request.actionType == ActionType.UI_SCROLL_BACKWARD) {
-                val gestureSuccess = dispatchGestureFallback(request.actionType)
-                val verResult = if (gestureSuccess) {
-                    verificationStrategy.verify(request.actionType, "gesture", preSnapshot, snapshotProvider() ?: preSnapshot)
-                } else {
-                    VerificationResult(
-                        status = VerificationStatus.EXECUTION_FAILED,
-                        resultCode = ResultCode.ACTION_FAILED,
-                        reason = "Accessibility scroll target not found and gesture fallback failed or was rejected"
-                    )
-                }
-                return buildResultAndLog(request, resolutionResult, gestureSuccess, preSnapshot, snapshotProvider(), verResult, startTime)
-            }
-
             val verResult = VerificationResult(
                 status = if (resolutionResult.status == TargetResolutionStatus.NO_ACTIONABLE_TARGET) VerificationStatus.TARGET_NOT_ACTIONABLE else VerificationStatus.TARGET_NOT_FOUND,
                 resultCode = if (resolutionResult.status == TargetResolutionStatus.NO_ACTIONABLE_TARGET) ResultCode.TARGET_NOT_ACTIONABLE else ResultCode.TARGET_NOT_FOUND,
@@ -191,45 +168,17 @@ class UiActionExecutor(
         resolutionLogger?.logTargetResolution(reacquisitionResult.targetResolutionResult)
         resolutionLogger?.endRequest()
 
-        var liveNode = reacquisitionResult.liveNode
-        var finalTargetRes = reacquisitionResult.targetResolutionResult
-
-        if (!reacquisitionResult.reacquired || liveNode == null) {
-            // Safe bounded re-resolution against live root if initial re-acquisition failed due to layout shift
-            if (liveRoot != null) {
-                val liveSnap = (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot(preSnapshot.packageName)
-                if (liveSnap != null) {
-                    val freshRes = if (targetNodeId != null) {
-                        targetResolver.resolveTargetById(liveSnap, targetNodeId, targetActionType)
-                    } else {
-                        targetResolver.resolveTargetByIdentity(liveSnap, targetNodeIdentity!!, targetActionType)
-                    }
-                    if (freshRes.status == TargetResolutionStatus.RESOLVED && freshRes.resolvedNode != null) {
-                        val retryReacq = liveTargetResolver.reacquireLiveTarget(
-                            rootLiveNode = liveRoot,
-                            targetResolutionResult = freshRes,
-                            resolvedTarget = freshRes.resolvedNode!!,
-                            actionType = targetActionType,
-                            requestedTargetQuery = request.targetNodeId ?: request.targetNodeIdentity
-                        )
-                        if (retryReacq.reacquired && retryReacq.liveNode != null) {
-                            liveNode = retryReacq.liveNode
-                            finalTargetRes = retryReacq.targetResolutionResult
-                        }
-                    }
-                }
-            }
-        }
-
-        if (liveNode == null) {
+        if (!reacquisitionResult.reacquired || reacquisitionResult.liveNode == null) {
             liveRoot?.recycle()
             val verResult = VerificationResult(
                 status = VerificationStatus.TARGET_STALE,
                 resultCode = ResultCode.TARGET_STALE,
-                reason = reacquisitionResult.failureReason ?: "Live target re-acquisition and re-resolution failed"
+                reason = reacquisitionResult.failureReason ?: "Live target re-acquisition failed"
             )
             return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, false, preSnapshot, null, verResult, startTime)
         }
+
+        val liveNode = reacquisitionResult.liveNode!!
         var dispatchSuccess = false
 
         // Log resolved live target details
@@ -274,20 +223,8 @@ class UiActionExecutor(
                     }
                     success
                 }
-                ActionType.UI_SCROLL_FORWARD -> {
-                    var success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-                    if (!success) {
-                        success = dispatchGestureFallback(ActionType.UI_SCROLL_FORWARD)
-                    }
-                    success
-                }
-                ActionType.UI_SCROLL_BACKWARD -> {
-                    var success = liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
-                    if (!success) {
-                        success = dispatchGestureFallback(ActionType.UI_SCROLL_BACKWARD)
-                    }
-                    success
-                }
+                ActionType.UI_SCROLL_FORWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                ActionType.UI_SCROLL_BACKWARD -> liveNode.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
                 else -> false
             }
             logDispatchResult(request, dispatchSuccess)
@@ -308,47 +245,9 @@ class UiActionExecutor(
             }
         }
 
-        // 4. Capture Post-Action Snapshot strictly post-dispatch
-        fun isValidPostSnapshot(snap: ObservationSnapshot?): Boolean {
-            if (snap == null) return false
-            if (snap.snapshotId == preSnapshot.snapshotId) return false
-            if (snap.packageName.isBlank() || service?.isValidExternalApplicationPackage(snap.packageName) == false) return false
-            // Package transition is valid even if destination hierarchy is sparse
-            if (snap.packageName != preSnapshot.packageName) return true
-            // Same-package capture requires nodeCount > 0 and (generation > preSnapshot.generation or timestamp >= preSnapshot.timestamp)
-            return snap.nodeCount > 0 && (snap.generation > preSnapshot.generation || snap.timestamp >= preSnapshot.timestamp)
-        }
-
-        val postTargetPkg = request.expectedPackageName
-        val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
-        var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
-            ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
-
-        // Bounded polling for fresh post-action snapshot if generation hasn't advanced or package transition occurred
-        if (service != null && !isValidPostSnapshot(postSnapshot)) {
-            val pollStart = System.currentTimeMillis()
-            while (System.currentTimeMillis() - pollStart < 1000L) {
-                try {
-                    Thread.sleep(150L)
-                } catch (_: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                    break
-                }
-                val polledCap = service.captureLiveSnapshot(targetPackageName = postTargetPkg)
-                val candidatePost = polledCap.takeIf { isValidPostSnapshot(it) }
-                    ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
-
-                if (isValidPostSnapshot(candidatePost)) {
-                    postSnapshot = candidatePost
-                    break
-                }
-            }
-        }
-
-        // Enforce strict freshness & usability
-        if (!isValidPostSnapshot(postSnapshot)) {
-            postSnapshot = null
-        }
+        // 4. Capture Post-Action Snapshot
+        service?.captureLiveSnapshot()
+        val postSnapshot = snapshotProvider() ?: ObservationSnapshot()
 
         // 5. Verify Target-Aware Result
         val verification = if (!dispatchSuccess) {
@@ -358,16 +257,15 @@ class UiActionExecutor(
                 reason = "Framework performAction returned false"
             )
         } else {
-            verificationStrategy.verifyTargetAware(
+            verificationStrategy.verify(
                 actionType = request.actionType,
                 targetNodeId = resolvedNode.nodeId,
-                expectedPackageName = request.expectedPackageName,
                 preSnapshot = preSnapshot,
                 postSnapshot = postSnapshot
             )
         }
 
-        return buildResultAndLog(request, finalTargetRes, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
+        return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
     }
 
     private fun buildResultAndLog(
@@ -390,7 +288,7 @@ class UiActionExecutor(
             executionDurationMs = duration
         )
 
-        (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.recordActionExecution(result)
+        logActionEvidence(result)
         return result
     }
 
@@ -486,48 +384,6 @@ class UiActionExecutor(
                 metadataJson = "{\"dispatchSuccess\":$success}"
             )
         )
-    }
-
-    private fun dispatchGestureFallback(actionType: ActionType): Boolean {
-        val service = accessibilityService ?: AgentAccessibilityService.INSTANCE ?: return false
-        val metrics = service.resources?.displayMetrics
-        val width = metrics?.widthPixels?.toFloat()?.takeIf { it > 0 } ?: 1080f
-        val height = metrics?.heightPixels?.toFloat()?.takeIf { it > 0 } ?: 2160f
-
-        val (startX, startY, endX, endY) = when (actionType) {
-            ActionType.UI_SCROLL_FORWARD -> listOf(width / 2f, height * 0.75f, width / 2f, height * 0.25f)
-            ActionType.UI_SCROLL_BACKWARD -> listOf(width / 2f, height * 0.25f, width / 2f, height * 0.75f)
-            else -> return false
-        }
-
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            try {
-                val path = android.graphics.Path().apply {
-                    moveTo(startX, startY)
-                    lineTo(endX, endY)
-                }
-                val stroke = android.accessibilityservice.GestureDescription.StrokeDescription(path, 0L, 300L)
-                val gesture = android.accessibilityservice.GestureDescription.Builder().addStroke(stroke).build()
-                var dispatched = false
-                val latch = java.util.concurrent.CountDownLatch(1)
-                service.dispatchGesture(gesture, object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
-                    override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
-                        dispatched = true
-                        latch.countDown()
-                    }
-                    override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
-                        dispatched = false
-                        latch.countDown()
-                    }
-                }, null)
-                latch.await(1000L, java.util.concurrent.TimeUnit.MILLISECONDS)
-                dispatched
-            } catch (_: Exception) {
-                false
-            }
-        } else {
-            false
-        }
     }
 
     private fun logActionEvidence(result: ActionExecutionResult) {

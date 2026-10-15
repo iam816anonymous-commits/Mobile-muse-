@@ -110,62 +110,9 @@ class AgentAccessibilityService : AccessibilityService() {
             }
         }
 
-    private val executionHistoryList = Collections.synchronizedList(mutableListOf<com.localagent.core.action.ActionExecutionResult>())
-
-    val actionExecutionHistory: List<com.localagent.core.action.ActionExecutionResult>
-        get() = synchronized(executionHistoryList) { executionHistoryList.toList() }
-
-    @Volatile
-    var lastActionExecutionResult: com.localagent.core.action.ActionExecutionResult? = null
-        private set
-
-    fun recordActionExecution(result: com.localagent.core.action.ActionExecutionResult) {
-        lastActionExecutionResult = result
-        synchronized(executionHistoryList) {
-            executionHistoryList.add(result)
-            if (executionHistoryList.size > 20) {
-                executionHistoryList.removeAt(0)
-            }
-        }
-        logActionEvidenceEvent(result)
-    }
-
-    private fun logActionEvidenceEvent(result: com.localagent.core.action.ActionExecutionResult) {
-        val app = application as? LocalAgentApplication ?: return
-        val activeSessionId = app.eventLogger.getActiveSession().sessionId
-
-        val evidence = com.localagent.core.action.ActionEvidence(
-            executionId = result.executionId,
-            actionType = result.request.actionType,
-            targetIdentity = result.targetResolutionResult?.resolvedNodeIdentity ?: result.request.targetNodeIdentity ?: result.request.targetNodeId,
-            targetConfidence = result.targetResolutionResult?.confidence,
-            preSnapshotId = result.preSnapshot?.snapshotId,
-            postSnapshotId = result.postSnapshot?.snapshotId,
-            diffSummary = result.verificationResult.diffResult?.toJsonString() ?: "No diff",
-            status = result.verificationResult.status,
-            resultCode = result.verificationResult.resultCode
-        )
-
-        app.eventLogger.logEvent(
-            AgentEvent(
-                eventId = UUID.randomUUID().toString(),
-                sessionId = activeSessionId,
-                subsystem = EventSubsystem.ACTION,
-                eventType = "ACTION_EVIDENCE_GENERATED",
-                actionType = result.request.actionType.name,
-                sourceChannel = result.request.sourceChannel,
-                resultCode = result.verificationResult.resultCode,
-                durationMs = result.executionDurationMs,
-                severity = if (result.verificationResult.status == com.localagent.core.action.VerificationStatus.EXECUTED_AND_VERIFIED) EventSeverity.INFO else EventSeverity.WARNING,
-                errorCode = result.verificationResult.reason,
-                metadataJson = evidence.toJsonObject().toString()
-            )
-        )
-    }
-
     @Volatile
     var latestDiagnostics: ObservationWindowDiagnostics = ObservationWindowDiagnostics()
-        set
+        private set
 
     @Volatile
     var externalObservationState: ObservationEngineState = ObservationEngineState.OBSERVING
@@ -409,15 +356,9 @@ class AgentAccessibilityService : AccessibilityService() {
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
 
-            // If an explicit targetPackageName was requested, prefer matching candidate.
-            // If no explicit targetPackageName was requested, preserve bestExternal (highest-scoring active external window)
+            // If an explicit targetPackageName was requested, prefer a candidate matching targetPackageName
             if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
                 val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
-                if (targetMatch != null) {
-                    bestExternal = targetMatch
-                }
-            } else if (bestExternal == null && isValidExternalApplicationPackage(lastExternalPackageName)) {
-                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == lastExternalPackageName && it.node != null }
                 if (targetMatch != null) {
                     bestExternal = targetMatch
                 }
@@ -426,45 +367,40 @@ class AgentAccessibilityService : AccessibilityService() {
             val extNode = bestExternal?.node
             if (bestExternal != null && extNode != null && !recycledNodes.contains(extNode)) {
                 try {
-                    val extPkg = bestExternal.candidate.packageName.ifBlank { extNode.packageName?.toString() ?: activePackageName }
-                    if (isValidExternalApplicationPackage(extPkg)) {
-                        val extSnap = extractor.extractSnapshot(
-                            rootNodeInfo = extNode,
-                            packageName = extPkg,
-                            activityName = lastExternalActivityName,
-                            windowId = bestExternal.candidate.windowId
-                        ).copy(generation = currentGen)
-                        lastExternalPackageName = extPkg
-                        lastExternalWindowId = bestExternal.candidate.windowId
-                        lastExternalWindowType = bestExternal.candidate.windowType
-                        lastExternalObservationTimestamp = System.currentTimeMillis()
-                        lastExternalObservationSnapshot = extSnap
-                    }
+                    val extPkg = bestExternal.candidate.packageName
+                    val extSnap = extractor.extractSnapshot(
+                        rootNodeInfo = extNode,
+                        packageName = extPkg,
+                        activityName = lastExternalActivityName,
+                        windowId = bestExternal.candidate.windowId
+                    ).copy(generation = currentGen)
+                    lastExternalPackageName = extPkg
+                    lastExternalWindowId = bestExternal.candidate.windowId
+                    lastExternalWindowType = bestExternal.candidate.windowType
+                    lastExternalObservationTimestamp = System.currentTimeMillis()
+                    lastExternalObservationSnapshot = extSnap
                 } finally {
                     extNode.recycle()
                     recycledNodes.add(extNode)
                 }
-            } else {
-                val fallbackPkgToFind = targetPackageName?.ifBlank { null } ?: lastExternalPackageName.takeIf { isValidExternalApplicationPackage(it) }
-                if (!fallbackPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(fallbackPkgToFind)) {
-                    // Fallback: Use live root node seam to capture explicit target external snapshot
-                    val fallbackRoot = getLiveExternalRootNode(fallbackPkgToFind)
-                    if (fallbackRoot != null) {
-                        try {
-                            val fallbackPkg = fallbackRoot.packageName?.toString() ?: fallbackPkgToFind
-                            val extSnap = extractor.extractSnapshot(
-                                rootNodeInfo = fallbackRoot,
-                                packageName = fallbackPkg,
-                                activityName = lastExternalActivityName,
-                                windowId = fallbackRoot.windowId
-                            ).copy(generation = currentGen)
-                            lastExternalPackageName = fallbackPkg
-                            lastExternalWindowId = fallbackRoot.windowId
-                            lastExternalObservationTimestamp = System.currentTimeMillis()
-                            lastExternalObservationSnapshot = extSnap
-                        } finally {
-                            fallbackRoot.recycle()
-                        }
+            } else if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+                // Fallback: Use live root node seam to capture explicit target external snapshot
+                val fallbackRoot = getLiveExternalRootNode(targetPackageName)
+                if (fallbackRoot != null) {
+                    try {
+                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPackageName
+                        val extSnap = extractor.extractSnapshot(
+                            rootNodeInfo = fallbackRoot,
+                            packageName = fallbackPkg,
+                            activityName = lastExternalActivityName,
+                            windowId = fallbackRoot.windowId
+                        ).copy(generation = currentGen)
+                        lastExternalPackageName = fallbackPkg
+                        lastExternalWindowId = fallbackRoot.windowId
+                        lastExternalObservationTimestamp = System.currentTimeMillis()
+                        lastExternalObservationSnapshot = extSnap
+                    } finally {
+                        fallbackRoot.recycle()
                     }
                 }
             }
@@ -535,13 +471,7 @@ class AgentAccessibilityService : AccessibilityService() {
             )
         )
 
-        val returnSnapshot = if (isValidExternalApplicationPackage(selectedPkg) && (targetPackageName.isNullOrBlank() || selectedPkg == targetPackageName)) {
-            primarySnapshot
-        } else {
-            lastExternalObservationSnapshot ?: primarySnapshot
-        }
-
-        return returnSnapshot
+        return primarySnapshot
     }
 
     @Suppress("DEPRECATION")
@@ -595,21 +525,12 @@ class AgentAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun isLauncherPackageName(pkg: String): Boolean {
-        if (pkg.isBlank()) return false
-        val lower = pkg.lowercase()
-        return lower.contains("launcher") || lower.contains("home") || lower == "com.android.launcher3" || lower == "com.google.android.apps.nexuslauncher"
-    }
-
     fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
         val windowCandidates = collectWindowCandidates()
 
         // 1. Direct match for requested targetPackageName
         if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
-            val isTargetLauncher = isLauncherPackageName(targetPackageName)
-            val directMatch = windowCandidates.firstOrNull {
-                (it.candidate.packageName == targetPackageName || (isTargetLauncher && isLauncherPackageName(it.candidate.packageName))) && it.node != null
-            }
+            val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
             if (directMatch?.node != null) {
                 val matchedNode = AccessibilityNodeInfo.obtain(directMatch.node)
                 windowCandidates.forEach { it.node?.recycle() }
@@ -620,7 +541,7 @@ class AgentAccessibilityService : AccessibilityService() {
             val activeRoot = rootInActiveWindow
             if (activeRoot != null) {
                 val activePkg = activeRoot.packageName?.toString() ?: ""
-                if (activePkg == targetPackageName || (isTargetLauncher && isLauncherPackageName(activePkg))) {
+                if (activePkg == targetPackageName) {
                     windowCandidates.forEach { it.node?.recycle() }
                     return activeRoot
                 }
@@ -682,6 +603,7 @@ class AgentAccessibilityService : AccessibilityService() {
         if (pkg.isBlank()) return false
         if (pkg == "com.localagent.app") return false
         if (pkg == "com.android.systemui") return false
+        if (pkg.endsWith(".launcher") || pkg.endsWith(".launcher3") || pkg == "com.google.android.apps.nexuslauncher" || pkg == "com.android.launcher3") return false
         return true
     }
 
@@ -690,6 +612,7 @@ class AgentAccessibilityService : AccessibilityService() {
             pkg.isBlank() -> "BLANK_PACKAGE"
             pkg == "com.localagent.app" -> "LOCAL_AGENT_NOT_EXTERNAL_APPLICATION"
             pkg == "com.android.systemui" -> "SYSTEM_UI_NOT_VALID_EXTERNAL_APPLICATION"
+            pkg.contains("launcher") -> "LAUNCHER_NOT_VALID_EXTERNAL_APPLICATION"
             else -> "INVALID_EXTERNAL_APPLICATION"
         }
     }
@@ -698,18 +621,6 @@ class AgentAccessibilityService : AccessibilityService() {
         val candidate: WindowCandidateInfo,
         val node: AccessibilityNodeInfo?
     )
-
-    private fun resolvePackageFromNode(node: AccessibilityNodeInfo): String {
-        val direct = node.packageName?.toString() ?: ""
-        if (direct.isNotBlank()) return direct
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val childPkg = child.packageName?.toString() ?: ""
-            child.recycle()
-            if (childPkg.isNotBlank()) return childPkg
-        }
-        return ""
-    }
 
     private fun collectWindowCandidates(): List<InternalCandidate> {
         val list = mutableListOf<InternalCandidate>()
@@ -725,17 +636,10 @@ class AgentAccessibilityService : AccessibilityService() {
                             copy
                         } else null
                         var pkg = root?.packageName?.toString() ?: ""
-                        val type = window.type
                         if (pkg.isBlank() && obtainedNode != null) {
-                            pkg = resolvePackageFromNode(obtainedNode)
+                            pkg = obtainedNode.packageName?.toString() ?: ""
                         }
-                        if (pkg.isBlank() && type == AccessibilityWindowInfo.TYPE_APPLICATION) {
-                            if (isValidExternalApplicationPackage(activePackageName)) {
-                                pkg = activePackageName
-                            } else if (isValidExternalApplicationPackage(lastExternalPackageName)) {
-                                pkg = lastExternalPackageName
-                            }
-                        }
+                        val type = window.type
                         val active = window.isActive
                         val focused = window.isFocused
                         val score = calculateWindowScore(type, pkg, active, focused)
@@ -802,10 +706,10 @@ class AgentAccessibilityService : AccessibilityService() {
         val app = application as? LocalAgentApplication
 
         for (item in candidates) {
-            val pkg = item.candidate.packageName.ifBlank { item.node?.packageName?.toString() ?: "" }
+            val pkg = item.candidate.packageName
             if (isValidExternalApplicationPackage(pkg)) {
                 validCandidates.add(item)
-            } else if (pkg.isNotBlank()) {
+            } else if (pkg.isNotBlank() && pkg != "com.localagent.app") {
                 val reason = getCandidateRejectionReason(pkg)
                 if (rejectedPackagesInRequest.add(pkg)) {
                     app?.eventLogger?.logEvent(
@@ -835,18 +739,18 @@ class AgentAccessibilityService : AccessibilityService() {
         if (type == AccessibilityWindowInfo.TYPE_APPLICATION) {
             score += 50
             if (isValidExternalApplicationPackage(packageName)) {
-                score += 20 // Preferred valid non-system application
+                score += 10 // Preferred valid non-system application
             }
         } else {
             score += 10
         }
 
         if (isActive && isFocused) {
-            score += 100 // Active and focused window is the primary interactive foreground UI
-        } else if (isActive) {
             score += 40
-        } else if (isFocused) {
+        } else if (isActive) {
             score += 30
+        } else if (isFocused) {
+            score += 20
         }
 
         return score

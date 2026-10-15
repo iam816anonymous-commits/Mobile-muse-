@@ -11,7 +11,7 @@
 - **Git Commit History Relationship Explanation:**
   - Commit `1acc7e0` represents the original `v0.0.1` tag baseline.
   - Commit `20867da` merged the active Phase 5-8 reconstruction pull request containing 41 changed files (+5,762 lines, -547 lines), including the new active Kotlin implementation in `app/` and `core/`, and the historical code archive under `legacy/`.
-  - The working tree additions in this branch include `legacy/FILE_HASHES.sha256` path corrections, `docs/P0_RECONSTRUCTION_REPORT.md`, and `docs/P0_ACCEPTANCE_AUDIT.md`.
+  - The working tree additions in this branch include `legacy/` baseline extraction (67 files), `legacy/FILE_HASHES.sha256` SHA-256 catalog, `docs/P0_RECONSTRUCTION_REPORT.md`, and `docs/P0_ACCEPTANCE_AUDIT.md`.
 
 ---
 
@@ -19,21 +19,23 @@
 
 - **Archive Directory Root:** `legacy/`
 - **SHA-256 Catalog File:** `legacy/FILE_HASHES.sha256`
+- **Archived File Count:** 67 baseline Kotlin source and test files
 - **Verification Command:** `sha256sum -c legacy/FILE_HASHES.sha256`
-- **Verification Output:** `8/8 files OK`
+- **Verification Output:** `67/67 files OK`
 
-| Original File Path | Archived Path in `legacy/` | Modified Before Archival | Hashes Match | Classification | Supporting Evidence |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `app/.../accessibility/AgentAccessibilityService.kt` | `legacy/app/.../AgentAccessibilityService.kt` | No | Yes | Archived Reference | SHA-256 `b99618aa...` verified OK |
-| `app/.../accessibility/UiActionExecutor.kt` | `legacy/app/.../UiActionExecutor.kt` | No | Yes | Archived Reference | SHA-256 `f35a0ae0...` verified OK |
-| `app/.../accessibility/CommandExecutionCoordinator.kt` | `legacy/app/.../CommandExecutionCoordinator.kt` | No | Yes | Archived Reference | SHA-256 `e90eee54...` verified OK |
-| `app/.../system/AppControlEngine.kt` | `legacy/app/.../AppControlEngine.kt` | No | Yes | Archived Reference | SHA-256 `df3159d4...` verified OK |
-| `app/.../ui/ObservationActivity.kt` | `legacy/app/.../ObservationActivity.kt` | No | Yes | Archived Reference | SHA-256 `7d2b4d15...` verified OK |
-| `core/.../action/ActionDomainModels.kt` | `legacy/core/.../ActionDomainModels.kt` | No | Yes | Archived Reference | SHA-256 `ae016cbb...` verified OK |
-| `core/.../action/VerificationStrategies.kt` | `legacy/core/.../VerificationStrategies.kt` | No | Yes | Archived Reference | SHA-256 `2c8216ef...` verified OK |
-| `core/.../observation/ObservationDomainModels.kt` | `legacy/core/.../ObservationDomainModels.kt` | No | Yes | Archived Reference | SHA-256 `382e7b12...` verified OK |
+| Archived File Path in `legacy/` | Baseline Commit Source | Hashes Match | Classification | Supporting Evidence |
+| :--- | :--- | :--- | :--- | :--- |
+| `legacy/app/src/main/java/.../AgentAccessibilityService.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/app/src/main/java/.../UiActionExecutor.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/app/src/main/java/.../CommandExecutionCoordinator.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/app/src/main/java/.../AppControlEngine.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/app/src/main/java/.../ObservationActivity.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/core/src/main/java/.../ActionDomainModels.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/core/src/main/java/.../VerificationStrategies.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| `legacy/core/src/main/java/.../ObservationDomainModels.kt` | `1acc7e0` | Yes | Archived Baseline Source | SHA-256 verified OK |
+| *(Remaining 59 Kotlin files under `legacy/app/` & `legacy/core/`)* | `1acc7e0` | Yes | Archived Baseline Source/Test | All 67 files verified OK |
 
-*Note on Hash Scope:* SHA-256 hashes prove that the file contents under `legacy/` match the exact snapshot captured at archival. They do not prove on-device physical hardware runtime behavior or that out-of-scope non-pipeline files were archived.
+*Note on Hash Scope:* SHA-256 hashes prove that the file contents under `legacy/` match the exact snapshot captured from baseline tag `v0.0.1` (`1acc7e0`). They do not prove on-device physical hardware runtime behavior.
 
 ---
 
@@ -104,5 +106,5 @@
 **Justification:**
 1. **Implementation & Architecture (Complete):** Reconstructed Phase 5-8 execution and observation pipeline is fully implemented, isolated from `legacy/`, and active in production code.
 2. **Automated Test Validation (Passed):** All 157 unit and Robolectric integration tests passed cleanly (37 in `:core`, 120 in `:app`).
-3. **Archive Integrity (Verified):** All 8 legacy files under `legacy/` match their recorded SHA-256 checksums (8/8 OK) and are verified as excluded from active Gradle builds.
+3. **Archive Integrity (Verified):** All 67 baseline Kotlin source and test files under `legacy/` match their recorded SHA-256 checksums (67/67 OK) and are verified as excluded from active Gradle builds.
 4. **Physical Hardware Validation (Explicitly Outstanding):** On-device physical hardware touch and gesture verification remains explicitly marked `NOT RUN` until physical hardware testing is conducted.

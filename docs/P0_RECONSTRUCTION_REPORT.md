@@ -9,46 +9,31 @@
 - **Git History Reconstruction Accounting:**
   - Total diff from baseline tag `v0.0.1` (`1acc7e0`) to reconstructed state: **41 files changed, 5,762 insertions(+), 547 deletions(-)**.
   - Active reconstructed application files: 15 Kotlin/XML source files.
-  - Historical archive under `legacy/`: 8 Kotlin source files + `MANIFEST.md` + `FILE_HASHES.sha256`.
-  - Research and architecture documentation: `docs/P0_RECONSTRUCTION_INVENTORY.md`, `docs/P0_TARGET_ARCHITECTURE.md`, `docs/P0_RECONSTRUCTION_REPORT.md`, research audits.
+  - Complete historical codebase archive under `legacy/`: 67 Kotlin production and test files + `MANIFEST.md` + `FILE_HASHES.sha256`.
+  - Research and architecture documentation: `docs/P0_RECONSTRUCTION_INVENTORY.md`, `docs/P0_TARGET_ARCHITECTURE.md`, `docs/P0_RECONSTRUCTION_REPORT.md`, `docs/P0_ACCEPTANCE_AUDIT.md`, research audits.
 
 ---
 
 ## B. Archive Evidence
 
 - **Archived Directory Root:** `legacy/`
-- **Archived File Count:** 8 source files + manifest & hash catalog
+- **Archived File Count:** 67 source and test files + manifest & hash catalog
 - **Directory Structure:**
   ```
   legacy/
   ├── MANIFEST.md
   ├── FILE_HASHES.sha256
-  ├── app/src/main/java/com/localagent/app/
-  │   ├── accessibility/
-  │   │   ├── AgentAccessibilityService.kt
-  │   │   ├── UiActionExecutor.kt
-  │   │   └── CommandExecutionCoordinator.kt
-  │   ├── system/
-  │   │   └── AppControlEngine.kt
-  │   └── ui/
-  │       └── ObservationActivity.kt
-  └── core/src/main/java/com/localagent/core/
-      ├── action/
-      │   ├── ActionDomainModels.kt
-      │   └── VerificationStrategies.kt
-      └── observation/
-          └── ObservationDomainModels.kt
+  ├── app/
+  │   └── src/
+  │       ├── main/java/com/localagent/app/
+  │       └── test/java/com/localagent/app/
+  └── core/
+      └── src/
+          ├── main/java/com/localagent/core/
+          └── test/java/com/localagent/core/
   ```
 - **Manifest & Hash Verification Command:** `sha256sum -c legacy/FILE_HASHES.sha256`
-- **Hash Verification Status:** All 8 files verified `OK`:
-  - `legacy/app/src/main/java/com/localagent/app/accessibility/UiActionExecutor.kt: OK`
-  - `legacy/app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt: OK`
-  - `legacy/app/src/main/java/com/localagent/app/accessibility/CommandExecutionCoordinator.kt: OK`
-  - `legacy/app/src/main/java/com/localagent/app/system/AppControlEngine.kt: OK`
-  - `legacy/app/src/main/java/com/localagent/app/ui/ObservationActivity.kt: OK`
-  - `legacy/core/src/main/java/com/localagent/core/observation/ObservationDomainModels.kt: OK`
-  - `legacy/core/src/main/java/com/localagent/core/action/ActionDomainModels.kt: OK`
-  - `legacy/core/src/main/java/com/localagent/core/action/VerificationStrategies.kt: OK`
+- **Hash Verification Status:** All 67 files verified `OK` (`67/67 OK`).
 - **Build Exclusion Evidence:** `legacy/` resides outside `app/src/` and `core/src/`. Standard Gradle source set paths in `app/build.gradle` and `core/build.gradle` restrict compilation strictly to `src/main/java`. Verified via zero matches for legacy paths in Kotlin/Java compilation tasks.
 
 ---
@@ -96,7 +81,7 @@ CommandExecutionCoordinator (Assigns step executionId)
 
 ## D. Change Accounting
 
-- **Files Archived:** 8 files under `legacy/`
+- **Files Archived:** 67 files under `legacy/`
 - **Active Files Reconstructed (Diff vs v0.0.1 Baseline):**
   - `app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt` (+199/-100 lines)
   - `app/src/main/java/com/localagent/app/accessibility/CommandExecutionCoordinator.kt` (+220 lines)

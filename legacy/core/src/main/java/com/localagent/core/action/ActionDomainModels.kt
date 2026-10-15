@@ -9,7 +9,6 @@ import org.json.JSONObject
 import java.util.UUID
 
 enum class ActionType {
-    APP_LAUNCH,
     GLOBAL_BACK,
     GLOBAL_HOME,
     GLOBAL_RECENTS,
@@ -20,20 +19,6 @@ enum class ActionType {
     UI_SCROLL_BACKWARD
 }
 
-enum class ActionObservationPolicy {
-    POST_STATE_ONLY,
-    PRE_AND_POST,
-    TARGET_VERIFICATION,
-    UNVERIFIED
-}
-
-val ActionType.defaultObservationPolicy: ActionObservationPolicy
-    get() = when (this) {
-        ActionType.APP_LAUNCH, ActionType.GLOBAL_HOME -> ActionObservationPolicy.POST_STATE_ONLY
-        ActionType.GLOBAL_BACK, ActionType.GLOBAL_RECENTS -> ActionObservationPolicy.PRE_AND_POST
-        ActionType.UI_CLICK, ActionType.UI_LONG_CLICK, ActionType.UI_TEXT_INPUT, ActionType.UI_SCROLL_FORWARD, ActionType.UI_SCROLL_BACKWARD -> ActionObservationPolicy.PRE_AND_POST
-    }
-
 enum class VerificationStatus {
     EXECUTED_AND_VERIFIED,
     EXECUTED_BUT_NOT_VERIFIED,
@@ -43,30 +28,6 @@ enum class VerificationStatus {
     ACTION_NOT_SUPPORTED,
     EXECUTION_FAILED,
     VERIFICATION_FAILED
-}
-
-enum class DestinationHierarchyState {
-    FULL_HIERARCHY,           // Valid non-empty root node and children available
-    SPARSE_HIERARCHY,         // Non-null root with 1-3 nodes or minimal view structure
-    UNAVAILABLE_HIERARCHY,    // Package transition confirmed, but root node is null or inaccessible
-    UNKNOWN_DESTINATION       // Foreground package cannot be confirmed confidently
-}
-
-enum class FailureStage {
-    NONE,
-    COMMAND_NORMALIZATION,
-    TARGET_RESOLUTION,
-    SOURCE_OBSERVATION,
-    PRE_DISPATCH_VALIDATION,
-    ACTION_DISPATCH,
-    FOREGROUND_TRANSITION,
-    POST_ACTION_CAPTURE,
-    SNAPSHOT_VALIDATION,
-    SNAPSHOT_ASSOCIATION,
-    SEMANTIC_DIFF,
-    GOAL_VERIFICATION,
-    EVIDENCE_PERSISTENCE,
-    UI_PRESENTATION
 }
 
 data class ActionRequest(
@@ -97,9 +58,7 @@ data class VerificationResult(
     val status: VerificationStatus,
     val resultCode: ResultCode,
     val reason: String? = null,
-    val diffResult: SnapshotDiffResult? = null,
-    val hierarchyState: DestinationHierarchyState = DestinationHierarchyState.FULL_HIERARCHY,
-    val failureStage: FailureStage = FailureStage.NONE
+    val diffResult: SnapshotDiffResult? = null
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -107,8 +66,6 @@ data class VerificationResult(
             put("resultCode", resultCode.name)
             reason?.let { put("reason", it) }
             diffResult?.let { put("diffResult", it.toJsonString()) }
-            put("hierarchyState", hierarchyState.name)
-            put("failureStage", failureStage.name)
         }
     }
 }
