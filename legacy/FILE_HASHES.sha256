@@ -1,0 +1,8 @@
+f35a0ae065c72dbe83a037d113c55913226b3bbffa870294b60d579e33f952eb  ./app/src/main/java/com/localagent/app/accessibility/UiActionExecutor.kt
+b99618aa4ffdbe88c379cc2ec361d65be32ff20d213584f1a7776652e8a92f02  ./app/src/main/java/com/localagent/app/accessibility/AgentAccessibilityService.kt
+e90eee54de28d8498aa60b96ec20feb69872963a9b6b88fca1dbd7479ffd03f4  ./app/src/main/java/com/localagent/app/accessibility/CommandExecutionCoordinator.kt
+df3159d4a5a7ed262a421fc581b071a1f244dcdb1dcf7fc194b55fdec2a57b1a  ./app/src/main/java/com/localagent/app/system/AppControlEngine.kt
+7d2b4d151d10db67ba2e3b02b9dbfc72918559ec146eb205df79fca52147291a  ./app/src/main/java/com/localagent/app/ui/ObservationActivity.kt
+382e7b122c3338ff82b0800ea1b758be90eef1e86b20e5543c38f6ec9a79144d  ./core/src/main/java/com/localagent/core/observation/ObservationDomainModels.kt
+ae016cbb4a5ae4c79b05d78e0f1eea0132591f42f40df771ab2f3e5e7dedccc2  ./core/src/main/java/com/localagent/core/action/ActionDomainModels.kt
+2c8216ef9a1f643bc53ea6abcf5f4e1c150ef77d2df21805eae2f845f5dcc1eb  ./core/src/main/java/com/localagent/core/action/VerificationStrategies.kt
