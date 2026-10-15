@@ -1,4 +1,3 @@
-// Reconstructed LocalAgent Phase 5-8 Implementation
 package com.localagent.core.action
 
 import com.localagent.core.observation.NodeDiffType

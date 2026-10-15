@@ -1,4 +1,3 @@
-// Reconstructed LocalAgent Phase 5-8 Implementation
 package com.localagent.app.system
 
 import android.content.Context
