@@ -311,6 +311,33 @@ class AppControlEngineTest {
     }
 
     @Test
+    fun `PHASE8-VERIFY-005 - LaunchVerifier verifies active foreground package match`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        event.packageName = "com.transsion.hilauncher.v2"
+        service.onAccessibilityEvent(event)
+
+        val verifier = LaunchVerifier(
+            context = app,
+            accessibilityServiceSupplier = { service },
+            rootNodeProvider = { pkg ->
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher.v2",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "camera_icon",
+                    text = "Camera"
+                )
+            }
+        )
+
+        val result = verifier.verifyForeground("com.transsion.hilauncher.v2", timeoutMs = 500)
+        assertTrue(result is LaunchVerificationResult.Success)
+    }
+
+    @Test
     fun `PHASE8-E2E-001 - Sequential APP_LAUNCH then UI_CLICK command execution`() {
         val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
         val service = serviceController.get()

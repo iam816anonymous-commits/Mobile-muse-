@@ -165,11 +165,34 @@ class AppLauncher(private val context: Context) {
 }
 
 class LaunchVerifier(
+    private val context: Context? = null,
     private val accessibilityServiceSupplier: () -> AgentAccessibilityService? = { AgentAccessibilityService.INSTANCE },
     private val rootNodeProvider: (targetPackageName: String) -> AccessibilityNodeInfo? = { pkg ->
         (accessibilityServiceSupplier() ?: AgentAccessibilityService.INSTANCE)?.getLiveExternalRootNode(pkg)
     }
 ) {
+
+    private fun isPackageMatch(actualPkg: String, expectedPkg: String): Boolean {
+        if (actualPkg.isBlank() || expectedPkg.isBlank()) return false
+        if (actualPkg == expectedPkg) return true
+        if (actualPkg == "com.android.systemui" || actualPkg == "com.localagent.app") return false
+
+        val ctx = context ?: (accessibilityServiceSupplier() ?: AgentAccessibilityService.INSTANCE)?.applicationContext
+        if (ctx != null) {
+            try {
+                val pm = ctx.packageManager
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+                val homeActivities = pm.queryIntentActivities(homeIntent, 0)
+                val homePackages = homeActivities.mapNotNull { it.activityInfo?.packageName }.toSet()
+                if (homePackages.contains(expectedPkg) && homePackages.contains(actualPkg)) {
+                    return true
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        return false
+    }
 
     fun awaitUsableWindowAndSnapshot(
         targetPackageName: String,
@@ -186,11 +209,10 @@ class LaunchVerifier(
         while (System.currentTimeMillis() - startTime <= timeoutMs) {
             val root = rootNodeProvider(targetPackageName)
             if (root != null) {
-                // Verify matching package and usable non-null node
                 val rootPkg = root.packageName?.toString() ?: ""
                 root.recycle()
 
-                if (rootPkg == targetPackageName) {
+                if (isPackageMatch(rootPkg, targetPackageName)) {
                     // Small controlled settling interval to allow hierarchy stabilization
                     if (settleDelayMs > 0) {
                         try {
@@ -207,7 +229,7 @@ class LaunchVerifier(
                         service.captureLiveSnapshot(targetPackageName)
                         val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
                         if (candidateSnapshot != null &&
-                            candidateSnapshot.packageName == targetPackageName &&
+                            isPackageMatch(candidateSnapshot.packageName, targetPackageName) &&
                             candidateSnapshot.generation > minGeneration &&
                             candidateSnapshot.nodeCount > 0
                         ) {
@@ -232,7 +254,7 @@ class LaunchVerifier(
             service.captureLiveSnapshot(targetPackageName)
             val candidateSnapshot = service.getSnapshotForContext(isExternal = true)
             if (candidateSnapshot != null &&
-                candidateSnapshot.packageName == targetPackageName &&
+                isPackageMatch(candidateSnapshot.packageName, targetPackageName) &&
                 candidateSnapshot.generation > minGeneration &&
                 candidateSnapshot.nodeCount > 0
             ) {
@@ -256,13 +278,13 @@ class LaunchVerifier(
             val currentFg = service.activePackageName
             val lastExt = service.lastExternalPackageName
 
-            // 1. Direct package match on active or last external package
-            if (currentFg == targetPackageName || lastExt == targetPackageName) {
+            // 1. Package match on active or last external package
+            if (isPackageMatch(currentFg, targetPackageName) || isPackageMatch(lastExt, targetPackageName)) {
                 val elapsed = System.currentTimeMillis() - startTime
                 return LaunchVerificationResult.Success(targetPackageName, elapsed)
             }
 
-            // 2. Query live interactive windows for direct target package root node
+            // 2. Query live interactive windows for target package root node
             val targetRoot = service.getLiveExternalRootNode(targetPackageName)
             if (targetRoot != null) {
                 val elapsed = System.currentTimeMillis() - startTime
@@ -272,7 +294,7 @@ class LaunchVerifier(
 
             // 3. Inspect available window candidates for matching active application window
             val windows = service.latestDiagnostics.availableWindows
-            if (windows.any { it.packageName == targetPackageName && (it.isActive || it.score >= 50) }) {
+            if (windows.any { isPackageMatch(it.packageName, targetPackageName) && (it.isActive || it.score >= 50) }) {
                 val elapsed = System.currentTimeMillis() - startTime
                 return LaunchVerificationResult.Success(targetPackageName, elapsed)
             }
@@ -294,7 +316,7 @@ class LaunchVerifier(
         }
 
         val finalFg = service.activePackageName
-        return if (finalFg.isNotBlank() && finalFg != targetPackageName && finalFg != "com.localagent.app" && finalFg != "com.android.systemui") {
+        return if (finalFg.isNotBlank() && !isPackageMatch(finalFg, targetPackageName) && finalFg != "com.localagent.app" && finalFg != "com.android.systemui") {
             LaunchVerificationResult.PackageMismatch(expectedPackageName = targetPackageName, actualPackageName = finalFg)
         } else {
             LaunchVerificationResult.Timeout(targetPackageName = targetPackageName, currentForegroundPackage = finalFg)
