@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.localagent.app.LocalAgentApplication
 import com.localagent.app.system.LaunchVerifier
 import com.localagent.core.action.ActionExecutionResult
+import com.localagent.core.action.ActionRequest
 import com.localagent.core.action.ActionType
 import com.localagent.core.action.VerificationStatus
 import com.localagent.core.command.ActionType as CmdActionType
@@ -22,6 +23,7 @@ import com.localagent.core.result.ResultCode
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -145,31 +147,91 @@ class CommandExecutionCoordinatorTest {
                 clickable = true
             )
         )
-        service.lastExternalObservationSnapshot = preSnap
-
-        val coordinator = CommandExecutionCoordinator(
-            context = context,
-            accessibilityServiceSupplier = { service }
+        val postSnap = ObservationSnapshot(
+            generation = 2L,
+            packageName = "com.transsion.camera",
+            nodeCount = 3,
+            rootNode = ObservationNode(
+                nodeId = "shutter",
+                nodeIdentity = "id:shutter",
+                packageName = "com.transsion.camera",
+                text = "Shutter",
+                clickable = true
+            )
         )
 
-        val cmd = NormalizedCommand(
-            source = CommandSource.CONSOLE,
-            actionType = CmdActionType.UI_CLICK,
-            targetSelector = TargetSelector.ByText("Camera"),
-            parameters = mapOf("targetIdentity" to "id:camera_btn")
+        var snapCall = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher",
+                    viewIdResourceName = "com.transsion.hilauncher:id/camera_btn",
+                    text = "Camera"
+                )
+            },
+            snapshotProvider = {
+                snapCall++
+                if (snapCall == 1) preSnap else postSnap
+            }
         )
 
-        val resultStr = coordinator.executeCommand(cmd)
-        assertNotNull(resultStr)
+        val req = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_btn"
+        )
 
-        val recordedResult: ActionExecutionResult? = service.lastActionExecutionResult
-        assertNotNull(recordedResult)
+        val res = uiExecutor.execute(req)
 
-        if (recordedResult != null) {
-            assertEquals(ActionType.UI_CLICK, recordedResult.request.actionType)
-            val preSnapshotObj = recordedResult.preSnapshot
-            assertNotNull(preSnapshotObj)
-            assertEquals("com.transsion.hilauncher", preSnapshotObj?.packageName)
-        }
+        assertNotNull(res)
+        assertEquals(ActionType.UI_CLICK, res.request.actionType)
+        assertEquals("Pre-snapshot package mismatch: ${res.preSnapshot}", "com.transsion.hilauncher", res.preSnapshot?.packageName)
+        assertEquals("Post-snapshot package mismatch: ${res.postSnapshot}", "com.transsion.camera", res.postSnapshot?.packageName)
+        assertEquals("Verification status failed: ${res.verificationResult.reason}", VerificationStatus.EXECUTED_AND_VERIFIED, res.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, res.verificationResult.resultCode)
+    }
+
+    @Test
+    fun testStalePostActionSnapshotYieldsNullPostSnapshotInExecutionResult() {
+        val service = AgentAccessibilityService()
+        service.onServiceConnectedForTest()
+
+        val sameSnap = ObservationSnapshot(
+            generation = 5L,
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = ObservationNode(
+                nodeId = "btn",
+                nodeIdentity = "id:btn",
+                packageName = "com.app",
+                text = "Click Me",
+                clickable = true
+            )
+        )
+
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.app",
+                    viewIdResourceName = "com.app:id/btn",
+                    text = "Click Me"
+                )
+            },
+            snapshotProvider = { sameSnap }
+        )
+
+        val req = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "btn"
+        )
+
+        val res = uiExecutor.execute(req)
+
+        assertNotNull(res)
+        assertNotNull(res.preSnapshot)
+        assertNull("Stale post-action snapshot must be set to null rather than duplicating preSnapshot. Actual postSnapshot: ${res.postSnapshot}", res.postSnapshot)
+        assertEquals(VerificationStatus.VERIFICATION_FAILED, res.verificationResult.status)
+        assertEquals(ResultCode.ACTION_FAILED, res.verificationResult.resultCode)
     }
 }

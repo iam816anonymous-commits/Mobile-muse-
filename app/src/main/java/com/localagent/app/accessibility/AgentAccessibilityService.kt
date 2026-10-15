@@ -409,9 +409,15 @@ class AgentAccessibilityService : AccessibilityService() {
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
 
-            // If an explicit targetPackageName was requested, prefer a candidate matching targetPackageName
+            // If an explicit targetPackageName was requested, prefer matching candidate.
+            // If no explicit targetPackageName was requested, preserve bestExternal (highest-scoring active external window)
             if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
                 val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+                if (targetMatch != null) {
+                    bestExternal = targetMatch
+                }
+            } else if (bestExternal == null && isValidExternalApplicationPackage(lastExternalPackageName)) {
+                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == lastExternalPackageName && it.node != null }
                 if (targetMatch != null) {
                     bestExternal = targetMatch
                 }
@@ -438,24 +444,27 @@ class AgentAccessibilityService : AccessibilityService() {
                     extNode.recycle()
                     recycledNodes.add(extNode)
                 }
-            } else if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
-                // Fallback: Use live root node seam to capture explicit target external snapshot
-                val fallbackRoot = getLiveExternalRootNode(targetPackageName)
-                if (fallbackRoot != null) {
-                    try {
-                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPackageName
-                        val extSnap = extractor.extractSnapshot(
-                            rootNodeInfo = fallbackRoot,
-                            packageName = fallbackPkg,
-                            activityName = lastExternalActivityName,
-                            windowId = fallbackRoot.windowId
-                        ).copy(generation = currentGen)
-                        lastExternalPackageName = fallbackPkg
-                        lastExternalWindowId = fallbackRoot.windowId
-                        lastExternalObservationTimestamp = System.currentTimeMillis()
-                        lastExternalObservationSnapshot = extSnap
-                    } finally {
-                        fallbackRoot.recycle()
+            } else {
+                val fallbackPkgToFind = targetPackageName?.ifBlank { null } ?: lastExternalPackageName.takeIf { isValidExternalApplicationPackage(it) }
+                if (!fallbackPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(fallbackPkgToFind)) {
+                    // Fallback: Use live root node seam to capture explicit target external snapshot
+                    val fallbackRoot = getLiveExternalRootNode(fallbackPkgToFind)
+                    if (fallbackRoot != null) {
+                        try {
+                            val fallbackPkg = fallbackRoot.packageName?.toString() ?: fallbackPkgToFind
+                            val extSnap = extractor.extractSnapshot(
+                                rootNodeInfo = fallbackRoot,
+                                packageName = fallbackPkg,
+                                activityName = lastExternalActivityName,
+                                windowId = fallbackRoot.windowId
+                            ).copy(generation = currentGen)
+                            lastExternalPackageName = fallbackPkg
+                            lastExternalWindowId = fallbackRoot.windowId
+                            lastExternalObservationTimestamp = System.currentTimeMillis()
+                            lastExternalObservationSnapshot = extSnap
+                        } finally {
+                            fallbackRoot.recycle()
+                        }
                     }
                 }
             }
@@ -526,7 +535,13 @@ class AgentAccessibilityService : AccessibilityService() {
             )
         )
 
-        return primarySnapshot
+        val returnSnapshot = if (isValidExternalApplicationPackage(selectedPkg) && (targetPackageName.isNullOrBlank() || selectedPkg == targetPackageName)) {
+            primarySnapshot
+        } else {
+            lastExternalObservationSnapshot ?: primarySnapshot
+        }
+
+        return returnSnapshot
     }
 
     @Suppress("DEPRECATION")
@@ -580,12 +595,21 @@ class AgentAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun isLauncherPackageName(pkg: String): Boolean {
+        if (pkg.isBlank()) return false
+        val lower = pkg.lowercase()
+        return lower.contains("launcher") || lower.contains("home") || lower == "com.android.launcher3" || lower == "com.google.android.apps.nexuslauncher"
+    }
+
     fun getLiveExternalRootNode(targetPackageName: String? = null): AccessibilityNodeInfo? {
         val windowCandidates = collectWindowCandidates()
 
         // 1. Direct match for requested targetPackageName
         if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
-            val directMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+            val isTargetLauncher = isLauncherPackageName(targetPackageName)
+            val directMatch = windowCandidates.firstOrNull {
+                (it.candidate.packageName == targetPackageName || (isTargetLauncher && isLauncherPackageName(it.candidate.packageName))) && it.node != null
+            }
             if (directMatch?.node != null) {
                 val matchedNode = AccessibilityNodeInfo.obtain(directMatch.node)
                 windowCandidates.forEach { it.node?.recycle() }
@@ -596,7 +620,7 @@ class AgentAccessibilityService : AccessibilityService() {
             val activeRoot = rootInActiveWindow
             if (activeRoot != null) {
                 val activePkg = activeRoot.packageName?.toString() ?: ""
-                if (activePkg == targetPackageName) {
+                if (activePkg == targetPackageName || (isTargetLauncher && isLauncherPackageName(activePkg))) {
                     windowCandidates.forEach { it.node?.recycle() }
                     return activeRoot
                 }
@@ -675,6 +699,18 @@ class AgentAccessibilityService : AccessibilityService() {
         val node: AccessibilityNodeInfo?
     )
 
+    private fun resolvePackageFromNode(node: AccessibilityNodeInfo): String {
+        val direct = node.packageName?.toString() ?: ""
+        if (direct.isNotBlank()) return direct
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val childPkg = child.packageName?.toString() ?: ""
+            child.recycle()
+            if (childPkg.isNotBlank()) return childPkg
+        }
+        return ""
+    }
+
     private fun collectWindowCandidates(): List<InternalCandidate> {
         val list = mutableListOf<InternalCandidate>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -689,17 +725,17 @@ class AgentAccessibilityService : AccessibilityService() {
                             copy
                         } else null
                         var pkg = root?.packageName?.toString() ?: ""
+                        val type = window.type
                         if (pkg.isBlank() && obtainedNode != null) {
-                            pkg = obtainedNode.packageName?.toString() ?: ""
-                            if (pkg.isBlank() && obtainedNode.childCount > 0) {
-                                val child0 = obtainedNode.getChild(0)
-                                if (child0 != null) {
-                                    pkg = child0.packageName?.toString() ?: ""
-                                    child0.recycle()
-                                }
+                            pkg = resolvePackageFromNode(obtainedNode)
+                        }
+                        if (pkg.isBlank() && type == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                            if (isValidExternalApplicationPackage(activePackageName)) {
+                                pkg = activePackageName
+                            } else if (isValidExternalApplicationPackage(lastExternalPackageName)) {
+                                pkg = lastExternalPackageName
                             }
                         }
-                        val type = window.type
                         val active = window.isActive
                         val focused = window.isFocused
                         val score = calculateWindowScore(type, pkg, active, focused)

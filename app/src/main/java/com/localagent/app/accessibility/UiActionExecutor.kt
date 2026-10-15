@@ -110,28 +110,20 @@ class UiActionExecutor(
             return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
         }
 
-        // Expected Package Window Await & Generation Verification Step
-        val expectedPkg = request.expectedPackageName ?: preSnapshot.packageName
-        if (requireExternalContext && service.isValidExternalApplicationPackage(expectedPkg)) {
+        // Source Package Window Usability Verification Step (Ensure source window where target resides is ready)
+        val sourcePkg = preSnapshot.packageName
+        if (requireExternalContext && preSnapshot.nodeCount == 0 && service.isValidExternalApplicationPackage(sourcePkg)) {
             val verifier = com.localagent.app.system.LaunchVerifier(accessibilityServiceSupplier = { service })
             val minGen = request.preActionMinGeneration.coerceAtLeast(preSnapshot.generation - 1)
             val freshSnap = verifier.awaitUsableWindowAndSnapshot(
-                targetPackageName = expectedPkg,
+                targetPackageName = sourcePkg,
                 minGeneration = minGen,
-                timeoutMs = 5000L,
-                settleDelayMs = 150L
+                timeoutMs = 1500L,
+                settleDelayMs = 100L
             )
 
             if (freshSnap != null) {
                 preSnapshot = freshSnap
-            } else if (request.expectedPackageName != null) {
-                // Explicit target package requested but usable interactive window was not observed before timeout
-                val verResult = VerificationResult(
-                    status = VerificationStatus.EXECUTION_FAILED,
-                    resultCode = ResultCode.TIMEOUT,
-                    reason = "Target window timeout waiting for usable interactive window and root node for package '$expectedPkg'"
-                )
-                return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
             }
         }
 
@@ -199,17 +191,45 @@ class UiActionExecutor(
         resolutionLogger?.logTargetResolution(reacquisitionResult.targetResolutionResult)
         resolutionLogger?.endRequest()
 
-        if (!reacquisitionResult.reacquired || reacquisitionResult.liveNode == null) {
+        var liveNode = reacquisitionResult.liveNode
+        var finalTargetRes = reacquisitionResult.targetResolutionResult
+
+        if (!reacquisitionResult.reacquired || liveNode == null) {
+            // Safe bounded re-resolution against live root if initial re-acquisition failed due to layout shift
+            if (liveRoot != null) {
+                val liveSnap = (accessibilityService ?: AgentAccessibilityService.INSTANCE)?.captureLiveSnapshot(preSnapshot.packageName)
+                if (liveSnap != null) {
+                    val freshRes = if (targetNodeId != null) {
+                        targetResolver.resolveTargetById(liveSnap, targetNodeId, targetActionType)
+                    } else {
+                        targetResolver.resolveTargetByIdentity(liveSnap, targetNodeIdentity!!, targetActionType)
+                    }
+                    if (freshRes.status == TargetResolutionStatus.RESOLVED && freshRes.resolvedNode != null) {
+                        val retryReacq = liveTargetResolver.reacquireLiveTarget(
+                            rootLiveNode = liveRoot,
+                            targetResolutionResult = freshRes,
+                            resolvedTarget = freshRes.resolvedNode!!,
+                            actionType = targetActionType,
+                            requestedTargetQuery = request.targetNodeId ?: request.targetNodeIdentity
+                        )
+                        if (retryReacq.reacquired && retryReacq.liveNode != null) {
+                            liveNode = retryReacq.liveNode
+                            finalTargetRes = retryReacq.targetResolutionResult
+                        }
+                    }
+                }
+            }
+        }
+
+        if (liveNode == null) {
             liveRoot?.recycle()
             val verResult = VerificationResult(
                 status = VerificationStatus.TARGET_STALE,
                 resultCode = ResultCode.TARGET_STALE,
-                reason = reacquisitionResult.failureReason ?: "Live target re-acquisition failed"
+                reason = reacquisitionResult.failureReason ?: "Live target re-acquisition and re-resolution failed"
             )
             return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, false, preSnapshot, null, verResult, startTime)
         }
-
-        val liveNode = reacquisitionResult.liveNode!!
         var dispatchSuccess = false
 
         // Log resolved live target details
@@ -289,12 +309,23 @@ class UiActionExecutor(
         }
 
         // 4. Capture Post-Action Snapshot strictly post-dispatch
+        fun isValidPostSnapshot(snap: ObservationSnapshot?): Boolean {
+            if (snap == null) return false
+            if (snap.snapshotId == preSnapshot.snapshotId) return false
+            if (snap.packageName.isBlank() || service?.isValidExternalApplicationPackage(snap.packageName) == false) return false
+            // Package transition is valid even if destination hierarchy is sparse
+            if (snap.packageName != preSnapshot.packageName) return true
+            // Same-package capture requires nodeCount > 0 and (generation > preSnapshot.generation or timestamp >= preSnapshot.timestamp)
+            return snap.nodeCount > 0 && (snap.generation > preSnapshot.generation || snap.timestamp >= preSnapshot.timestamp)
+        }
+
         val postTargetPkg = request.expectedPackageName
-        service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
-        var postSnapshot = snapshotProvider() ?: ObservationSnapshot()
+        val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
+        var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
+            ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
 
         // Bounded polling for fresh post-action snapshot if generation hasn't advanced or package transition occurred
-        if (service != null && postSnapshot.generation <= preSnapshot.generation) {
+        if (service != null && !isValidPostSnapshot(postSnapshot)) {
             val pollStart = System.currentTimeMillis()
             while (System.currentTimeMillis() - pollStart < 1000L) {
                 try {
@@ -303,13 +334,20 @@ class UiActionExecutor(
                     Thread.currentThread().interrupt()
                     break
                 }
-                service.captureLiveSnapshot(targetPackageName = postTargetPkg)
-                val candidatePost = snapshotProvider()
-                if (candidatePost != null && (candidatePost.generation > preSnapshot.generation || candidatePost.packageName != preSnapshot.packageName)) {
+                val polledCap = service.captureLiveSnapshot(targetPackageName = postTargetPkg)
+                val candidatePost = polledCap.takeIf { isValidPostSnapshot(it) }
+                    ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
+
+                if (isValidPostSnapshot(candidatePost)) {
                     postSnapshot = candidatePost
                     break
                 }
             }
+        }
+
+        // Enforce strict freshness & usability
+        if (!isValidPostSnapshot(postSnapshot)) {
+            postSnapshot = null
         }
 
         // 5. Verify Target-Aware Result
@@ -329,7 +367,7 @@ class UiActionExecutor(
             )
         }
 
-        return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
+        return buildResultAndLog(request, finalTargetRes, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
     }
 
     private fun buildResultAndLog(

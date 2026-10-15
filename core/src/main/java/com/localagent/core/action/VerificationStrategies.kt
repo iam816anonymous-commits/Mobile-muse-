@@ -76,12 +76,20 @@ class TargetAwareVerificationStrategy(
             }
         }
 
+        val hierarchyState = when {
+            postSnapshot.nodeCount == 0 -> DestinationHierarchyState.UNAVAILABLE_HIERARCHY
+            postSnapshot.nodeCount in 1..3 -> DestinationHierarchyState.SPARSE_HIERARCHY
+            else -> DestinationHierarchyState.FULL_HIERARCHY
+        }
+
         if (packageChanged) {
+            val hierarchyNote = if (postSnapshot.nodeCount == 0) " (destination hierarchy unavailable/sparse)" else ""
             return VerificationResult(
                 status = VerificationStatus.EXECUTED_AND_VERIFIED,
                 resultCode = ResultCode.SUCCESS_VERIFIED,
-                reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'",
-                diffResult = diffResult
+                reason = "Target action caused package transition from '${preSnapshot.packageName}' to '${postSnapshot.packageName}'$hierarchyNote",
+                diffResult = diffResult,
+                hierarchyState = hierarchyState
             )
         }
 
@@ -99,16 +107,17 @@ class TargetAwareVerificationStrategy(
             )
         }
 
-        // Case B: Target identity changed
+        // Case B: Target resource identity changed unexpectedly (for EXACT/HIGH confidence targets with resource IDs)
         if (preTargetNode != null && postTargetNode != null) {
-            if (preTargetNode.nodeIdentity.isNotBlank() &&
-                postTargetNode.nodeIdentity.isNotBlank() &&
-                preTargetNode.nodeIdentity != postTargetNode.nodeIdentity
-            ) {
+            val preResId = preTargetNode.resourceId?.substringAfterLast('/')?.ifBlank { null }
+                ?: preTargetNode.nodeIdentity.takeIf { it.startsWith("id:") }
+            val postResId = postTargetNode.resourceId?.substringAfterLast('/')?.ifBlank { null }
+                ?: postTargetNode.nodeIdentity.takeIf { it.startsWith("id:") }
+            if (preResId != null && postResId != null && preResId != postResId) {
                 return VerificationResult(
                     status = VerificationStatus.VERIFICATION_FAILED,
                     resultCode = ResultCode.TARGET_STALE,
-                    reason = "Target node identity changed unexpectedly after action from '${preTargetNode.nodeIdentity}' to '${postTargetNode.nodeIdentity}'",
+                    reason = "Target identity changed unexpectedly after action from '$preResId' to '$postResId'",
                     diffResult = diffResult
                 )
             }

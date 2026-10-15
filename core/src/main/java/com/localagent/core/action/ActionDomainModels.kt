@@ -45,6 +45,30 @@ enum class VerificationStatus {
     VERIFICATION_FAILED
 }
 
+enum class DestinationHierarchyState {
+    FULL_HIERARCHY,           // Valid non-empty root node and children available
+    SPARSE_HIERARCHY,         // Non-null root with 1-3 nodes or minimal view structure
+    UNAVAILABLE_HIERARCHY,    // Package transition confirmed, but root node is null or inaccessible
+    UNKNOWN_DESTINATION       // Foreground package cannot be confirmed confidently
+}
+
+enum class FailureStage {
+    NONE,
+    COMMAND_NORMALIZATION,
+    TARGET_RESOLUTION,
+    SOURCE_OBSERVATION,
+    PRE_DISPATCH_VALIDATION,
+    ACTION_DISPATCH,
+    FOREGROUND_TRANSITION,
+    POST_ACTION_CAPTURE,
+    SNAPSHOT_VALIDATION,
+    SNAPSHOT_ASSOCIATION,
+    SEMANTIC_DIFF,
+    GOAL_VERIFICATION,
+    EVIDENCE_PERSISTENCE,
+    UI_PRESENTATION
+}
+
 data class ActionRequest(
     val requestId: String = UUID.randomUUID().toString(),
     val actionType: ActionType,
@@ -73,7 +97,9 @@ data class VerificationResult(
     val status: VerificationStatus,
     val resultCode: ResultCode,
     val reason: String? = null,
-    val diffResult: SnapshotDiffResult? = null
+    val diffResult: SnapshotDiffResult? = null,
+    val hierarchyState: DestinationHierarchyState = DestinationHierarchyState.FULL_HIERARCHY,
+    val failureStage: FailureStage = FailureStage.NONE
 ) {
     fun toJsonObject(): JSONObject {
         return JSONObject().apply {
@@ -81,6 +107,8 @@ data class VerificationResult(
             put("resultCode", resultCode.name)
             reason?.let { put("reason", it) }
             diffResult?.let { put("diffResult", it.toJsonString()) }
+            put("hierarchyState", hierarchyState.name)
+            put("failureStage", failureStage.name)
         }
     }
 }
