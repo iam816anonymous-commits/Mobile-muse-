@@ -327,7 +327,10 @@ class AgentAccessibilityService : AccessibilityService() {
     }
 
     @Suppress("DEPRECATION")
-    open fun captureLiveSnapshot(targetPackageName: String? = null): ObservationSnapshot {
+    open fun captureLiveSnapshot(
+        targetPackageName: String? = null,
+        executionId: String? = null
+    ): ObservationSnapshot {
         val app = application as? LocalAgentApplication
         val activeSessionId = app?.eventLogger?.getActiveSession()?.sessionId ?: ""
 
@@ -375,7 +378,7 @@ class AgentAccessibilityService : AccessibilityService() {
                     activityName = activeActivityName,
                     windowId = selectedWindowId
                 )
-                extracted.copy(generation = currentGen)
+                extracted.copy(generation = currentGen, executionId = executionId)
             } finally {
                 selectedNode.recycle()
                 recycledNodes.add(selectedNode)
@@ -434,7 +437,7 @@ class AgentAccessibilityService : AccessibilityService() {
                             packageName = extPkg,
                             activityName = lastExternalActivityName,
                             windowId = bestExternal.candidate.windowId
-                        ).copy(generation = currentGen)
+                        ).copy(generation = currentGen, executionId = executionId)
                         lastExternalPackageName = extPkg
                         lastExternalWindowId = bestExternal.candidate.windowId
                         lastExternalWindowType = bestExternal.candidate.windowType
@@ -461,7 +464,7 @@ class AgentAccessibilityService : AccessibilityService() {
                                 packageName = fallbackPkg,
                                 activityName = lastExternalActivityName,
                                 windowId = fallbackRoot.windowId
-                            ).copy(generation = currentGen)
+                            ).copy(generation = currentGen, executionId = executionId)
                             lastExternalPackageName = fallbackPkg
                             lastExternalWindowId = fallbackRoot.windowId
                             lastExternalObservationTimestamp = System.currentTimeMillis()

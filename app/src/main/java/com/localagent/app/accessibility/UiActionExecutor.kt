@@ -54,6 +54,7 @@ class UiActionExecutor(
 ) {
     fun execute(request: ActionRequest): ActionExecutionResult {
         val startTime = System.currentTimeMillis()
+        val executionId = UUID.randomUUID().toString()
         val service = accessibilityService ?: AgentAccessibilityService.INSTANCE
 
         if (service == null || !AgentAccessibilityService.isBound) {
@@ -62,7 +63,7 @@ class UiActionExecutor(
                 resultCode = ResultCode.ACCESSIBILITY_UNAVAILABLE,
                 reason = "AccessibilityService is unbound or unavailable"
             )
-            return buildResultAndLog(request, null, false, null, null, verResult, startTime)
+            return buildResultAndLog(executionId, request, null, false, null, null, verResult, startTime)
         }
 
         // Validate action type FIRST
@@ -77,12 +78,13 @@ class UiActionExecutor(
                     resultCode = ResultCode.CAPABILITY_UNAVAILABLE,
                     reason = "Action ${request.actionType} is not a UI action"
                 )
-                return buildResultAndLog(request, null, false, null, null, verResult, startTime)
+                return buildResultAndLog(executionId, request, null, false, null, null, verResult, startTime)
             }
         }
 
-        // Capture pre-action observation snapshot
-        var preSnapshot = snapshotProvider() ?: ObservationSnapshot()
+        // Capture pre-action observation snapshot with execution ID provenance
+        var preSnapshot = (snapshotProvider()
+            ?: service.captureLiveSnapshot(executionId = executionId)).copy(executionId = executionId)
 
         // Package Safety Check: Reject LocalAgent-owned targets when external app action is required
         if (requireExternalContext && !service.isValidExternalApplicationPackage(preSnapshot.packageName)) {
@@ -91,7 +93,7 @@ class UiActionExecutor(
                 resultCode = ResultCode.TARGET_NOT_FOUND,
                 reason = "Target package '${preSnapshot.packageName}' belongs to LocalAgent itself. UI actions require a valid external application context."
             )
-            return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+            return buildResultAndLog(executionId, request, null, false, preSnapshot, null, verResult, startTime)
         }
 
         // Blocking Overlay / Modal Dialog Window Detection
@@ -107,7 +109,7 @@ class UiActionExecutor(
                 resultCode = ResultCode.ACTION_FAILED,
                 reason = "CLICK NOT EXECUTED: A blocking system dialog or overlay ('${activeWindowCandidate.packageName}') changed the actionable window. The target '${request.targetNodeId ?: request.targetNodeIdentity}' could not be safely resolved in the live UI."
             )
-            return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+            return buildResultAndLog(executionId, request, null, false, preSnapshot, null, verResult, startTime)
         }
 
         // Source Package Window Usability Verification Step (Ensure source window where target resides is ready)
@@ -136,7 +138,7 @@ class UiActionExecutor(
                 resultCode = ResultCode.TARGET_NOT_FOUND,
                 reason = "Action request lacks targetNodeId and targetNodeIdentity"
             )
-            return buildResultAndLog(request, null, false, preSnapshot, null, verResult, startTime)
+            return buildResultAndLog(executionId, request, null, false, preSnapshot, null, verResult, startTime)
         }
 
         // 1. Resolve Target
@@ -162,7 +164,7 @@ class UiActionExecutor(
                         reason = "Accessibility scroll target not found and gesture fallback failed or was rejected"
                     )
                 }
-                return buildResultAndLog(request, resolutionResult, gestureSuccess, preSnapshot, snapshotProvider(), verResult, startTime)
+                return buildResultAndLog(executionId, request, resolutionResult, gestureSuccess, preSnapshot, snapshotProvider(), verResult, startTime)
             }
 
             val verResult = VerificationResult(
@@ -170,7 +172,7 @@ class UiActionExecutor(
                 resultCode = if (resolutionResult.status == TargetResolutionStatus.NO_ACTIONABLE_TARGET) ResultCode.TARGET_NOT_ACTIONABLE else ResultCode.TARGET_NOT_FOUND,
                 reason = resolutionResult.failureReason ?: "Target resolution failed"
             )
-            return buildResultAndLog(request, resolutionResult, false, preSnapshot, null, verResult, startTime)
+            return buildResultAndLog(executionId, request, resolutionResult, false, preSnapshot, null, verResult, startTime)
         }
 
         val resolvedNode = resolutionResult.resolvedNode!!
@@ -228,7 +230,7 @@ class UiActionExecutor(
                 resultCode = ResultCode.TARGET_STALE,
                 reason = reacquisitionResult.failureReason ?: "Live target re-acquisition and re-resolution failed"
             )
-            return buildResultAndLog(request, reacquisitionResult.targetResolutionResult, false, preSnapshot, null, verResult, startTime)
+            return buildResultAndLog(executionId, request, reacquisitionResult.targetResolutionResult, false, preSnapshot, null, verResult, startTime)
         }
         var dispatchSuccess = false
 
@@ -320,9 +322,9 @@ class UiActionExecutor(
         }
 
         val postTargetPkg = request.expectedPackageName ?: preSnapshot.packageName
-        val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
-        var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
-            ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
+        val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg, executionId = executionId)
+        var postSnapshot: ObservationSnapshot? = freshPostCap?.copy(executionId = executionId)?.takeIf { isValidPostSnapshot(it) }
+            ?: snapshotProvider()?.copy(executionId = executionId)?.takeIf { isValidPostSnapshot(it) }
 
         // Bounded polling for fresh post-action snapshot if generation hasn't advanced or package transition occurred
         if (service != null && !isValidPostSnapshot(postSnapshot)) {
@@ -334,9 +336,9 @@ class UiActionExecutor(
                     Thread.currentThread().interrupt()
                     break
                 }
-                val polledCap = service.captureLiveSnapshot(targetPackageName = postTargetPkg)
-                val candidatePost = polledCap.takeIf { isValidPostSnapshot(it) }
-                    ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }
+                val polledCap = service.captureLiveSnapshot(targetPackageName = postTargetPkg, executionId = executionId)
+                val candidatePost = polledCap.copy(executionId = executionId).takeIf { isValidPostSnapshot(it) }
+                    ?: snapshotProvider()?.copy(executionId = executionId)?.takeIf { isValidPostSnapshot(it) }
 
                 if (isValidPostSnapshot(candidatePost)) {
                     postSnapshot = candidatePost
@@ -367,10 +369,11 @@ class UiActionExecutor(
             )
         }
 
-        return buildResultAndLog(request, finalTargetRes, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
+        return buildResultAndLog(executionId, request, finalTargetRes, dispatchSuccess, preSnapshot, postSnapshot, verification, startTime)
     }
 
     private fun buildResultAndLog(
+        executionId: String,
         request: ActionRequest,
         targetRes: TargetResolutionResult?,
         dispatchSuccess: Boolean,
@@ -381,6 +384,7 @@ class UiActionExecutor(
     ): ActionExecutionResult {
         val duration = System.currentTimeMillis() - startTime
         val result = ActionExecutionResult(
+            executionId = executionId,
             request = request,
             targetResolutionResult = targetRes,
             dispatchSuccess = dispatchSuccess,
