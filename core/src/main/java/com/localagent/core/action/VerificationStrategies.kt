@@ -45,10 +45,16 @@ class TargetAwareVerificationStrategy(
         postSnapshot: ObservationSnapshot?
     ): VerificationResult {
         if (preSnapshot == null || postSnapshot == null) {
+            val reasonStr = when {
+                preSnapshot == null -> "Pre-action observation snapshot is null"
+                !expectedPackageName.isNullOrBlank() -> "Post-action snapshot capture failed: expected package '$expectedPackageName' observation was unavailable, stale, or empty after dispatch"
+                else -> "Post-action snapshot capture failed: post-action observation for '${preSnapshot.packageName}' was unavailable, stale, or empty after dispatch"
+            }
             return VerificationResult(
                 status = VerificationStatus.VERIFICATION_FAILED,
                 resultCode = ResultCode.ACTION_FAILED,
-                reason = "Pre or post observation snapshot is null"
+                reason = reasonStr,
+                failureStage = if (preSnapshot == null) FailureStage.SOURCE_OBSERVATION else FailureStage.POST_ACTION_CAPTURE
             )
         }
 
@@ -71,7 +77,8 @@ class TargetAwareVerificationStrategy(
                     status = VerificationStatus.VERIFICATION_FAILED,
                     resultCode = ResultCode.ACTION_FAILED,
                     reason = "Expected package '$expectedPackageName' but observed transition to '${postSnapshot.packageName}'",
-                    diffResult = diffResult
+                    diffResult = diffResult,
+                    failureStage = FailureStage.FOREGROUND_TRANSITION
                 )
             }
         }
@@ -118,7 +125,8 @@ class TargetAwareVerificationStrategy(
                     status = VerificationStatus.VERIFICATION_FAILED,
                     resultCode = ResultCode.TARGET_STALE,
                     reason = "Target identity changed unexpectedly after action from '$preResId' to '$postResId'",
-                    diffResult = diffResult
+                    diffResult = diffResult,
+                    failureStage = FailureStage.SNAPSHOT_VALIDATION
                 )
             }
         }

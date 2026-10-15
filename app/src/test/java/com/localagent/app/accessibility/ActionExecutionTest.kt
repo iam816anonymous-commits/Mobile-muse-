@@ -748,4 +748,250 @@ class ActionExecutionTest {
         assertEquals(1, shadowService.globalActionsPerformed.size)
         assertEquals(AccessibilityService.GLOBAL_ACTION_BACK, shadowService.globalActionsPerformed[0])
     }
+
+    // --- GROUP D: Regression & Boundary Lifecycle Tests ---
+
+    @Test
+    fun `REGRESSION-001 - Same app action with valid fresh post snapshot verifies state change`() {
+        val calcButtonPre = ObservationNode(
+            nodeId = "digit7",
+            className = "android.widget.Button",
+            resourceId = "com.android.calculator2:id/digit_7",
+            text = "7",
+            clickable = true,
+            nodeIdentity = "id:digit_7"
+        )
+        val formulaPre = ObservationNode(
+            nodeId = "formula",
+            className = "android.widget.TextView",
+            resourceId = "com.android.calculator2:id/formula",
+            text = "",
+            nodeIdentity = "id:formula"
+        )
+        val formulaPost = formulaPre.copy(text = "7")
+
+        val preSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 2,
+            rootNode = ObservationNode(
+                nodeId = "root",
+                className = "android.widget.LinearLayout",
+                children = listOf(calcButtonPre, formulaPre)
+            ),
+            generation = 10L
+        )
+
+        val postSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 2,
+            rootNode = ObservationNode(
+                nodeId = "root",
+                className = "android.widget.LinearLayout",
+                children = listOf(calcButtonPre, formulaPost)
+            ),
+            generation = 11L
+        )
+
+        var snapCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
+                    text = "7"
+                )
+            },
+            snapshotProvider = {
+                snapCount++
+                if (snapCount == 1) preSnap else postSnap
+            }
+        )
+
+        val req = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "digit7"
+        )
+
+        val result = uiExecutor.execute(req)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertNotNull(result.postSnapshot)
+        assertEquals("com.android.calculator2", result.postSnapshot?.packageName)
+        assertEquals(11L, result.postSnapshot?.generation)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
+    }
+
+    @Test
+    fun `REGRESSION-002 - Same app action where post snapshot capture returns null retains null postSnapshot and FailureStage`() {
+        val calcButton = ObservationNode(
+            nodeId = "digit7",
+            className = "android.widget.Button",
+            resourceId = "com.android.calculator2:id/digit_7",
+            text = "7",
+            clickable = true,
+            nodeIdentity = "id:digit_7"
+        )
+        val preSnap = ObservationSnapshot(
+            packageName = "com.android.calculator2",
+            nodeCount = 1,
+            rootNode = calcButton,
+            generation = 10L
+        )
+
+        var snapCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.android.calculator2",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.android.calculator2:id/digit_7",
+                    text = "7"
+                )
+            },
+            snapshotProvider = {
+                snapCount++
+                if (snapCount == 1) preSnap else null
+            }
+        )
+
+        val req = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "digit7"
+        )
+
+        val result = uiExecutor.execute(req)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertNull(result.postSnapshot)
+        assertEquals(VerificationStatus.VERIFICATION_FAILED, result.verificationResult.status)
+        assertEquals(com.localagent.core.action.FailureStage.POST_ACTION_CAPTURE, result.verificationResult.failureStage)
+        assertTrue(result.verificationResult.reason?.contains("Post-action snapshot capture failed") == true)
+    }
+
+    @Test
+    fun `REGRESSION-003 - Launcher click to camera destination captures camera postSnapshot without waiting for hilauncher`() {
+        val launcherNode = ObservationNode(
+            nodeId = "camera_icon",
+            className = "android.widget.TextView",
+            resourceId = "com.transsion.hilauncher:id/camera_icon",
+            text = "Camera",
+            clickable = true,
+            nodeIdentity = "id:camera_icon"
+        )
+        val preLauncherSnap = ObservationSnapshot(
+            packageName = "com.transsion.hilauncher",
+            nodeCount = 1,
+            rootNode = launcherNode,
+            generation = 20L
+        )
+
+        val cameraShutterNode = ObservationNode(
+            nodeId = "shutter",
+            className = "android.widget.ImageView",
+            resourceId = "com.mediatek.camera:id/shutter",
+            clickable = true,
+            nodeIdentity = "id:shutter"
+        )
+        val postCameraSnap = ObservationSnapshot(
+            packageName = "com.mediatek.camera",
+            nodeCount = 1,
+            rootNode = cameraShutterNode,
+            generation = 21L
+        )
+
+        var snapCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "com.transsion.hilauncher:id/camera_icon",
+                    text = "Camera"
+                )
+            },
+            snapshotProvider = {
+                snapCount++
+                if (snapCount == 1) preLauncherSnap else postCameraSnap
+            }
+        )
+
+        val req = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "camera_icon"
+        )
+
+        val result = uiExecutor.execute(req)
+
+        assertNotNull(result)
+        assertTrue(result.dispatchSuccess)
+        assertEquals("com.transsion.hilauncher", result.preSnapshot?.packageName)
+        assertEquals("com.mediatek.camera", result.postSnapshot?.packageName)
+        assertEquals(VerificationStatus.EXECUTED_AND_VERIFIED, result.verificationResult.status)
+        assertEquals(ResultCode.SUCCESS_VERIFIED, result.verificationResult.resultCode)
+    }
+
+    @Test
+    fun `REGRESSION-004 - Action result records exact pre and post snapshot association in service execution history`() {
+        val btnNode = ObservationNode(
+            nodeId = "btn",
+            className = "android.widget.Button",
+            resourceId = "com.app:id/btn",
+            text = "Click",
+            clickable = true,
+            nodeIdentity = "id:btn"
+        )
+        val preSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = btnNode,
+            generation = 50L
+        )
+        val postSnap = ObservationSnapshot(
+            packageName = "com.app",
+            nodeCount = 1,
+            rootNode = btnNode.copy(text = "Clicked"),
+            generation = 51L
+        )
+
+        var snapCount = 0
+        val uiExecutor = UiActionExecutor(
+            accessibilityService = service,
+            liveRootNodeProvider = {
+                AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.app",
+                    className = "android.widget.Button",
+                    viewIdResourceName = "com.app:id/btn",
+                    text = "Click"
+                )
+            },
+            snapshotProvider = {
+                snapCount++
+                if (snapCount == 1) preSnap else postSnap
+            }
+        )
+
+        val req = ActionRequest(
+            actionType = ActionType.UI_CLICK,
+            targetNodeId = "btn"
+        )
+
+        val result = uiExecutor.execute(req)
+
+        assertNotNull(result)
+        val history = service.actionExecutionHistory
+        assertTrue(history.isNotEmpty())
+        val recorded = history.last()
+        assertEquals(result.executionId, recorded.executionId)
+        assertEquals(50L, recorded.preSnapshot?.generation)
+        assertEquals(51L, recorded.postSnapshot?.generation)
+        assertEquals("com.app", recorded.preSnapshot?.packageName)
+        assertEquals("com.app", recorded.postSnapshot?.packageName)
+    }
 }
