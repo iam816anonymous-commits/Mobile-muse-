@@ -409,10 +409,15 @@ class AgentAccessibilityService : AccessibilityService() {
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
 
-            // If an explicit targetPackageName was requested or if lastExternalPackageName exists, prefer matching candidate
-            val targetPkgToFind = targetPackageName?.ifBlank { null } ?: lastExternalPackageName.takeIf { isValidExternalApplicationPackage(it) }
-            if (!targetPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(targetPkgToFind)) {
-                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPkgToFind && it.node != null }
+            // If an explicit targetPackageName was requested, prefer matching candidate.
+            // If no explicit targetPackageName was requested, preserve bestExternal (highest-scoring active external window)
+            if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
+                if (targetMatch != null) {
+                    bestExternal = targetMatch
+                }
+            } else if (bestExternal == null && isValidExternalApplicationPackage(lastExternalPackageName)) {
+                val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == lastExternalPackageName && it.node != null }
                 if (targetMatch != null) {
                     bestExternal = targetMatch
                 }
@@ -439,24 +444,27 @@ class AgentAccessibilityService : AccessibilityService() {
                     extNode.recycle()
                     recycledNodes.add(extNode)
                 }
-            } else if (!targetPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(targetPkgToFind)) {
-                // Fallback: Use live root node seam to capture explicit target external snapshot
-                val fallbackRoot = getLiveExternalRootNode(targetPkgToFind)
-                if (fallbackRoot != null) {
-                    try {
-                        val fallbackPkg = fallbackRoot.packageName?.toString() ?: targetPkgToFind
-                        val extSnap = extractor.extractSnapshot(
-                            rootNodeInfo = fallbackRoot,
-                            packageName = fallbackPkg,
-                            activityName = lastExternalActivityName,
-                            windowId = fallbackRoot.windowId
-                        ).copy(generation = currentGen)
-                        lastExternalPackageName = fallbackPkg
-                        lastExternalWindowId = fallbackRoot.windowId
-                        lastExternalObservationTimestamp = System.currentTimeMillis()
-                        lastExternalObservationSnapshot = extSnap
-                    } finally {
-                        fallbackRoot.recycle()
+            } else {
+                val fallbackPkgToFind = targetPackageName?.ifBlank { null } ?: lastExternalPackageName.takeIf { isValidExternalApplicationPackage(it) }
+                if (!fallbackPkgToFind.isNullOrBlank() && isValidExternalApplicationPackage(fallbackPkgToFind)) {
+                    // Fallback: Use live root node seam to capture explicit target external snapshot
+                    val fallbackRoot = getLiveExternalRootNode(fallbackPkgToFind)
+                    if (fallbackRoot != null) {
+                        try {
+                            val fallbackPkg = fallbackRoot.packageName?.toString() ?: fallbackPkgToFind
+                            val extSnap = extractor.extractSnapshot(
+                                rootNodeInfo = fallbackRoot,
+                                packageName = fallbackPkg,
+                                activityName = lastExternalActivityName,
+                                windowId = fallbackRoot.windowId
+                            ).copy(generation = currentGen)
+                            lastExternalPackageName = fallbackPkg
+                            lastExternalWindowId = fallbackRoot.windowId
+                            lastExternalObservationTimestamp = System.currentTimeMillis()
+                            lastExternalObservationSnapshot = extSnap
+                        } finally {
+                            fallbackRoot.recycle()
+                        }
                     }
                 }
             }
