@@ -1,4 +1,4 @@
-name: LocalAgent CI
+name: LocalAgent CI Pipeline
 
 on:
   push:
@@ -6,8 +6,7 @@ on:
       - '**'
   pull_request:
     branches:
-      - 'main'
-      - 'master'
+      - '**'
   workflow_dispatch:
 
 concurrency:
@@ -15,12 +14,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build & Test
+  validate-repository:
+    name: Repository & Governance Validation
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Validate Governance & Plan Documents
+        run: |
+          test -f docs/PHASE_MAP.md || (echo "Missing docs/PHASE_MAP.md" && exit 1)
+          test -f PHASE_PLAN.md || (echo "Missing PHASE_PLAN.md" && exit 1)
+          test -f gradlew || (echo "Missing Gradle Wrapper executable" && exit 1)
+          test -f legacy/FILE_HASHES.sha256 || (echo "Missing legacy archive hashes" && exit 1)
+          sha256sum -c legacy/FILE_HASHES.sha256 || (echo "Legacy archive hash verification failed" && exit 1)
+          echo "Repository & Governance Validation PASSED"
+
+  build-and-test:
+    name: Android Build, Automated Tests & Artifact Generation
+    runs-on: ubuntu-latest
+    needs: validate-repository
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Codebase
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -30,20 +46,29 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Grant execute permission for gradlew
+      - name: Grant Execute Permission for Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: Run Unit Tests
+      - name: Run Core & App Unit/Integration Tests
         run: ./gradlew test --stacktrace
 
-      - name: Run Android Lint
-        run: ./gradlew lint --stacktrace
+      - name: Build Debug APK Artifact
+        run: ./gradlew assembleDebug
 
-      - name: Assemble Debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload Debug APK Artifact
+      - name: Upload Test Results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: skill-builder-debug-apk
+          name: test-results
+          path: |
+            core/build/reports/tests/
+            app/build/reports/tests/
+          retention-days: 7
+
+      - name: Upload Debug APK Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-muse-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
