@@ -311,6 +311,46 @@ class AppControlEngineTest {
     }
 
     @Test
+    fun `PHASE8-VERIFY-005 - LaunchVerifier accepts launcher package variation variants`() {
+        val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
+        val service = serviceController.get()
+        service.onServiceConnectedForTest()
+
+        // Register com.transsion.hilauncher and com.transsion.hilauncher.v2 as Home activities in shadow PackageManager
+        val shadowPm = org.robolectric.Shadows.shadowOf(app.packageManager)
+        val homeIntentFilter = android.content.IntentFilter(android.content.Intent.ACTION_MAIN).apply {
+            addCategory(android.content.Intent.CATEGORY_HOME)
+        }
+        val comp1 = android.content.ComponentName("com.transsion.hilauncher", "com.transsion.hilauncher.HomeActivity")
+        val comp2 = android.content.ComponentName("com.transsion.hilauncher.v2", "com.transsion.hilauncher.v2.HomeActivity")
+        shadowPm.addActivityIfNotPresent(comp1)
+        shadowPm.addActivityIfNotPresent(comp2)
+        shadowPm.addIntentFilterForActivity(comp1, homeIntentFilter)
+        shadowPm.addIntentFilterForActivity(comp2, homeIntentFilter)
+
+        val event = android.view.accessibility.AccessibilityEvent.obtain(android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        event.packageName = "com.transsion.hilauncher.v2"
+        service.onAccessibilityEvent(event)
+
+        val verifier = LaunchVerifier(
+            context = app,
+            accessibilityServiceSupplier = { service },
+            rootNodeProvider = { pkg ->
+                com.localagent.app.accessibility.AccessibilityTestFixtures.createClickableNode(
+                    packageName = "com.transsion.hilauncher.v2",
+                    className = "android.widget.TextView",
+                    viewIdResourceName = "camera_icon",
+                    text = "Camera"
+                )
+            }
+        )
+
+        // Verified against com.transsion.hilauncher alias
+        val result = verifier.verifyForeground("com.transsion.hilauncher", timeoutMs = 500)
+        assertTrue(result is LaunchVerificationResult.Success)
+    }
+
+    @Test
     fun `PHASE8-E2E-001 - Sequential APP_LAUNCH then UI_CLICK command execution`() {
         val serviceController = Robolectric.buildService(AgentAccessibilityService::class.java).create()
         val service = serviceController.get()
