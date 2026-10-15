@@ -319,7 +319,7 @@ class UiActionExecutor(
             return snap.nodeCount > 0 && (snap.generation > preSnapshot.generation || snap.timestamp >= preSnapshot.timestamp)
         }
 
-        val postTargetPkg = request.expectedPackageName
+        val postTargetPkg = request.expectedPackageName ?: preSnapshot.packageName
         val freshPostCap = service?.captureLiveSnapshot(targetPackageName = postTargetPkg)
         var postSnapshot: ObservationSnapshot? = freshPostCap.takeIf { isValidPostSnapshot(it) }
             ?: snapshotProvider()?.takeIf { isValidPostSnapshot(it) }

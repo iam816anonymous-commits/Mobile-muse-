@@ -136,7 +136,8 @@ class ObservationActivity : AppCompatActivity() {
         val targetPkg = if (service?.isValidExternalApplicationPackage(lastExtPkg) == true) lastExtPkg else activePkg
         val isForegroundMatch = activePkg == targetPkg
 
-        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "BOUND" else "UNBOUND"} | Target App: $targetPkg | FgMatch: $isForegroundMatch [Foreground vs Target App Match]"
+        val buildTag = "v0.0.1-P8-SNAPSHOT-CAPT"
+        binding.tvAccessibilityStatus.text = "Status: ${if (a11yBound) "BOUND" else "UNBOUND"} | Target App: $targetPkg | FgMatch: $isForegroundMatch [$buildTag]"
 
         val diag = service?.latestDiagnostics
         binding.tvDiagnosticsContent.text = formatDiagnosticsContent(diag)

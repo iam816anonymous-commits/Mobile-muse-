@@ -409,9 +409,9 @@ class AgentAccessibilityService : AccessibilityService() {
                 rejectedPackagesInRequest = rejectedPackagesInRequest
             )
 
-            // Prefer explicit targetPackageName match ONLY if bestExternal is null or NOT an active focused application window
-            val isBestExternalActiveFocused = bestExternal?.candidate?.isActive == true && bestExternal.candidate.isFocused
-            if (!isBestExternalActiveFocused && !targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
+            // If an explicit targetPackageName was requested, prefer matching candidate.
+            // If no explicit targetPackageName was requested, preserve bestExternal (highest-scoring active external window)
+            if (!targetPackageName.isNullOrBlank() && isValidExternalApplicationPackage(targetPackageName)) {
                 val targetMatch = windowCandidates.firstOrNull { it.candidate.packageName == targetPackageName && it.node != null }
                 if (targetMatch != null) {
                     bestExternal = targetMatch

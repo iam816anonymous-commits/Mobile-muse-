@@ -172,28 +172,23 @@ class LaunchVerifier(
     }
 ) {
 
-    private fun isHomeLauncherPackage(packageName: String): Boolean {
-        if (packageName.isBlank() || packageName == "com.android.systemui" || packageName == "com.localagent.app") return false
-        val ctx = context ?: (accessibilityServiceSupplier() ?: AgentAccessibilityService.INSTANCE)?.applicationContext
-            ?: return false
-        return try {
-            val pm = ctx.packageManager
-            val homeIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
-            val resolveInfos = pm.queryIntentActivities(homeIntent, 0)
-            resolveInfos.any { it.activityInfo?.packageName == packageName }
-        } catch (_: Exception) {
-            false
-        }
-    }
-
     private fun isPackageMatch(actualPkg: String, expectedPkg: String): Boolean {
         if (actualPkg.isBlank() || expectedPkg.isBlank()) return false
         if (actualPkg == expectedPkg) return true
         if (actualPkg == "com.android.systemui" || actualPkg == "com.localagent.app") return false
 
-        // Dynamic Home launcher package relationship verification via PackageManager
-        if (isHomeLauncherPackage(expectedPkg) && isHomeLauncherPackage(actualPkg)) {
-            return true
+        val ctx = context ?: (accessibilityServiceSupplier() ?: AgentAccessibilityService.INSTANCE)?.applicationContext
+        if (ctx != null) {
+            try {
+                val pm = ctx.packageManager
+                val homeIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+                val homeActivities = pm.queryIntentActivities(homeIntent, 0)
+                val homePackages = homeActivities.mapNotNull { it.activityInfo?.packageName }.toSet()
+                if (homePackages.contains(expectedPkg) && homePackages.contains(actualPkg)) {
+                    return true
+                }
+            } catch (_: Exception) {
+            }
         }
 
         return false
