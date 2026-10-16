@@ -51,53 +51,16 @@ class AppResolver(private val context: Context) {
             return AppResolutionResult.Success(trimmed, appLabel)
         }
 
-        // 0. If query is a home / launcher alias, prioritize resolving the actual default Home activity
-        val isLauncherQuery = when (trimmed.lowercase()) {
-            "hilauncher", "launcher", "home launcher", "home" -> true
-            else -> false
-        }
-        if (isLauncherQuery) {
-            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-            }
-            val defaultHome = pm.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
-            val resolvedPkg = defaultHome?.activityInfo?.packageName
-            if (!resolvedPkg.isNullOrBlank()) {
-                val appLabel = try {
-                    val appInfo = pm.getApplicationInfo(resolvedPkg, 0)
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (_: Exception) {
-                    resolvedPkg
-                }
-                return AppResolutionResult.Success(resolvedPkg, appLabel)
-            }
-        }
-
         // Common alias mappings
         val knownAlias = when (trimmed.lowercase()) {
             "calculator", "calc" -> listOf("com.transsion.calculator", "com.android.calculator2", "com.google.android.calculator")
             "settings" -> listOf("com.android.settings")
-            "hilauncher", "launcher", "home launcher", "home" -> listOf("com.transsion.hilauncher", "com.transsion.hilauncher.v2", "com.transsion.hilauncher3", "com.google.android.apps.nexuslauncher", "com.android.launcher3")
             else -> emptyList()
         }
 
         for (pkg in knownAlias) {
             val aliasIntent = pm.getLaunchIntentForPackage(pkg)
             if (aliasIntent != null) {
-                val appLabel = try {
-                    val appInfo = pm.getApplicationInfo(pkg, 0)
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (_: Exception) {
-                    pkg
-                }
-                return AppResolutionResult.Success(pkg, appLabel)
-            }
-            // Check if package exists as a Home / Launcher Activity
-            val homeCheckIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-                setPackage(pkg)
-            }
-            if (pm.queryIntentActivities(homeCheckIntent, 0).isNotEmpty()) {
                 val appLabel = try {
                     val appInfo = pm.getApplicationInfo(pkg, 0)
                     pm.getApplicationLabel(appInfo).toString()
@@ -135,23 +98,8 @@ class AppLauncher(private val context: Context) {
         }
 
         val pm = context.packageManager
-        var launchIntent = pm.getLaunchIntentForPackage(packageName)
-
-        if (launchIntent == null) {
-            // Check if this package is a Launcher / Home package
-            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-                setPackage(packageName)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-            }
-            if (pm.queryIntentActivities(homeIntent, 0).isNotEmpty()) {
-                launchIntent = homeIntent
-            }
-        }
-
-        if (launchIntent == null) {
-            return AppLaunchResult.LaunchFailed(packageName, "No launch intent found for package '$packageName'")
-        }
+        val launchIntent = pm.getLaunchIntentForPackage(packageName)
+            ?: return AppLaunchResult.LaunchFailed(packageName, "No launch intent found for package '$packageName'")
 
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
 
