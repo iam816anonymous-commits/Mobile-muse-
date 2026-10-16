@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#DD121212"
+    android:padding="8dp">
+
+    <!-- Title bar -->
+    <RelativeLayout
+        android:id="@+id/rlTitleBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FF222222"
+        android:padding="6dp">
+
+        <TextView
+            android:id="@+id/tvConsoleTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LocalAgent Console (Drag Here)"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/btnConsoleClose" />
+
+        <Button
+            android:id="@+id/btnConsoleClose"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:text="X"
+            android:textSize="12sp"
+            android:textColor="#FFFFFFFF"
+            android:background="#FF880000"
+            android:layout_alignParentEnd="true"
+            android:padding="0dp" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/tvTargetPackage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Target: External Application"
+        android:textColor="#FF00E676"
+        android:textSize="12sp"
+        android:layout_marginTop="4dp" />
+
+    <!-- Command Input area -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <EditText
+            android:id="@+id/etConsoleInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="click 7"
+            android:textColor="#FFFFFFFF"
+            android:textColorHint="#FF888888"
+            android:textSize="14sp"
+            android:imeOptions="actionGo"
+            android:inputType="text"
+            android:singleLine="true" />
+
+        <Button
+            android:id="@+id/btnConsoleRun"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Run"
+            android:textSize="12sp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- Status Output -->
+    <TextView
+        android:id="@+id/tvConsoleStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ready for command (e.g. click 7)"
+        android:textColor="#FFB0BEC5"
+        android:textSize="11sp"
+        android:layout_marginTop="6dp" />
+
+</LinearLayout>
